@@ -12,7 +12,6 @@ ENV PYTHONUNBUFFERED 1
 RUN groupadd -g $GROUP_ID -o user && useradd -o -m -u $USER_ID -g user user
 
 RUN apt-get update -y && \
-    apt-get install -y && \
     apt-get install -y --no-install-recommends netcat && \
     apt-get clean
 

@@ -1,5 +1,5 @@
 .PHONY: build up down bash test
-COMPOSE=docker-compose $(COMPOSE_OPTS)
+COMPOSE=docker compose $(COMPOSE_OPTS)
 USER_ID := $(shell id -u)
 GROUP_ID := $(shell id -g)
 
@@ -22,4 +22,3 @@ test: build
 	$(COMPOSE) up -d
 	@trap '${COMPOSE} down' EXIT; \
 	$(COMPOSE) exec -T django python manage.py test $(APP) -v 2
-	

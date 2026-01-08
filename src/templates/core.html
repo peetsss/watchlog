@@ -1,15 +1,20 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="{% static 'img/favicon.svg' %}">
-    <title>{% block title %}moviehub{% endblock %}</title>
+    <title>{% block title %}watchlog{% endblock %}</title>
     <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-pVlG3hIK4OBQ+6w2OU1a7PGyDl6Wkk8xkpX7PVdOY4OFbQ17FmGw7M5Jy6Swv21k4z0KqPcE4ivpKYYA3+GeaQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+        integrity="sha512-pVlG3hIK4OBQ+6w2OU1a7PGyDl6Wkk8xkpX7PVdOY4OFbQ17FmGw7M5Jy6Swv21k4z0KqPcE4ivpKYYA3+GeaQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
+
 <body class="bg-dark text-light">
 
     {% block body %}
@@ -17,7 +22,9 @@
 
     <!-- Bootstrap JS and dependencies -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous"></script>
     <script src="https://kit.fontawesome.com/9a7ffa9c75.js" crossorigin="anonymous"></script>
     <script>
         function submitForm(formId) {
@@ -27,4 +34,5 @@
     {% block scripts %}
     {% endblock %}
 </body>
+
 </html>

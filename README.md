@@ -1,6 +1,6 @@
-# moviehub
+# watchlog
 
-**moviehub** is a web application that allows users to create groups, add movies to a watchlist, and rate them. The application utilizes the IMDb API to gather detailed information about the movies.
+**watchlog** is a web application that allows users to create groups, add movies to a watchlist, and rate them. The application utilizes the IMDb API to gather detailed information about the movies.
 
 ## Technologies Used
 - Django Framework
@@ -39,7 +39,7 @@ Create a file named `.env.dev` in the root directory of the project and add the 
 
    POSTGRES_USER=postgres_user
    POSTGRES_PASSWORD=postgres_password
-   POSTGRES_DB=moviehub_db
+   POSTGRES_DB=watchlog_db
    POSTGRES_HOST=db
    POSTGRES_PORT=5432
    ```
