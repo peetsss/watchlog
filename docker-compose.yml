@@ -1,42 +1,37 @@
-version: "3.8"
-
-x-base: &backend-base
-    build: .
-    env_file:
-      - .env.dev
-    depends_on:
-      - db
-    volumes:
-      - ./src:/opt/src
-
 services:
-  db:
-    container_name: postgres-db
-    env_file:
-      - .env.dev
-    image: postgres:latest
-    environment:
-      POSTGRES_HOST: ${POSTGRES_HOST:-db}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_DB: ${POSTGRES_DB:-movies_db}
-      POSTGRES_USER: ${POSTGRES_USER:-moviedb}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-moviedb_password}
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-
   django:
-    <<: *backend-base
-    entrypoint: ['sh', 'entrypoints/app.sh']
-    container_name: movies-django
-    ports:
-      - "8000:8000"
-    image: movies
+    container_name: watchlog
+    command: gunicorn watchlog.wsgi:application --bind 0.0.0.0:8000
+    depends_on:
+      - database
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-watchlog_db}
+      POSTGRES_USER: ${POSTGRES_USER:-watchlog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchlog_password}
+    networks:
+      - watchlog
+      - caddy
     restart: unless-stopped
 
-  migrate:
-    <<: *backend-base
-    entrypoint: ['sh', 'entrypoints/migrate.sh']
-    container_name: movies-migrate
-    image: movies
-    restart: 'no'
+  database:
+    image: postgres:18-trixie
+    container_name: watchlog-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-watchlog_db}
+      POSTGRES_USER: ${POSTGRES_USER:-watchlog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchlog_password}
+    networks:
+      - watchlog
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    restart: unless-stopped
+
+networks:
+  watchlog:
+  caddy:
+    external: true
+
+volumes:
+  postgres_data:

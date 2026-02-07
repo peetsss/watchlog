@@ -27,5 +27,5 @@ class Movie(models.Model):
     metacritic_url = models.TextField()
     filmweb_url = models.TextField(null=True, blank=True)
 
-    def __str__(self):
-        return self.title
+    def __str__(self) -> str:
+        return str(self.title)

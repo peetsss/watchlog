@@ -3,7 +3,8 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
-from groups.models import Group, GroupMovie
+
+from src.groups.models import Group, GroupMovie
 
 from ..models import Movie
 
@@ -17,21 +18,17 @@ class MovieViewsTests(TestCase):
         self.group = Group.objects.create(name="Test Group")
         self.client.login(username="testuser", password="password")
 
-    @patch("movies.utils.imdb.IMDbClient.fetch_search_query")
+    @patch("src.movies.utils.imdb.IMDbClient.fetch_search_query")
     def test_search_movies(self, mock_fetch_search_query):
         mock_fetch_search_query.return_value = [{"title": "Test Movie", "year": "2021"}]
         response = self.client.post(reverse("search_movies"), {"query": "Test"})
         self.assertEqual(response.status_code, 200)
-        self.assertJSONEqual(
-            response.content, {"movies": [{"title": "Test Movie", "year": "2021"}]}
-        )
+        self.assertJSONEqual(response.content, {"movies": [{"title": "Test Movie", "year": "2021"}]})
 
-    @patch("movies.utils.imdb.IMDbClient.fetch_movie_details")
-    @patch("movies.utils.utils.get_metacritic_url")
-    @patch("movies.utils.utils.get_rotten_url")
-    def test_add_movie(
-        self, mock_get_rotten_url, mock_get_metacritic_url, mock_fetch_movie_details
-    ):
+    @patch("src.movies.utils.imdb.IMDbClient.fetch_movie_details")
+    @patch("src.movies.utils.utils.get_metacritic_url")
+    @patch("src.movies.utils.utils.get_rotten_url")
+    def test_add_movie(self, mock_get_rotten_url, mock_get_metacritic_url, mock_fetch_movie_details):
         mock_fetch_movie_details.return_value = {
             "Title": "Test Movie",
             "Released": "01 Jan 2021",
@@ -59,9 +56,7 @@ class MovieViewsTests(TestCase):
             {"movie_id": "tt1234567", "group_code": self.group.code},
         )
         self.assertEqual(response.status_code, 200)
-        self.assertJSONEqual(
-            response.content, {"msg": "Test Movie has been added to Test Group"}
-        )
+        self.assertJSONEqual(response.content, {"msg": "Test Movie has been added to Test Group"})
 
         movie = Movie.objects.get(imdb_id="tt1234567")
         self.assertEqual(movie.title, "Test Movie")
@@ -79,6 +74,4 @@ class MovieViewsTests(TestCase):
     def test_search_movies_no_query(self):
         response = self.client.post(reverse("search_movies"), {})
         self.assertEqual(response.status_code, 400)
-        self.assertJSONEqual(
-            response.content, {"error": "No query parameter provided."}
-        )
+        self.assertJSONEqual(response.content, {"error": "No query parameter provided."})

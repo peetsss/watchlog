@@ -1,0 +1,19 @@
+services:
+  django:
+    build:
+      context: .
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_ENV: dev
+      DJANGO_DEBUG_TOOLBAR: 1
+    volumes:
+      - ./src:/app
+
+  database:
+    ports:
+      - "127.0.0.1:5432:5432"

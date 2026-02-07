@@ -1,11 +1,11 @@
 from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseBadRequest, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
-from groups.models import Group, GroupMovie
 
+from groups.models import Group, GroupMovie
 from movies.utils.imdb import IMDbClient
 from movies.utils.utils import get_metacritic_url, get_rotten_url
 
@@ -14,7 +14,7 @@ from .models import Movie
 
 @require_POST
 @login_required
-def search_movies(request):
+def search_movies(request: HttpRequest) -> JsonResponse:
     query = request.POST.get("query")
     if query:
         movies = IMDbClient.fetch_search_query(query=query)
@@ -25,7 +25,7 @@ def search_movies(request):
 
 @require_POST
 @login_required
-def add_movie(request):
+def add_movie(request: HttpRequest) -> HttpResponse:
     user = request.user
     movie_id = request.POST.get("movie_id")
     group_code = request.POST.get("group_code")
@@ -66,9 +66,7 @@ def add_movie(request):
             poster=movie_details.get("Poster"),
             awards=movie_details.get("Awards"),
             imdb_score=movie_details.get("imdbRating", "N/A"),
-            rottentomato_score=movie_details["Ratings"][1]["Value"]
-            if len(movie_details.get("Ratings", [])) > 1
-            else "N/A",
+            rottentomato_score=movie_details["Ratings"][1]["Value"] if len(movie_details.get("Ratings", [])) > 1 else "N/A",
             metacritic_score=movie_details.get("Metascore", "N/A"),
             filmweb_score=None,
             imdb_url=imdb_url,

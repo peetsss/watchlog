@@ -8,7 +8,7 @@ class SignUpForm(UserCreationForm):
         model = User
         fields = ("username", "password1", "password2")
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super(SignUpForm, self).__init__(*args, **kwargs)
         self.fields["username"].widget.attrs.update(
             {
@@ -31,7 +31,7 @@ class SignUpForm(UserCreationForm):
 
 
 class AuthForm(AuthenticationForm):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super(AuthForm, self).__init__(*args, **kwargs)
         self.fields["username"].widget.attrs.update(
             {

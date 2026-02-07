@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import time_machine
 
-from movies.utils.request_limiter import RequestLimiter
+from src.movies.utils.request_limiter import RequestLimiter
 
 
 class TestRequestLimiter(unittest.TestCase):

@@ -1,13 +1,15 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Func
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+
 from groups.models import UserScore
 
 from .forms import AuthForm, SignUpForm
 
 
-def start_view(request):
+def start_view(request: HttpRequest) -> HttpResponse:
     signup_form = SignUpForm()
     login_form = AuthForm()
 
@@ -51,17 +53,13 @@ def start_view(request):
 
 
 @login_required
-def profile(request):
+def profile(request: HttpRequest) -> HttpResponse:
     user = request.user
     avg_score_across_groups = UserScore.objects.filter(user=user).aggregate(
-        avg_score=Func(
-            Avg("score"), function="ROUND", template="%(function)s(%(expressions)s, 1)"
-        )
+        avg_score=Func(Avg("score"), function="ROUND", template="%(function)s(%(expressions)s, 1)")
     )
 
-    scores_set_count = UserScore.objects.filter(user=user).aggregate(
-        total_scores=Count("score")
-    )["total_scores"]
+    scores_set_count = UserScore.objects.filter(user=user).aggregate(total_scores=Count("score"))["total_scores"]
 
     context = {
         "user": user,
@@ -72,6 +70,6 @@ def profile(request):
 
 
 @login_required
-def logout_view(request):
+def logout_view(request: HttpRequest) -> HttpResponse:
     logout(request)
     return redirect("start")

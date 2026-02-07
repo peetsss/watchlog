@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
-from movies.models import Movie
+
+from src.movies.models import Movie
 
 from .models import Group, GroupMovie, UserScore
 
@@ -40,9 +41,7 @@ class GroupViewsTests(TestCase):
             filmweb_url=None,
         )
 
-        GroupMovie.objects.create(
-            group=cls.group, movie=cls.movie, added_by=cls.user.username
-        )
+        GroupMovie.objects.create(group=cls.group, movie=cls.movie, added_by=cls.user.username)
 
         cls.user2 = User.objects.create_user(username="testuser2", password="testpass2")
         cls.group.members.add(cls.user2)
@@ -85,11 +84,7 @@ class GroupViewsTests(TestCase):
             {"movie_id": self.movie.imdb_id, "group_code": self.group.code, "score": 8},
         )
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(
-            UserScore.objects.filter(
-                user=self.user, movie=self.movie, group=self.group, score=8
-            ).exists()
-        )
+        self.assertTrue(UserScore.objects.filter(user=self.user, movie=self.movie, group=self.group, score=8).exists())
 
     def test_group_info(self):
         response = self.client.get(reverse("group_info", args=[self.group.slug]))
@@ -98,16 +93,12 @@ class GroupViewsTests(TestCase):
         self.assertContains(response, self.user.username)
 
     def test_leave_group(self):
-        response = self.client.post(
-            reverse("leave_group"), {"group_code": self.group.code}
-        )
+        response = self.client.post(reverse("leave_group"), {"group_code": self.group.code})
         self.assertEqual(response.status_code, 302)
         self.assertNotIn(self.user, self.group.members.all())
 
     def test_generate_invite_link(self):
-        response = self.client.get(
-            reverse("generate_invite_link", args=[self.group.slug])
-        )
+        response = self.client.get(reverse("generate_invite_link", args=[self.group.slug]))
         self.assertEqual(response.status_code, 200)
         self.assertIn("invite_link", response.json())
 
@@ -115,8 +106,6 @@ class GroupViewsTests(TestCase):
         invite_link_code = self.group.code
         self.client.logout()
         self.client.login(username="testuser2", password="testpass2")
-        response = self.client.get(
-            reverse("join_group_by_link", args=[invite_link_code])
-        )
+        response = self.client.get(reverse("join_group_by_link", args=[invite_link_code]))
         self.assertEqual(response.status_code, 302)
         self.assertIn(self.user2, self.group.members.all())

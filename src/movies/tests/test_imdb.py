@@ -1,11 +1,11 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from movies.utils.imdb import IMDbClient
+from src.movies.utils.imdb import IMDbClient
 
 
 class TestIMDbClient(unittest.TestCase):
-    @patch("movies.utils.imdb.requests.get")
+    @patch("src.movies.utils.imdb.requests.get")
     def test_fetch_search_query_success(self, mock_get):
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -47,7 +47,7 @@ class TestIMDbClient(unittest.TestCase):
         self.assertEqual(results[1]["Title"], "The Strangers: Prey at Night")
         self.assertEqual(results[2]["Title"], "The Strangers: Chapter 1")
 
-    @patch("movies.utils.imdb.requests.get")
+    @patch("src.movies.utils.imdb.requests.get")
     def test_fetch_search_query_failure(self, mock_get):
         mock_response = MagicMock()
         mock_response.status_code = 500
@@ -58,7 +58,7 @@ class TestIMDbClient(unittest.TestCase):
 
         self.assertEqual(results, [])
 
-    @patch("movies.utils.imdb.requests.get")
+    @patch("src.movies.utils.imdb.requests.get")
     def test_fetch_movie_details_success(self, mock_get):
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -77,7 +77,7 @@ class TestIMDbClient(unittest.TestCase):
         self.assertEqual(result["Year"], "2019")
         self.assertEqual(result["imdbID"], "tt4154796")
 
-    @patch("movies.utils.imdb.requests.get")
+    @patch("src.movies.utils.imdb.requests.get")
     def test_fetch_movie_details_failure(self, mock_get):
         mock_response = MagicMock()
         mock_response.status_code = 404
