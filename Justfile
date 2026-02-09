@@ -31,5 +31,11 @@ migrate:
 superuser:
     {{DC}} run --rm django python manage.py createsuperuser
 
+frontend-test:
+    {{DC}} run --rm frontend npm test
+
+frontend-bash:
+    {{DC}} run --rm frontend /bin/bash
+
 prod-up:
     docker compose -f docker-compose.yml up -d --build

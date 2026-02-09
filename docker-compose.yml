@@ -15,6 +15,15 @@ services:
       - caddy
     restart: unless-stopped
 
+  frontend:
+    container_name: watchlog-frontend
+    build:
+      context: ./frontend
+    networks:
+      - watchlog
+      - caddy
+    restart: unless-stopped
+
   database:
     image: postgres:18-trixie
     container_name: watchlog-db
