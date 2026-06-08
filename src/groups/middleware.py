@@ -9,10 +9,10 @@ from .models import Group
 def group_member_required(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        slug = kwargs.get("slug")
-        if slug:
+        uuid = kwargs.get("uuid")
+        if uuid:
             user = request.user
-            group = get_object_or_404(Group, slug=slug)
+            group = get_object_or_404(Group, uuid=uuid)
             if user in group.members.all():
                 return view_func(request, *args, **kwargs)
             else:

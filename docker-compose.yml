@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
 
   database:
-    image: postgres:18-trixie
+    image: pgvector/pgvector:pg18-trixie
     container_name: watchlog-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-watchlog_db}

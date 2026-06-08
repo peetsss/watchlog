@@ -3,33 +3,34 @@ export GROUP_ID := `id -g`
 
 DC := "docker compose -f docker-compose.yml -f docker-compose.dev.yml"
 
+# show all available commands
 default:
     @just --list
 
-build:
-    {{DC}} build
+# start development stack (hot-reload, runserver)
+dev:
+    {{DC}} up -d --build
 
-up:
-    {{DC}} up
-
-up-d:
-    {{DC}} up -d
-
-down:
+# stop all containers
+stop:
     {{DC}} down
 
+# stop all containers and clear volumes
+stop-v:
+    {{DC}} down -v
+
+# tail all containers logs
 logs:
     {{DC}} logs -f
 
+# bash in django container
 bash:
     {{DC}} run --rm django /bin/bash
 
-migrate:
-    {{DC}} run --rm django python manage.py makemigrations
-    {{DC}} run --rm django python manage.py migrate
-
+# create superuser
 superuser:
     {{DC}} run --rm django python manage.py createsuperuser
 
-prod-up:
+# start production stack (gunicorn)
+prod:
     docker compose -f docker-compose.yml up -d --build

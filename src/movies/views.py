@@ -66,7 +66,9 @@ def add_movie(request: HttpRequest) -> HttpResponse:
             poster=movie_details.get("Poster"),
             awards=movie_details.get("Awards"),
             imdb_score=movie_details.get("imdbRating", "N/A"),
-            rottentomato_score=movie_details["Ratings"][1]["Value"] if len(movie_details.get("Ratings", [])) > 1 else "N/A",
+            rottentomato_score=movie_details["Ratings"][1]["Value"]
+            if len(movie_details.get("Ratings", [])) > 1
+            else "N/A",
             metacritic_score=movie_details.get("Metascore", "N/A"),
             filmweb_score=None,
             imdb_url=imdb_url,

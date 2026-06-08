@@ -17,9 +17,7 @@ class IMDbClient:
     @staticmethod
     def make_request(params=None) -> dict[str, Any] | Exception:
         if request_limiter.can_make_request():
-            response = requests.get(
-                IMDbClient.url, headers=IMDbClient.headers, params=params
-            )
+            response = requests.get(IMDbClient.url, headers=IMDbClient.headers, params=params)
             response.raise_for_status()
             response_json = response.json()
             return response_json
@@ -39,11 +37,7 @@ class IMDbClient:
         data = IMDbClient._fetch({"s": query, "r": "json"})
         if data is None:
             return None
-        filtered_results = [
-            item
-            for item in data.get("Search", [])
-            if item.get("Type") in {"movie", "series"}
-        ]
+        filtered_results = [item for item in data.get("Search", []) if item.get("Type") in {"movie", "series"}]
         return filtered_results
 
     @staticmethod

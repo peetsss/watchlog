@@ -4,7 +4,7 @@ from django.db.models import Avg, Count, Func
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
-from groups.models import UserScore
+from groups.models import Review
 
 from .forms import AuthForm, SignUpForm
 
@@ -55,11 +55,11 @@ def start_view(request: HttpRequest) -> HttpResponse:
 @login_required
 def profile(request: HttpRequest) -> HttpResponse:
     user = request.user
-    avg_score_across_groups = UserScore.objects.filter(user=user).aggregate(
+    avg_score_across_groups = Review.objects.filter(user=user).aggregate(
         avg_score=Func(Avg("score"), function="ROUND", template="%(function)s(%(expressions)s, 1)")
     )
 
-    scores_set_count = UserScore.objects.filter(user=user).aggregate(total_scores=Count("score"))["total_scores"]
+    scores_set_count = Review.objects.filter(user=user).aggregate(total_scores=Count("score"))["total_scores"]
 
     context = {
         "user": user,

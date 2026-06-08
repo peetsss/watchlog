@@ -11,9 +11,7 @@ class RequestLimiter:
 
     def get_next_reset_time(self) -> datetime:
         now = datetime.now()
-        reset_time = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
-            days=1
-        )
+        reset_time = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
         return reset_time
 
     def can_make_request(self) -> bool:
