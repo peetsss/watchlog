@@ -88,7 +88,6 @@ def join_group(request: HttpRequest) -> HttpResponse:
 @require_POST
 @login_required
 def add_user_score(request: HttpRequest) -> HttpResponse:
-    ""
     user = request.user
     movie_id = request.POST.get("movie_id")
     group_uuid = request.POST.get("group_uuid")
@@ -96,7 +95,7 @@ def add_user_score(request: HttpRequest) -> HttpResponse:
 
     if group_uuid and user_score and movie_id:
         group = get_object_or_404(Group, uuid=group_uuid)
-        movie = get_object_or_404(Movie, imdb_id=movie_id)
+        movie = get_object_or_404(Movie, tmdb_id=movie_id)
         group_movie = get_object_or_404(GroupMovie, group=group, movie=movie)
         user_score = Review.objects.update_or_create(
             group_movie=group_movie,

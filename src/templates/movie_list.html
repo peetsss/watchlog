@@ -6,35 +6,43 @@
         {% for group_movie in movies %}
         <div class="col-md-12 mb-3">
             <div class="card bg-dark text-light d-flex flex-row">
-                <img src="{{ group_movie.movie.poster }}" class="card-img-left rounded" alt="{{ group_movie.movie.title }}" style="width: 280px;">
+                {% if group_movie.movie.poster_path %}
+                    <img src="{{ group_movie.movie.poster_path }}" class="card-img-left rounded" alt="{{ group_movie.movie.title }}" style="width: 280px;">
+                {% endif %}
                 <div class="card-body">
-                    <h5 class="card-title fs-4">{{ group_movie.movie.title }} ({{ group_movie.movie.year|date:"Y" }})</h5>
+                    <h5 class="card-title fs-4">{{ group_movie.movie.title }}{% if group_movie.movie.release_date %} ({{ group_movie.movie.release_date|date:"Y" }}){% endif %}</h5>
                     <p class="card-text small-text my-2">{{ group_movie.movie.description }}</p>
-                    <p class="card-text small-text my-2"><strong>Genre:</strong> {{ group_movie.movie.genre }}</p>
+                    <p class="card-text small-text my-2"><strong>Genre:</strong> {{ group_movie.movie.genres }}</p>
                     <p class="card-text small-text my-2"><strong>Directors:</strong> {{ group_movie.movie.director }}</p>
                     <p class="card-text small-text my-2"><strong>Actors:</strong> {{ group_movie.movie.actors }}</p>
                     <p class="card-text small-text my-2"><strong>Awards:</strong> {{ group_movie.movie.awards }}</p>
                     <div class="row mt-4">
-                        <div class="col-md-3 text-center">
-                            <a href="{{ group_movie.movie.imdb_url }}" target="_blank"><img src="{% static 'img/imdb_logo.svg' %}" alt="IMDb" class="bg-dark p-1 rounded" style="width: 60px;"></a>
-                            <h4>{{ group_movie.movie.imdb_score }}</h4>
-                        </div>
+                        {% if group_movie.movie.imdb_url %}
+                            <div class="col-md-3 text-center">
+                                <a href="{{ group_movie.movie.imdb_url }}" target="_blank"><img src="{% static 'img/imdb_logo.svg' %}" alt="IMDb" class="bg-dark p-1 rounded" style="width: 60px;"></a>
+                                <h4>{{ group_movie.movie.imdb_score|default_if_none:"" }}</h4>
+                            </div>
+                        {% endif %}
+                        {% if group_movie.movie.rottentomato_url %}
+                            <div class="col-md-3 mt-3 text-center">
+                                <a href="{{ group_movie.movie.rottentomato_url }}" target="_blank"><img src="{% static 'img/rotten_tomatoes_logo.svg' %}" alt="Rotten Tomatoes" class="bg-dark p-1 rounded" style="width: 140px;"></a>
+                                <h4>{{ group_movie.movie.rottentomato_score }}</h4>
+                            </div>
+                        {% endif %}
+                        {% if group_movie.movie.metacritic_url %}
+                            <div class="col-md-3 mt-3 text-center">
+                                <a href="{{ group_movie.movie.metacritic_url }}" target="_blank"><img src="{% static 'img/metacritic_logo.svg' %}" alt="Metacritic" class="bg-dark p-1 rounded" style="width: 150px;"></a>
+                                {% if group_movie.movie.metacritic_score != "N/A" %}
+                                    <h4>{{ group_movie.movie.metacritic_score }}/100</h4>
+                                {% else %}
+                                    <h4>{{ group_movie.movie.metacritic_score }}</h4>
+                                {% endif %}
+                            </div>
+                        {% endif %}
                         <div class="col-md-3 mt-3 text-center">
-                            <a href="{{ group_movie.movie.rottentomato_url }}" target="_blank"><img src="{% static 'img/rotten_tomatoes_logo.svg' %}" alt="Rotten Tomatoes" class="bg-dark p-1 rounded" style="width: 140px;"></a>
-                            <h4>{{ group_movie.movie.rottentomato_score }}</h4>
-                        </div>
-                        <div class="col-md-3 mt-3 text-center">
-                            <a href="{{ group_movie.movie.metacritic_url }}" target="_blank"><img src="{% static 'img/metacritic_logo.svg' %}" alt="Metacritic" class="bg-dark p-1 rounded" style="width: 150px;"></a>
-                            {% if group_movie.movie.metacritic_score != "N/A" %}
-                                <h4>{{ group_movie.movie.metacritic_score }}/100</h4>
-                            {% else %}
-                                <h4>{{ group_movie.movie.metacritic_score }}</h4>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-3 mt-3 text-center">
-                            {% if group_movie.movie.imdb_id in user_scores.keys %}
+                            {% if group_movie.movie.pk in user_scores.keys %}
                                 <i class="fa-solid fa-star fa-2x mb-2"></i>
-                                <h4 data-bs-toggle="tooltip" data-bs-placement="right" data-bs-html="true" data-bs-title="{% for score in user_scores|get_item:group_movie.movie.imdb_id %}{{ score.0 }}: {{ score.1 }}<br>{% endfor %}">{{ group_movie.average_score }}</h4>
+                                <h4 data-bs-toggle="tooltip" data-bs-placement="right" data-bs-html="true" data-bs-title="{% for score in user_scores|get_item:group_movie.movie.pk %}{{ score.0 }}: {{ score.1 }}<br>{% endfor %}">{{ group_movie.average_score }}</h4>
                             {% else %}
                                 <i class="fa-regular fa-star fa-2x mb-2"></i>
                                 <h4>{{ group_movie.average_score }}</h4>
@@ -42,8 +50,10 @@
                         </div>
                     </div>
                     <div class="d-flex justify-content-between align-items-end px-3">
-                        <p class="small-text mt-3"><strong>Added by:</strong> {{ group_movie.added_by }}</p>
-                        <button class="btn btn-primary btn-md" onclick="openSetScoreModal('{{ group_movie.movie.title }}', '{{ group_movie.movie.imdb_id }}')">Set Score</button>
+                        {% if group_movie.suggested_by %}
+                            <p class="small-text mt-3"><strong>Added by:</strong> {{ group_movie.suggested_by }}</p>
+                        {% endif %}
+                        <button class="btn btn-primary btn-md" onclick="openSetScoreModal('{{ group_movie.movie.title }}', '{{ group_movie.movie.tmdb_id }}')">Set Score</button>
                     </div>
                 </div>
             </div>

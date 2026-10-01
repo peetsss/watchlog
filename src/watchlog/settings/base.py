@@ -90,5 +90,4 @@ LOGGING = {
 }
 
 # API Keys
-RAPIDAPI_MOVIE_DB_KEY = os.getenv("RAPIDAPI_MOVIE_DB_KEY", default="")
-RAPIDAPI_MOVIE_DB_HOST = os.getenv("RAPIDAPI_MOVIE_DB_HOST", default="")
+TMDB_API_KEY = os.getenv("TMDB_API_KEY", default="")

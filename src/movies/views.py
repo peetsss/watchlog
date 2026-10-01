@@ -6,10 +6,62 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
 
 from groups.models import Group, GroupMovie
-from movies.utils.imdb import IMDbClient
-from movies.utils.utils import get_metacritic_url, get_rotten_url
+from movies.utils.tmdb import BACKDROP_BASE_URL, POSTER_BASE_URL, TMDBClient
 
 from .models import Movie
+
+
+def _parse_date(value: str | None) -> datetime | None:
+    if value:
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            return None
+    return None
+
+
+def _join_names(items: list[dict], key: str = "name") -> str | None:
+    names = [item[key] for item in items if item.get(key)]
+    return ", ".join(names) if names else None
+
+
+def _full_url(base_url: str, path: str | None) -> str | None:
+    return base_url + path if path else None
+
+
+def _create_movie_from_details(details: dict, media_type: str) -> Movie:
+    credits = details.get("credits") or {}
+    crew = credits.get("crew") or []
+    cast = credits.get("cast") or []
+    keywords = (details.get("keywords") or {}).get("keywords") or []
+    external_ids = details.get("external_ids") or {}
+    runtimes = details.get("episode_run_time") or []
+    imdb_id = external_ids.get("imdb_id") or None
+
+    return Movie.objects.create(
+        tmdb_id=details["id"],
+        imdb_id=imdb_id,
+        title=details.get("title") or details.get("name") or "",
+        original_title=details.get("original_title") or details.get("original_name") or None,
+        media_type=media_type,
+        description=details.get("overview") or None,
+        status=details.get("status") or None,
+        runtime=details.get("runtime") or (runtimes[0] if runtimes else None),
+        release_date=_parse_date(details.get("release_date") or details.get("first_air_date")),
+        adult=details.get("adult", False),
+        genres=_join_names(details.get("genres") or []),
+        keywords=_join_names(keywords),
+        director=_join_names([c for c in crew if c.get("job") == "Director"]),
+        writers=_join_names([c for c in crew if c.get("job") in {"Writer", "Screenplay", "Story"}]),
+        actors=_join_names(cast),
+        country=_join_names(details.get("production_countries") or []),
+        poster_path=_full_url(POSTER_BASE_URL, details.get("poster_path")),
+        backdrop_path=_full_url(BACKDROP_BASE_URL, details.get("backdrop_path")),
+        tmdb_score=details.get("vote_average"),
+        revenue=details.get("revenue") or None,
+        budget=details.get("budget") or None,
+        imdb_url=f"https://www.imdb.com/title/{imdb_id}" if imdb_id else None,
+    )
 
 
 @require_POST
@@ -17,7 +69,10 @@ from .models import Movie
 def search_movies(request: HttpRequest) -> JsonResponse:
     query = request.POST.get("query")
     if query:
-        movies = IMDbClient.fetch_search_query(query=query)
+        client = TMDBClient()
+        movies = client.search(query)
+        if movies is None:
+            return JsonResponse({"error": "TMDB request failed."}, status=502)
         return JsonResponse({"movies": movies})
 
     return JsonResponse({"error": "No query parameter provided."}, status=400)
@@ -28,58 +83,25 @@ def search_movies(request: HttpRequest) -> JsonResponse:
 def add_movie(request: HttpRequest) -> HttpResponse:
     user = request.user
     movie_id = request.POST.get("movie_id")
-    group_code = request.POST.get("group_code")
+    media_type = request.POST.get("media_type") or Movie.MediaType.MOVIE
+    group_uuid = request.POST.get("group_uuid")
 
-    if not movie_id or not group_code:
+    if not movie_id or not group_uuid:
         return HttpResponseBadRequest("Missing parameters")
+    if media_type not in Movie.MediaType.values:
+        return HttpResponseBadRequest("Invalid media type")
 
-    group = get_object_or_404(Group, code=group_code)
-    movie = Movie.objects.filter(imdb_id=movie_id).first()
+    group = get_object_or_404(Group, uuid=group_uuid)
+    movie = Movie.objects.filter(tmdb_id=movie_id).first()
 
     if not movie:
-        movie_details = IMDbClient.fetch_movie_details(movie_id)
-        if not movie_details:
-            return HttpResponseBadRequest("Failed to fetch movie details from IMDb.")
+        client = TMDBClient()
+        details = client.get_details(movie_id, media_type)
+        if not details:
+            return HttpResponseBadRequest("Failed to fetch movie details from TMDB.")
 
-        released_date = movie_details.get("Released")
-        if released_date:
-            released_date = datetime.strptime(released_date, "%d %b %Y").date()
+        movie = _create_movie_from_details(details, media_type)
 
-        title = movie_details.get("Title")
-        type = movie_details.get("Type")
+    GroupMovie.objects.get_or_create(group=group, movie=movie, defaults={"suggested_by": user})
 
-        imdb_url = f"https://www.imdb.com/title/{movie_id}"
-        rottentomato_url = get_rotten_url(title, type)
-        metacritic_url = get_metacritic_url(title, type)
-
-        movie = Movie.objects.create(
-            imdb_id=movie_id,
-            title=title,
-            type=type,
-            description=movie_details.get("Plot"),
-            year=released_date,
-            genre=movie_details.get("Genre"),
-            director=movie_details.get("Director"),
-            writers=movie_details.get("Writer"),
-            actors=movie_details.get("Actors"),
-            country=movie_details.get("Country"),
-            poster=movie_details.get("Poster"),
-            awards=movie_details.get("Awards"),
-            imdb_score=movie_details.get("imdbRating", "N/A"),
-            rottentomato_score=movie_details["Ratings"][1]["Value"]
-            if len(movie_details.get("Ratings", [])) > 1
-            else "N/A",
-            metacritic_score=movie_details.get("Metascore", "N/A"),
-            filmweb_score=None,
-            imdb_url=imdb_url,
-            rottentomato_url=rottentomato_url,
-            metacritic_url=metacritic_url,
-            filmweb_url=None,
-        )
-
-    GroupMovie.objects.get_or_create(group=group, movie=movie, added_by=user.username)
-
-    return JsonResponse(
-        {"msg": f"{movie.title} has been added to {group.name}"},
-        status=200,
-    )
+    return JsonResponse({"msg": f"{movie.title} has been added to {group.name}"}, status=200)

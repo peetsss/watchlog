@@ -34,8 +34,7 @@ Create a file named `.env.dev` in the root directory of the project and add the 
    DEBUG=true
    DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
 
-   RAPIDAPI_MOVIE_DB_KEY=your_rapidapi_db_key
-   RAPIDAPI_MOVIE_DB_HOST=movie-database-alternative.p.rapidapi.com
+   TMDB_API_KEY=your_tmdb_api_key
 
    POSTGRES_USER=postgres_user
    POSTGRES_PASSWORD=postgres_password

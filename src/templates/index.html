@@ -45,19 +45,20 @@
             var searchResultsDiv = document.getElementById('searchResults');
             searchResultsDiv.innerHTML = '';
             if (data.movies && data.movies.length > 0) {
-                var filteredMovies = data.movies.filter(movie => movie.Poster !== 'N/A');
+                var filteredMovies = data.movies.filter(movie => movie.poster_url);
                 filteredMovies.forEach(function(movie) {
                     var groupDropdown = `
                         <div class="dropdown mt-3 d-grid col-6 mx-auto">
-                            <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton_${movie.imdbID}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <button class="btn btn-primary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton_${movie.id}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 Add to group
                             </button>
-                            <div class="dropdown-menu" data-bs-theme="dark" aria-labelledby="dropdownMenuButton_${movie.imdbID}">
+                            <div class="dropdown-menu" data-bs-theme="dark" aria-labelledby="dropdownMenuButton_${movie.id}">
                                 {% for group in groups %}
                                     <form method="POST" action="{% url 'add_movie' %}" class="add-movie-form">
                                         {% csrf_token %}
-                                        <input type="hidden" name="movie_id" value="${movie.imdbID}">
-                                        <input type="hidden" name="group_code" value="{{ group.code }}">
+                                        <input type="hidden" name="movie_id" value="${movie.id}">
+                                        <input type="hidden" name="media_type" value="${movie.media_type}">
+                                        <input type="hidden" name="group_uuid" value="{{ group.uuid }}">
                                         <button type="submit" class="dropdown-item d-flex">{{ group.name }}</button>
                                     </form>
                                 {% endfor %}
@@ -68,9 +69,9 @@
                     var movieCard = `
                         <div class="col-auto mb-1 mx-2">
                             <div class="card bg-dark text-light" style="width: 220px;">
-                                <img src="${movie.Poster}" class="card-img-top img-fluid rounded-start" style="width: 100%; height: auto;" alt="${movie.Title}">
+                                <img src="${movie.poster_url}" class="card-img-top img-fluid rounded-start" style="width: 100%; height: auto;" alt="${movie.title}">
                                 <div class="card-body p-2">
-                                    <h6 class="card-title mb-1">${movie.Title} (${movie.Year})</h6>
+                                    <h6 class="card-title mb-1">${movie.title}${movie.year ? ` (${movie.year})` : ''}</h6>
                                     ${groupDropdown}
                                 </div>
                             </div>
