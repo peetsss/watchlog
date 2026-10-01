@@ -1,6 +1,14 @@
-*env
-__pycache__/
+# Python
 .env
-*venv
+.venv/
+__pycache__/
+*.pyc
+.ruff_cache/
+
+# Data
 TMDB_movie_dataset_v11.csv
-tmdb_download.py
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/

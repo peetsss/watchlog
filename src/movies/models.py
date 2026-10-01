@@ -37,7 +37,7 @@ class Movie(models.Model):
     rottentomato_url = models.URLField(null=True, blank=True)
     metacritic_url = models.URLField(null=True, blank=True)
     filmweb_url = models.URLField(null=True, blank=True)
-    embeddings = VectorField(dimensions=2000, null=True, blank=True)
+    embeddings = VectorField(dimensions=1024, null=True, blank=True)
 
     def __str__(self) -> str:
         return str(self.title)
