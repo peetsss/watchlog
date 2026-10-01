@@ -27,6 +27,11 @@ logs:
 bash:
     {{DC}} run --rm django /bin/bash
 
+# apply migrations
+migrate:
+    {{DC}} run --rm django python manage.py makemigrations
+    {{DC}} run --rm django python manage.py migrate
+
 # create superuser
 superuser:
     {{DC}} run --rm django python manage.py createsuperuser
