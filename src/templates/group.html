@@ -7,7 +7,7 @@
         <div class="col-md-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1><a href="{% url 'group' slug=group.slug %}" class="text-light text-decoration-none">{{ group.name }}</a></h1>
+                    <h1><a href="{% url 'group' uuid=group.uuid %}" class="text-light text-decoration-none">{{ group.name }}</a></h1>
                     <h6>Members:
                         {% for member in group.members.all %}
                             {{ member }}{% if not forloop.last %},{% endif %}
@@ -15,7 +15,7 @@
                     </h6>
                 </div>
                 <div class="d-flex align-items-center">
-                    <button class="btn btn-outline-secondary me-2" type="button" onclick="location.href='{% url 'group_info' slug=group.slug %}'">Statistics</button>
+                    <button class="btn btn-outline-secondary me-2" type="button" onclick="location.href='{% url 'group_info' uuid=group.uuid %}'">Statistics</button>
                     <button class="btn btn-success" type="button" id="inviteButton">Invite</button>
                 </div>
             </div>
@@ -55,7 +55,7 @@
                 <form id="setScoreForm" method="POST" class="mb-3" action="{% url 'add_user_score' %}">
                     {% csrf_token %}
                     <input type="hidden" name="movie_id" id="movieIdInput">
-                    <input type="hidden" name="group_code" value="{{ group.code }}">
+                    <input type="hidden" name="group_uuid" value="{{ group.uuid }}">
                     <div class="form-group mb-3 text-center fs-3">
                         <span id="userScoreValue" class="large-text">5</span>
                         <input type="range" class="form-range" min="1" max="10" step="0.1" id="userScoreSlider" name="score">
@@ -132,7 +132,7 @@
     };
 
     document.getElementById('inviteButton').addEventListener('click', function() {
-        fetch('{% url "generate_invite_link" slug=group.slug %}')
+        fetch('{% url "generate_invite_link" uuid=group.uuid %}')
         .then(response => response.json())
         .then(data => {
             const inviteLink = data.invite_link;

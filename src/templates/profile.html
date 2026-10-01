@@ -33,7 +33,7 @@
                         <div class="col-md-12 mb-2">
                             <div class="card bg-dark text-light d-flex flex-row position-relative">
                                 <div class="card-body">
-                                    <h3 class="card-title"><a href="{% url 'group' slug=group.slug %}" class="text-light text-decoration-none">{{ group.name }}</a></h3>
+                                    <h3 class="card-title"><a href="{% url 'group' uuid=group.uuid %}" class="text-light text-decoration-none">{{ group.name }}</a></h3>
                                     <div>
                                         <h6>Members:
                                             {% for member in group.members.all %}
@@ -44,7 +44,7 @@
                                 </div>
                                 <form id="leaveGroupForm{{ group.id }}" action="{% url 'leave_group' %}" method="post">
                                     {% csrf_token %}
-                                    <input type="hidden" name="group_code" value="{{ group.code }}">
+                                    <input type="hidden" name="group_uuid" value="{{ group.uuid }}">
                                     <div data-bs-theme="dark">
                                         <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close" onclick="confirmLeave('{{ group.name }}', '{{ group.id }}')"></button>
                                     </div>
