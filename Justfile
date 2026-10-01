@@ -32,6 +32,10 @@ migrate:
     {{DC}} run --rm django python manage.py makemigrations
     {{DC}} run --rm django python manage.py migrate
 
+# run tests
+test *args:
+    {{DC}} run --rm django python manage.py test {{args}}
+
 # create superuser
 superuser:
     {{DC}} run --rm django python manage.py createsuperuser

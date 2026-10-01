@@ -69,8 +69,8 @@ def _create_movie_from_details(details: dict, media_type: str) -> Movie:
 def search_movies(request: HttpRequest) -> JsonResponse:
     query = request.POST.get("query")
     if query:
-        client = TMDBClient()
-        movies = client.search(query)
+        with TMDBClient() as client:
+            movies = client.search(query)
         if movies is None:
             return JsonResponse({"error": "TMDB request failed."}, status=502)
         return JsonResponse({"movies": movies})
@@ -95,8 +95,8 @@ def add_movie(request: HttpRequest) -> HttpResponse:
     movie = Movie.objects.filter(tmdb_id=movie_id).first()
 
     if not movie:
-        client = TMDBClient()
-        details = client.get_details(movie_id, media_type)
+        with TMDBClient() as client:
+            details = client.get_details(movie_id, media_type)
         if not details:
             return HttpResponseBadRequest("Failed to fetch movie details from TMDB.")
 

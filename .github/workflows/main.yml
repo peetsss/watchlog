@@ -9,25 +9,59 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      database:
+        image: pgvector/pgvector:pg18-trixie
+        env:
+          POSTGRES_DB: watchlog_test
+          POSTGRES_USER: watchlog
+          POSTGRES_PASSWORD: watchlog
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Create .env.dev file
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Create .env file
         run: |
-          echo "DJANGO_KEY=${{ secrets.DJANGO_KEY }}" >> .env.dev
-          echo "DEBUG=${{ secrets.DEBUG }}" >> .env.dev
-          echo "DJANGO_ALLOWED_HOSTS=${{ secrets.DJANGO_ALLOWED_HOSTS }}" >> .env.dev
-          echo "RAPIDAPI_MOVIE_DB_KEY=${{ secrets.RAPIDAPI_MOVIE_DB_KEY }}" >> .env.dev
-          echo "RAPIDAPI_MOVIE_DB_HOST=${{ secrets.RAPIDAPI_MOVIE_DB_HOST }}" >> .env.dev
-          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env.dev
-          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env.dev
-          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env.dev
-          echo "POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}" >> .env.dev
-          echo "POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}" >> .env.dev
+          echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
+          echo "DEBUG=false" >> .env
+          echo "DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1" >> .env
+          echo "TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" >> .env
+          echo "POSTGRES_DB=watchlog_test" >> .env
+          echo "POSTGRES_USER=watchlog" >> .env
+          echo "POSTGRES_PASSWORD=watchlog" >> .env
+          echo "POSTGRES_HOST=127.0.0.1" >> .env
+          echo "POSTGRES_PORT=5432" >> .env
+
+      - name: Install dependencies
+        run: uv sync --group dev
 
       - name: Run tests
-        run: make test
+        env:
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: watchlog_test
+          POSTGRES_USER: watchlog
+          POSTGRES_PASSWORD: watchlog
+          TMDB_API_KEY: dummy
+        run: uv run python src/manage.py test --verbosity=2
 
   deploy:
     runs-on: self-hosted

@@ -14,6 +14,15 @@ class TMDBClient:
         self.language = language
         self.client = httpx.Client(base_url=self.BASE_URL, timeout=timeout)
 
+    def close(self) -> None:
+        self.client.close()
+
+    def __enter__(self) -> "TMDBClient":
+        return self
+
+    def __exit__(self, *args) -> None:
+        self.close()
+
     def _make_request(self, endpoint: str, params: dict | None = None) -> dict | None:
         params = dict(params or {})
         params.update({"api_key": self.api_key, "language": self.language})

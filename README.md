@@ -1,6 +1,6 @@
 # watchlog
 
-**watchlog** is a web application that allows users to create groups, add movies to a watchlist, and rate them. The application utilizes the IMDb API to gather detailed information about the movies.
+**watchlog** is a web application that allows users to create groups, add movies to a watchlist, and rate them. The application utilizes the TMDB API to gather detailed information about the movies.
 
 ## Technologies Used
 - Django Framework
@@ -46,10 +46,11 @@ Create a file named `.env.dev` in the root directory of the project and add the 
 ### Running the Application
 To run the application, use:
 ```
-make up
+just dev
 ```
 
 To run all tests or tests of a certain app, use:
 ```
-make test APP=app_name
+just test
+just test -- movies
 ```
