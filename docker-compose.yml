@@ -1,6 +1,7 @@
 services:
   django:
     container_name: watchlog
+    image: watchlog-django:prod
     build:
       context: .
       dockerfile: Dockerfile.dev
