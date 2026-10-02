@@ -9,8 +9,8 @@ class Movie(models.Model):
 
     tmdb_id = models.IntegerField(unique=True, null=True, blank=True)
     imdb_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
-    title = models.CharField(max_length=255)
-    original_title = models.CharField(max_length=255, null=True, blank=True)
+    title = models.TextField()
+    original_title = models.TextField(null=True, blank=True)
     media_type = models.CharField(max_length=10, choices=MediaType.choices, default=MediaType.MOVIE)
     description = models.TextField(null=True, blank=True)
     tagline = models.TextField(null=True, blank=True)
@@ -43,7 +43,7 @@ class Movie(models.Model):
     rottentomato_url = models.URLField(null=True, blank=True)
     metacritic_url = models.URLField(null=True, blank=True)
     filmweb_url = models.URLField(null=True, blank=True)
-    homepage = models.URLField(null=True, blank=True)
+    homepage = models.TextField(null=True, blank=True)
     embeddings = VectorField(dimensions=1024, null=True, blank=True)
 
     def __str__(self) -> str:
