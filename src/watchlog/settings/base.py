@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "core",
     "groups",
     "movies",
+    "lobby",
     "user",
 ]
 
