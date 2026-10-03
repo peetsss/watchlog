@@ -103,6 +103,12 @@ def add_user_score(request: HttpRequest) -> HttpResponse:
             defaults={"score": user_score},
         )
 
+        # Reviewing implies the reviewer has watched it personally.
+        # Personal scope only: never mutates GroupMovie.status by itself.
+        from movies.services import mark_personally_watched
+
+        mark_personally_watched(user, movie)
+
         avg_score = Review.objects.filter(group_movie=group_movie).aggregate(Avg("score"))["score__avg"]
         group_movie.average_score = avg_score
 

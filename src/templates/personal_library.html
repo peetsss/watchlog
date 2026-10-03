@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}My library{% endblock title %}
+{% block content %}
+<div class="container">
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <h1>My library</h1>
+            <p class="text-muted">Private to you. Group members cannot see these lists.</p>
+
+            <h2 class="mt-4">Want to watch ({{ watchlist_entries|length }})</h2>
+            {% if watchlist_entries %}
+            <div class="list-group">
+                {% for entry in watchlist_entries %}
+                <div class="list-group-item bg-dark text-light d-flex justify-content-between align-items-center">
+                    <span>{{ entry.movie.title }}</span>
+                    <span class="d-flex gap-2">
+                        <form method="post" action="{% url 'personal_mark_watched' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="movie_id" value="{{ entry.movie.pk }}">
+                            <input type="hidden" name="next" value="personal_library">
+                            <button type="submit" class="btn btn-sm btn-success">Mark watched</button>
+                        </form>
+                        <form method="post" action="{% url 'personal_watchlist_remove' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="movie_id" value="{{ entry.movie.pk }}">
+                            <input type="hidden" name="next" value="personal_library">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Remove</button>
+                        </form>
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">Nothing in your watchlist yet.</p>
+            {% endif %}
+
+            <h2 class="mt-4">Watched ({{ history_entries|length }})</h2>
+            {% if history_entries %}
+            <div class="list-group">
+                {% for entry in history_entries %}
+                <div class="list-group-item bg-dark text-light d-flex justify-content-between align-items-center">
+                    <span>{{ entry.movie.title }}</span>
+                    {% if not entry.in_watchlist %}
+                    <form method="post" action="{% url 'personal_watchlist_add' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="movie_id" value="{{ entry.movie.pk }}">
+                        <input type="hidden" name="next" value="personal_library">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Re-add to watchlist</button>
+                    </form>
+                    {% else %}
+                    <span class="badge bg-primary">Also in watchlist</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">No watched movies yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
