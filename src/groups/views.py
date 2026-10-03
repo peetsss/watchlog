@@ -63,12 +63,23 @@ def group_view(request: HttpRequest, uuid: uuid.UUID) -> HttpResponse:
     not_watched_movies = group_movies.filter(status=GroupMovie.Status.SUGGESTED)
     all_group_movies = watched_movies | not_watched_movies
 
+    open_session = None
+    try:
+        from lobby.models import LobbySession
+
+        open_session = (
+            LobbySession.objects.filter(group=group, status__in=["waiting", "active"]).order_by("-created_at").first()
+        )
+    except Exception:
+        open_session = None
+
     context = {
         "group": group,
         "user_scores": user_scores,
         "all_group_movies": all_group_movies,
         "watched_movies": watched_movies,
         "not_watched_movies": not_watched_movies,
+        "open_session": open_session,
     }
     return render(request, "group.html", context)
 
