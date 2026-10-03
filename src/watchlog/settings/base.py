@@ -92,3 +92,15 @@ LOGGING = {
 
 # API Keys
 TMDB_API_KEY = os.getenv("TMDB_API_KEY", default="")
+
+# Channels: Redis in compose stacks, in-memory fallback for tests/local.
+_CHANNEL_REDIS_URL = os.getenv("CHANNEL_REDIS_URL", "")
+if _CHANNEL_REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [_CHANNEL_REDIS_URL]},
+        }
+    }
+else:
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
