@@ -79,8 +79,9 @@ class UserMovieLibrary(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Keep DB-free: may run in async contexts under ASGI.
     def __str__(self) -> str:
-        return f"{self.user} - {self.movie.title}"
+        return f"user {self.user_id} - movie {self.movie_id}"
 
     @property
     def in_watchlist(self) -> bool:

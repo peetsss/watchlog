@@ -127,3 +127,17 @@ class BallotOfferConstraintTests(TestCase):
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 WatchlistOfferResponse.objects.create(offer=offer, participant=self.pb)
+
+
+class ModelStrTests(TestCase):
+    def test_str_never_queries_db(self):
+        user, _, group, movie, _ = make_setup()
+        session = make_session(group, user)
+        participant = LobbyParticipant.objects.create(session=session, user=user)
+        card = LobbyCard.objects.create(session=session, movie=movie, position=0)
+        ballot = LobbyBallot.objects.create(card=card, participant=participant, choice=LobbyBallot.Choice.WANT)
+        offer = WatchlistOffer.objects.create(card=card)
+        response = WatchlistOfferResponse.objects.create(offer=offer, participant=participant)
+        with self.assertNumQueries(0):
+            for obj in (session, participant, card, ballot, offer, response):
+                str(obj)

@@ -32,8 +32,9 @@ class LobbySession(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 
+    # Keep DB-free: may run in async contexts under ASGI.
     def __str__(self) -> str:
-        return f"Lobby {self.id} ({self.group.name}, {self.status})"
+        return f"Lobby {self.id} (group {self.group_id}, {self.status})"
 
     @property
     def is_open(self) -> bool:
@@ -64,7 +65,7 @@ class LobbyParticipant(models.Model):
     joined_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
-        return f"{self.user} in {self.session_id}"
+        return f"user {self.user_id} in {self.session_id}"
 
     class Meta:
         constraints = [
@@ -98,7 +99,7 @@ class LobbyCard(models.Model):
     explanation = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return f"{self.movie.title} [{self.status}] in {self.session_id}"
+        return f"movie {self.movie_id} [{self.status}] in {self.session_id}"
 
     @property
     def is_resolved(self) -> bool:
@@ -131,7 +132,7 @@ class LobbyBallot(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
-        return f"{self.participant.user} -> {self.choice} on {self.card_id}"
+        return f"participant {self.participant_id} -> {self.choice} on card {self.card_id}"
 
     class Meta:
         constraints = [
@@ -169,7 +170,7 @@ class WatchlistOfferResponse(models.Model):
     responded_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return f"{self.participant.user} {self.status} on {self.offer_id}"
+        return f"participant {self.participant_id} {self.status} on {self.offer_id}"
 
     class Meta:
         constraints = [
