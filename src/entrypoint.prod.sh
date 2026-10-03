@@ -8,4 +8,5 @@ done
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
-exec gunicorn watchlog.wsgi:application --config gunicorn.conf.py
+# Serve the ASGI application (HTTP + websockets) via Daphne.
+exec daphne watchlog.asgi:application --bind 0.0.0.0 --port 8000

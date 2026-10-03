@@ -2,7 +2,9 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from .models import Group
+from movies.models import Movie
+
+from .models import Group, GroupMembership, GroupMovie, Review
 
 User = get_user_model()
 
@@ -72,3 +74,28 @@ class GroupViewsTests(TestCase):
         response = self.client.get(reverse("join_group_by_link", args=[invite_uuid]))
         self.assertEqual(response.status_code, 302)
         self.assertIn(self.user2, self.group.members.all())
+
+
+class ModelStrTests(TestCase):
+    def test_str_never_queries_db(self):
+        user = User.objects.create_user(username="struser", password="pw")
+        group = Group.objects.create(name="Str Group")
+        group.members.add(user)
+        membership = GroupMembership.objects.get(user=user, group=group)
+        movie = Movie.objects.create(tmdb_id=999001, title="Str Movie")
+        group_movie = GroupMovie.objects.create(group=group, movie=movie)
+        review = Review.objects.create(group_movie=group_movie, user=user, score=8)
+        with self.assertNumQueries(0):
+            str(group)
+            str(membership)
+            str(group_movie)
+            str(review)
+
+    async def test_group_str_in_async_context(self):
+        # Regression: under Daphne the debug toolbar stringifies template
+        # context in async code; Group.__str__ queried members and raised
+        # SynchronousOnlyOperation on the group page.
+        user = await User.objects.acreate_user(username="asyncuser", password="pw")
+        group = await Group.objects.acreate(name="Async Group")
+        await group.members.aadd(user)
+        str(group)  # must not raise

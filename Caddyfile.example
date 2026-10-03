@@ -1,0 +1,13 @@
+# Example Caddy route for watchlog (production).
+# Websockets require the Upgrade headers to reach Daphne unchanged.
+# Adjust the site address and upstream name to your deployment.
+
+watchlog.example.com {
+	reverse_proxy watchlog:8000 {
+		# Caddy forwards Upgrade/Connection by default; keep-alive tuning:
+		header_up Host {host}
+		header_up X-Real-IP {remote}
+		header_up X-Forwarded-For {remote}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

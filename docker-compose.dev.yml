@@ -7,15 +7,24 @@ services:
       args:
         USER_ID: ${USER_ID:-1000}
         GROUP_ID: ${GROUP_ID:-1000}
-    command: python manage.py runserver 0.0.0.0:8000
+    # Explicit Daphne so dev serves HTTP and websocket routes.
+    command: daphne watchlog.asgi:application --bind 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
+    depends_on:
+      - redis
     environment:
       DJANGO_ENV: dev
       DJANGO_DEBUG_TOOLBAR: 1
+      CHANNEL_REDIS_URL: redis://redis:6379/0
+      OLLAMA_URL: ${OLLAMA_URL:-http://100.99.131.45:11434}
     volumes:
       - ./src:/app
 
   database:
     ports:
       - "127.0.0.1:5432:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"

@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Lobby waiting room{% endblock title %}
+{% block content %}
+<div class="container">
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <h1>Lobby waiting room</h1>
+            <p class="text-muted">Session {{ session.id }} · {{ session.status }} · Group: {{ session.group.name }}</p>
+
+            <h2>Participants ({{ participants|length }})</h2>
+            <ul class="list-group mb-4">
+                {% for p in participants %}
+                <li class="list-group-item bg-dark text-light">{{ p.user.username }} · {{ p.state }}</li>
+                {% endfor %}
+            </ul>
+
+            <h2>Same 3 vibe questions for everyone</h2>
+            <p class="text-muted">Answers are private and never majority-voted.</p>
+            <form method="post" action="{% url 'lobby:answer' session_id=session.id %}">
+                {% csrf_token %}
+                {% for q in questions %}
+                <fieldset class="mb-3">
+                    <legend class="fs-5">{{ q.text }}</legend>
+                    {% for o in q.options %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="answer_{{ q.id }}" value="{{ o.key }}" id="q_{{ q.id }}_{{ o.key }}" required>
+                        <label class="form-check-label" for="q_{{ q.id }}_{{ o.key }}">{{ o.label }} — {{ o.description }}</label>
+                    </div>
+                    {% endfor %}
+                </fieldset>
+                {% endfor %}
+                <button type="submit" class="btn btn-primary">Save my answers</button>
+            </form>
+        </div>
+        <div class="col-md-4">
+            <form method="post" action="{% url 'lobby:join' session_id=session.id %}" class="mb-2">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-light w-100">Join lobby</button>
+            </form>
+            {% if is_host and session.status == 'waiting' %}
+            <form method="post" action="{% url 'lobby:start' session_id=session.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success w-100">Start lobby (host)</button>
+            </form>
+            {% endif %}
+
+            <h3 class="mt-4">Nominate a movie</h3>
+            <form method="post" action="{% url 'lobby:nominate' session_id=session.id %}">
+                {% csrf_token %}
+                <div class="mb-2">
+                    <label class="form-label" for="tmdb_id">TMDB id</label>
+                    <input class="form-control" type="text" name="tmdb_id" id="tmdb_id" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label" for="media_type">Type</label>
+                    <select class="form-select" name="media_type" id="media_type">
+                        <option value="movie">movie</option>
+                        <option value="series">series</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-outline-primary w-100">Nominate</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

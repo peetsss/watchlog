@@ -13,9 +13,9 @@ class Group(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, through="GroupMembership", related_name="movie_groups")
 
+    # Keep DB-free: may run in async contexts under ASGI.
     def __str__(self) -> str:
-        member_names = ", ".join([member.username for member in self.members.all()])
-        return f"{self.uuid} {self.name} {member_names} {self.created_at}"
+        return f"{self.uuid} {self.name}"
 
 
 class GroupMembership(models.Model):
@@ -32,7 +32,7 @@ class GroupMembership(models.Model):
         unique_together = ("user", "group")
 
     def __str__(self) -> str:
-        return f"{self.user.username} - {self.group.name}"
+        return f"user {self.user_id} in group {self.group_id} ({self.role})"
 
 
 class GroupMovie(models.Model):
@@ -54,7 +54,7 @@ class GroupMovie(models.Model):
         ordering = ["-added_at"]
 
     def __str__(self) -> str:
-        return f"{self.group.name} - {self.movie.title} - {self.average_score}"
+        return f"group {self.group_id} - movie {self.movie_id} - {self.average_score}"
 
 
 class Review(models.Model):
@@ -70,4 +70,4 @@ class Review(models.Model):
         unique_together = ("group_movie", "user")
 
     def __str__(self) -> str:
-        return f"{self.user.username} rated {self.group_movie.movie.title}: {self.score}"
+        return f"user {self.user_id} rated group_movie {self.group_movie_id}: {self.score}"

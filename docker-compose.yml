@@ -5,16 +5,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: gunicorn watchlog.wsgi:application --bind 0.0.0.0:8000
+    # ASGI via Daphne (HTTP + websockets); entrypoint runs migrate/collectstatic first.
+    command: daphne watchlog.asgi:application --bind 0.0.0.0 --port 8000
     depends_on:
       - database
+      - redis
     environment:
+      DJANGO_ENV: prod
       POSTGRES_HOST: database
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-watchlog_db}
       POSTGRES_USER: ${POSTGRES_USER:-watchlog}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchlog_password}
       TMDB_API_KEY: ${TMDB_API_KEY:-}
+      CHANNEL_REDIS_URL: redis://redis:6379/0
+      OLLAMA_URL: ${OLLAMA_URL:-http://100.99.131.45:11434}
     networks:
       - watchlog
       - caddy
@@ -33,6 +38,16 @@ services:
       - postgres_data:/var/lib/postgresql
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: watchlog-redis
+    command: redis-server --appendonly yes
+    networks:
+      - watchlog
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
 networks:
   watchlog:
   caddy:
@@ -40,3 +55,4 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:

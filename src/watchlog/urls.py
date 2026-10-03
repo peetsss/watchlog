@@ -25,6 +25,7 @@ urlpatterns = [
     path("", include("user.urls")),
     path("", include("groups.urls")),
     path("", include("movies.urls")),
+    path("lobby/", include("lobby.urls")),
 ]
 
 if settings.DEBUG and "debug_toolbar" in settings.INSTALLED_APPS:

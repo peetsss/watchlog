@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}Lobby{% endblock title %}
+{% block content %}
+<div class="container" id="lobby-root" data-session-id="{{ session.id }}">
+    <div class="row mt-4">
+        <div class="col-md-8 mx-auto text-center">
+            <p class="text-muted">Session {{ state.session_id }} · {{ state.status }} · <span id="lobby-progress">{{ state.submitted_count }} / {{ state.participant_count }} voted</span></p>
+
+            {% if state.current_card %}
+            <div class="card bg-dark text-light mb-3" id="ballot-card" style="touch-action: pan-y;">
+                <div class="card-body">
+                    <h2 class="card-title">{{ state.current_card.title }}</h2>
+                    {% if state.current_card.pitch %}<p class="card-text">{{ state.current_card.pitch }}</p>{% endif %}
+                    <p class="text-muted">Everyone votes at once. Choices stay hidden until all {{ state.participant_count }} have voted.</p>
+                    {% if state.own_choice %}
+                    <p>You voted. Waiting for the rest… ({{ state.submitted_count }}/{{ state.participant_count }})</p>
+                    {% else %}
+                    <form method="post" action="{% url 'lobby:ballot' session_id=session.id %}" id="ballot-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="card_id" value="{{ state.current_card.id }}">
+                        <div class="d-flex justify-content-center gap-2" role="group" aria-label="Ballot choices">
+                            <button type="submit" name="choice" value="want" class="btn btn-success" aria-label="Want to watch">Want to watch</button>
+                            <button type="submit" name="choice" value="watched" class="btn btn-primary" aria-label="Watched it">Watched it</button>
+                            <button type="submit" name="choice" value="not_interested" class="btn btn-outline-secondary" aria-label="Not interested">Not interested</button>
+                        </div>
+                    </form>
+                    <p class="text-muted mt-2">Tip: swipe right = Want, up = Watched, left = Not interested.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% elif state.status == 'matched' %}
+            <div class="alert alert-success">Match! The group agreed. Check the group list.</div>
+            {% elif state.status == 'exhausted' %}
+            <div class="alert alert-secondary">No more candidates. The host can end or restart the lobby.</div>
+            {% else %}
+            <div class="alert alert-secondary">Waiting for the next card…</div>
+            {% endif %}
+
+            {% if state.pending_offers %}
+            <div class="card bg-dark text-light border-warning mt-3" id="offer-popup">
+                <div class="card-body">
+                    <h3>Someone has watched this — add to group list?</h3>
+                    {% for offer in state.pending_offers %}
+                    <p>{{ offer.title }}</p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <form method="post" action="{% url 'lobby:offer_respond' offer_id=offer.offer_id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="response" value="add">
+                            <button type="submit" class="btn btn-success">Add to group</button>
+                        </form>
+                        <form method="post" action="{% url 'lobby:offer_respond' offer_id=offer.offer_id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="response" value="dismiss">
+                            <button type="submit" class="btn btn-outline-secondary">Dismiss</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var root = document.getElementById('lobby-root');
+    if (!root) return;
+    var sessionId = root.dataset.sessionId;
+    var progress = document.getElementById('lobby-progress');
+    var socket = null;
+    try {
+        var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        socket = new WebSocket(proto + '//' + window.location.host + '/ws/lobby/' + sessionId + '/');
+    } catch (e) { return; }
+    socket.onmessage = function(ev) {
+        try {
+            var msg = JSON.parse(ev.data);
+            if ((msg.type === 'lobby.state' || msg.type === 'lobby.ballot_result' || msg.type === 'lobby.offer_result') && msg.participant_count) {
+                if (progress) progress.textContent = msg.submitted_count + ' / ' + msg.participant_count + ' voted';
+                if (msg.status === 'matched' || msg.status === 'exhausted') window.location.reload();
+                else if (msg.type !== 'lobby.state' && msg.current_card) window.location.reload();
+            } else if (msg.type && msg.type.indexOf('lobby.') === 0) {
+                // Post-commit fan-out: refresh counts without exposing ballots.
+                fetch(window.location.href, {headers: {'X-Requested-With': 'fetch'}}).catch(function(){});
+            }
+        } catch (e) {}
+    };
+    // Swipe gestures map to the same POST ballot; buttons remain the accessible path.
+    var card = document.getElementById('ballot-card');
+    var form = document.getElementById('ballot-form');
+    if (card && form) {
+        var sx = null, sy = null;
+        card.addEventListener('touchstart', function(e) {
+            var t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY;
+        }, {passive: true});
+        card.addEventListener('touchend', function(e) {
+            if (sx === null) return;
+            var t = e.changedTouches[0];
+            var dx = t.clientX - sx, dy = t.clientY - sy;
+            var choice = null;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) choice = dx > 0 ? 'want' : 'not_interested';
+            else if (dy < -60 && Math.abs(dy) > Math.abs(dx)) choice = 'watched';
+            sx = sy = null;
+            if (!choice) return;
+            var fd = new FormData(form);
+            fd.set('choice', choice);
+            fetch(form.action, {method: 'POST', body: fd, headers: {'X-Requested-With': 'fetch'}})
+                .then(function(){ window.location.reload(); });
+        }, {passive: true});
+    }
+})();
+</script>
+{% endblock %}
