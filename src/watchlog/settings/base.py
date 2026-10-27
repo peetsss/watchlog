@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "pgvector.django",
     "core",
     "groups",
+    "lobby",
     "movies",
     "user",
 ]
