@@ -38,8 +38,8 @@ test *args:
 
 # run lint, formatting, migration and test checks
 check:
-    {{DC}} run --rm --no-deps --entrypoint ruff django check .
-    {{DC}} run --rm --no-deps --entrypoint ruff django format --check .
+    {{DC}} run --rm --no-deps -w /project --entrypoint ruff django check --cache-dir /tmp/ruff-cache src
+    {{DC}} run --rm --no-deps -w /project --entrypoint ruff django format --check --cache-dir /tmp/ruff-cache src
     {{DC}} run --rm --no-deps --entrypoint python django manage.py makemigrations --check --dry-run
     {{DC}} run --rm django python manage.py test
 
