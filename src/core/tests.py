@@ -13,3 +13,9 @@ class HealthViewTests(SimpleTestCase):
         response = self.client.post(reverse("health"))
 
         self.assertEqual(response.status_code, 405)
+
+    def test_unknown_url_renders_404_page(self):
+        response = self.client.get("/does-not-exist/")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, "404.html")

@@ -9,8 +9,8 @@
                 <form method="POST" action="{% url 'join_group' %}">
                     {% csrf_token %}
                     <div class="form-group mb-3">
-                        <label class="mb-2" for="groupCode">Enter group code:</label>
-                        <input type="text" class="form-control bg-dark text-light" id="groupCode" name="code" required>
+                        <label class="mb-2" for="groupCode">Enter group ID:</label>
+                        <input type="text" class="form-control bg-dark text-light" id="groupCode" name="uuid" required>
                     </div>
                     <div class="d-grid gap-2 col-6 mx-auto">
                         <button type="submit" class="btn btn-primary">Join</button>

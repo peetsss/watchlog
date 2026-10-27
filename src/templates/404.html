@@ -1,11 +1,11 @@
 {% extends "core.html" %}
 
-{% block content %}
-<body class="bg-dark d-flex align-items-center justify-content-center full-height">
-    <div class="text-light centered">
+{% block body %}
+<div class="d-flex align-items-center justify-content-center min-vh-100">
+    <div class="text-light text-center">
         <h1>Oooops!</h1>
         <h2>The site you're looking for doesn't exist!</h2>
         <a href="{% url 'index' %}" class="btn btn-primary mt-3">Go to Homepage</a>
     </div>
-</body>
+</div>
 {% endblock %}
