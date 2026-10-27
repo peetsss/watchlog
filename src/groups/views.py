@@ -10,9 +10,9 @@ from django.views.decorators.http import require_POST
 
 from movies.models import Movie
 
+from .decorators import group_member_required
 from .forms import GroupForm
-from .middleware import group_member_required
-from .models import Group, GroupMembership, GroupMovie, Review
+from .models import Group, GroupMovie, Review
 
 
 @login_required
@@ -21,11 +21,9 @@ def create_group(request: HttpRequest) -> HttpResponse:
         form = GroupForm(request.POST)
         if form.is_valid():
             group = form.save()
-            user = request.user
-            group.members.add(user)
+            group.members.add(request.user)
             return redirect("group", uuid=group.uuid)
 
-    form = GroupForm()
     return redirect("index")
 
 
@@ -40,28 +38,25 @@ def generate_invite_link(request: HttpRequest, uuid: uuid.UUID) -> JsonResponse:
 @login_required
 def join_group_by_link(request: HttpRequest, uuid: uuid.UUID) -> HttpResponse:
     group = get_object_or_404(Group, uuid=uuid)
-    user = request.user
-    if user not in group.members.all():
-        group.members.add(user)
+    if not group.members.filter(pk=request.user.pk).exists():
+        group.members.add(request.user)
     return redirect("group", uuid=group.uuid)
 
 
+@login_required
 @group_member_required
 def group_view(request: HttpRequest, uuid: uuid.UUID) -> HttpResponse:
     group = get_object_or_404(Group, uuid=uuid)
-    group_movies = GroupMovie.objects.filter(group=group)
-    user_scores_queryset = Review.objects.filter(group_movie__group=group).select_related("user")
+    group_movies = GroupMovie.objects.filter(group=group).select_related("movie", "suggested_by")
+    user_scores_queryset = Review.objects.filter(group_movie__group=group).select_related("user", "group_movie__movie")
 
-    user_scores = {}
+    user_scores: dict[int, list[tuple[str, object]]] = {}
     for score in user_scores_queryset:
-        movie_id = score.group_movie.movie.pk
-        if movie_id not in user_scores:
-            user_scores[movie_id] = []
-        user_scores[movie_id].append((score.user.username, score.score))
+        user_scores.setdefault(score.group_movie.movie_id, []).append((score.user.username, score.score))
 
     watched_movies = group_movies.filter(status=GroupMovie.Status.WATCHED)
     not_watched_movies = group_movies.filter(status=GroupMovie.Status.SUGGESTED)
-    all_group_movies = watched_movies | not_watched_movies
+    all_group_movies = group_movies.filter(status__in=[GroupMovie.Status.WATCHED, GroupMovie.Status.SUGGESTED])
 
     context = {
         "group": group,
@@ -79,8 +74,7 @@ def join_group(request: HttpRequest) -> HttpResponse:
     group_uuid = request.POST.get("uuid")
     if group_uuid:
         group = get_object_or_404(Group, uuid=group_uuid)
-        user = request.user
-        group.members.add(user)
+        group.members.add(request.user)
         return redirect("group", uuid=group.uuid)
     return redirect("index")
 
@@ -88,7 +82,6 @@ def join_group(request: HttpRequest) -> HttpResponse:
 @require_POST
 @login_required
 def add_user_score(request: HttpRequest) -> HttpResponse:
-    user = request.user
     movie_id = request.POST.get("movie_id")
     group_uuid = request.POST.get("group_uuid")
     user_score = request.POST.get("score")
@@ -97,9 +90,9 @@ def add_user_score(request: HttpRequest) -> HttpResponse:
         group = get_object_or_404(Group, uuid=group_uuid)
         movie = get_object_or_404(Movie, tmdb_id=movie_id)
         group_movie = get_object_or_404(GroupMovie, group=group, movie=movie)
-        user_score = Review.objects.update_or_create(
+        Review.objects.update_or_create(
             group_movie=group_movie,
-            user=user,
+            user=request.user,
             defaults={"score": user_score},
         )
 
@@ -120,23 +113,22 @@ def add_user_score(request: HttpRequest) -> HttpResponse:
 @require_POST
 @login_required
 def leave_group(request: HttpRequest) -> HttpResponse:
-    user = request.user
     group_uuid = request.POST.get("group_uuid")
 
     if group_uuid:
         group = get_object_or_404(Group, uuid=group_uuid)
-        if user in group.members.all():
-            group.members.remove(user)
+        if group.members.filter(pk=request.user.pk).exists():
+            group.members.remove(request.user)
             return redirect("profile")
 
     return redirect("profile")
 
 
+@login_required
 @group_member_required
 def group_info(request: HttpRequest, uuid: uuid.UUID) -> HttpResponse:
     group = get_object_or_404(Group, uuid=uuid)
 
-    group_memberships = GroupMembership.objects.filter(group=group).select_related("user")
     group_movies = GroupMovie.objects.filter(group=group)
     watched_movies_count = group_movies.filter(status=GroupMovie.Status.WATCHED).count()
     not_watched_movies_count = group_movies.filter(status=GroupMovie.Status.SUGGESTED).count()
@@ -149,7 +141,6 @@ def group_info(request: HttpRequest, uuid: uuid.UUID) -> HttpResponse:
 
     context = {
         "group": group,
-        "group_membership": group_memberships,
         "group_movies_count": group_movies.count(),
         "watched_movies_count": watched_movies_count,
         "not_watched_movies_count": not_watched_movies_count,

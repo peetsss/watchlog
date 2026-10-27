@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
@@ -11,7 +11,7 @@ from movies.utils.tmdb import BACKDROP_BASE_URL, POSTER_BASE_URL, TMDBClient
 from .models import Movie
 
 
-def _parse_date(value: str | None) -> datetime | None:
+def _parse_date(value: str | None) -> date | None:
     if value:
         try:
             return datetime.strptime(value, "%Y-%m-%d").date()

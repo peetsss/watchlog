@@ -1,12 +1,24 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.db.models import Avg, Count, Func
+from django.db.models import Avg, Count
+from django.db.models.functions import Round
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from groups.models import Review
 
 from .forms import AuthForm, SignUpForm
+
+
+def _redirect_after_login(request: HttpRequest, next_url: str | None) -> HttpResponse:
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(next_url)
+    return redirect("index")
 
 
 def start_view(request: HttpRequest) -> HttpResponse:
@@ -21,24 +33,19 @@ def start_view(request: HttpRequest) -> HttpResponse:
         if "signup" in request.POST:
             signup_form = SignUpForm(request.POST)
             if signup_form.is_valid():
-                user = signup_form.save()
+                signup_form.save()
                 username = signup_form.cleaned_data.get("username")
                 raw_password = signup_form.cleaned_data.get("password1")
                 user = authenticate(username=username, password=raw_password)
                 if user is not None:
                     login(request, user)
-                    if next_url:
-                        return redirect(next_url)
-                    return redirect("index")
+                    return _redirect_after_login(request, next_url)
 
         elif "login" in request.POST:
             login_form = AuthForm(request, data=request.POST)
             if login_form.is_valid():
-                user = login_form.get_user()
-                login(request, user)
-                if next_url:
-                    return redirect(next_url)
-                return redirect("index")
+                login(request, login_form.get_user())
+                return _redirect_after_login(request, next_url)
 
     return render(
         request,
@@ -55,9 +62,7 @@ def start_view(request: HttpRequest) -> HttpResponse:
 @login_required
 def profile(request: HttpRequest) -> HttpResponse:
     user = request.user
-    avg_score_across_groups = Review.objects.filter(user=user).aggregate(
-        avg_score=Func(Avg("score"), function="ROUND", template="%(function)s(%(expressions)s, 1)")
-    )
+    avg_score_across_groups = Review.objects.filter(user=user).aggregate(avg_score=Round(Avg("score"), 1))
 
     scores_set_count = Review.objects.filter(user=user).aggregate(total_scores=Count("score"))["total_scores"]
 
