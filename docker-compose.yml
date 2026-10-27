@@ -4,11 +4,13 @@ services:
     image: watchlog-django:prod
     build:
       context: .
-      dockerfile: Dockerfile.dev
-    command: gunicorn watchlog.wsgi:application --bind 0.0.0.0:8000
+      dockerfile: Dockerfile.prod
     depends_on:
       - database
     environment:
+      DJANGO_ENV: prod
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       POSTGRES_HOST: database
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-watchlog_db}
