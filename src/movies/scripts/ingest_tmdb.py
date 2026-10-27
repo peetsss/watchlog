@@ -77,7 +77,7 @@ class MovieRow:
     keywords: list[str]
 
     @classmethod
-    def from_row(cls, row: dict[str, str], min_votes: int = 0) -> "MovieRow | None":
+    def from_row(cls, row: dict[str, str], min_votes: int = 0) -> MovieRow | None:
         if (row.get("status") or "").strip() != "Released":
             return None
         overview = (row.get("overview") or "").strip()

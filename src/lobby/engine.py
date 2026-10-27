@@ -3,8 +3,8 @@ from dataclasses import dataclass, field, replace
 
 from lobby.exceptions import InvalidChoiceError
 from lobby.rules import (
-    FINALIST_COUNT,
     FINAL_ROUND,
+    FINALIST_COUNT,
     FINISHED,
     INTERESTED,
     NOT_INTERESTED,

@@ -17,7 +17,7 @@ class TMDBClient:
     def close(self) -> None:
         self.client.close()
 
-    def __enter__(self) -> "TMDBClient":
+    def __enter__(self) -> TMDBClient:
         return self
 
     def __exit__(self, *args) -> None:

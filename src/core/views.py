@@ -4,5 +4,5 @@ from django.shortcuts import render
 
 
 @login_required
-def index(request: "HttpRequest") -> "HttpResponse":
+def index(request: HttpRequest) -> HttpResponse:
     return render(request, "index.html")

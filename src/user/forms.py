@@ -9,7 +9,7 @@ class SignUpForm(UserCreationForm):
         fields = ("username", "password1", "password2")
 
     def __init__(self, *args, **kwargs) -> None:
-        super(SignUpForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fields["username"].widget.attrs.update(
             {
                 "class": "form-control bg-dark text-light pt-1",
@@ -32,7 +32,7 @@ class SignUpForm(UserCreationForm):
 
 class AuthForm(AuthenticationForm):
     def __init__(self, *args, **kwargs) -> None:
-        super(AuthForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fields["username"].widget.attrs.update(
             {
                 "class": "form-control bg-dark text-light",

@@ -3,8 +3,8 @@ from collections.abc import Iterable
 from dataclasses import replace
 
 from lobby.engine import (
-    FINALIST_COUNT,
     FINAL_ROUND,
+    FINALIST_COUNT,
     FINISHED,
     INTERESTED,
     NOT_INTERESTED,
