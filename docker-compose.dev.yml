@@ -15,6 +15,7 @@ services:
       DJANGO_DEBUG_TOOLBAR: 1
     volumes:
       - ./src:/app
+      - ./pyproject.toml:/app/pyproject.toml:ro
 
   database:
     ports:

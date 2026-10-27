@@ -36,6 +36,13 @@ migrate:
 test *args:
     {{DC}} run --rm django python manage.py test {{args}}
 
+# run lint, formatting, migration and test checks
+check:
+    {{DC}} run --rm --no-deps --entrypoint ruff django check .
+    {{DC}} run --rm --no-deps --entrypoint ruff django format --check .
+    {{DC}} run --rm --no-deps --entrypoint python django manage.py makemigrations --check --dry-run
+    {{DC}} run --rm django python manage.py test
+
 # create superuser
 superuser:
     {{DC}} run --rm django python manage.py createsuperuser
