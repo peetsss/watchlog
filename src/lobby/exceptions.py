@@ -26,6 +26,10 @@ class InvalidChoiceError(LobbyError):
     pass
 
 
+class InvalidActionError(LobbyError):
+    pass
+
+
 class AlreadyActiveLobbyError(LobbyError):
     pass
 
