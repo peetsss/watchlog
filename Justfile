@@ -34,19 +34,19 @@ migrate:
 
 # run tests
 test *args:
-    {{DC}} run --rm django python manage.py test {{args}}
+    {{DC}} run --rm -e REDIS_URL= django python manage.py test {{args}}
 
 # run lint, formatting, migration and test checks
 check:
     {{DC}} run --rm --no-deps -w /project --entrypoint ruff django check --cache-dir /tmp/ruff-cache src
     {{DC}} run --rm --no-deps -w /project --entrypoint ruff django format --check --cache-dir /tmp/ruff-cache src
     {{DC}} run --rm --no-deps --entrypoint python django manage.py makemigrations --check --dry-run
-    {{DC}} run --rm django python manage.py test
+    {{DC}} run --rm -e REDIS_URL= django python manage.py test
 
 # create superuser
 superuser:
     {{DC}} run --rm django python manage.py createsuperuser
 
-# start production stack (gunicorn)
+# start production stack (daphne ASGI)
 prod:
     docker compose -f docker-compose.yml up -d --build

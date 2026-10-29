@@ -22,7 +22,6 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY src/ /app
 COPY src/entrypoint.prod.sh /app/entrypoint.sh
-COPY gunicorn.conf.py /app/gunicorn.conf.py
 
 RUN useradd -r -s /bin/false appuser && chown -R appuser:appuser /app
 USER appuser

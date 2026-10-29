@@ -5,8 +5,10 @@ description = "Shared movie watchlists and lobby voting for groups"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "channels>=4.3.2",
+    "channels-redis>=4.3.0",
+    "daphne>=4.2.3",
     "django>=6.1.2",
-    "gunicorn>=26.2.0",
     "httpx>=0.28.1",
     "loguru>=0.7.3",
     "pgvector>=0.5.1",
