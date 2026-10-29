@@ -4,6 +4,7 @@
 
 ## Technologies Used
 - Django Framework
+- Django Channels with Redis for realtime lobby state
 - Bootstrap 5
 - PostgreSQL with pgvector
 - Docker and Docker Compose
@@ -37,9 +38,11 @@ POSTGRES_USER=watchlog
 POSTGRES_PASSWORD=watchlog_password
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
+
+REDIS_URL=redis://127.0.0.1:6379/0
 ```
 
-The production stack sets `DJANGO_ENV=prod` itself. `DJANGO_SECRET_KEY` and `DJANGO_ALLOWED_HOSTS` must be set before running it, otherwise the app refuses to start.
+The production stack sets `DJANGO_ENV=prod` itself. `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` and `REDIS_URL` must be set before running it, otherwise the app refuses to start.
 
 ### Running the Application
 Start the development stack (runserver with hot reload):
@@ -68,19 +71,29 @@ Running `manage.py test` from the repository root finds no tests, since `src`
 is not a package. To run the suite on the host instead:
 
 ```
-cd src && POSTGRES_HOST=127.0.0.1 uv run python manage.py test
+cd src && POSTGRES_HOST=127.0.0.1 REDIS_URL= uv run python manage.py test
 ```
 
+Tests use the in-memory channel layer. The `just test` command does the same,
+so it does not need Redis to be running.
+
+### Lobby API and realtime
+The lobby JSON API lives under `/api/lobby/`; the WebSocket endpoint is
+`/ws/lobby/<uuid>/`. Endpoints, payloads and close codes are documented in
+[docs/lobby-api.md](docs/lobby-api.md).
+
 ### Production
-Build and start the gunicorn stack:
+Build and start the daphne ASGI stack:
 
 ```
 just prod
 ```
 
-The container entrypoint applies migrations, collects static files and starts
-gunicorn. Static files are served by WhiteNoise with hashed, compressed names,
-so the app does not need a separate web server for `/static/`.
+The container entrypoint waits for PostgreSQL and Redis, applies migrations,
+collects static files and starts daphne. Static files are served by WhiteNoise
+with hashed, compressed names, so the app does not need a separate web server
+for `/static/`. The reverse proxy in front of the container must forward
+WebSocket upgrades to port 8000.
 
 ### Data scripts
 The catalog scripts run against the configured database:
