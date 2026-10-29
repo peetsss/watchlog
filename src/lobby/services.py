@@ -18,6 +18,7 @@ from lobby.exceptions import (
 )
 from lobby.models import Lobby, LobbyMembership
 from lobby.pool import resolve_pool
+from lobby.realtime import schedule_lobby_changed, schedule_lobby_restarted
 from lobby.selectors import get_active_group_lobby, get_lobby_for_member, get_state
 from user.models import User
 
@@ -32,7 +33,11 @@ __all__ = [
     "join_lobby",
     "leave_lobby",
     "mark_ready",
+    "next_round",
     "pick",
+    "restart_lobby",
+    "start_lobby",
+    "unready",
     "vote",
 ]
 
@@ -90,6 +95,8 @@ def _game_from_lobby(lobby: Lobby) -> engine.Game:
         picks=picks,
         candidates=tuple(int(movie_id) for movie_id in (lobby.finalists or [])),
         winner=lobby.winner_movie_id,
+        revealed=lobby.revealed,
+        picks_revealed=lobby.picks_revealed,
     )
 
 
@@ -105,7 +112,7 @@ def _record_group_winner(lobby: Lobby, game: engine.Game) -> None:
     )
 
 
-def _commit(lobby: Lobby, before: engine.Game, after: engine.Game) -> Lobby:
+def _commit(lobby: Lobby, before: engine.Game, after: engine.Game, reason: str) -> Lobby:
     _record_group_winner(lobby, after)
     if before == after:
         return lobby
@@ -118,6 +125,8 @@ def _commit(lobby: Lobby, before: engine.Game, after: engine.Game) -> Lobby:
     lobby.picks = dict(after.picks)
     lobby.finalists = list(after.candidates)
     lobby.winner_movie_id = after.winner
+    lobby.revealed = after.revealed
+    lobby.picks_revealed = after.picks_revealed
     lobby.version += 1
     if after.status == rules.PLAYING and lobby.started_at is None:
         lobby.started_at = now
@@ -133,11 +142,14 @@ def _commit(lobby: Lobby, before: engine.Game, after: engine.Game) -> Lobby:
             "picks",
             "finalists",
             "winner_movie",
+            "revealed",
+            "picks_revealed",
             "version",
             "started_at",
             "finished_at",
         ]
     )
+    schedule_lobby_changed(lobby.uuid, lobby.version, reason)
     return lobby
 
 
@@ -190,6 +202,8 @@ def create_lobby(
                     votes={},
                     picks={},
                     finalists=[],
+                    revealed=False,
+                    picks_revealed=False,
                     version=0,
                 )
         except IntegrityError as exc:
@@ -212,6 +226,7 @@ def join_lobby(lobby_uuid: str | UUID, user: User) -> Lobby:
         LobbyMembership.objects.create(lobby=lobby, user=user, role=LobbyMembership.Roles.MEMBER)
         lobby.version += 1
         lobby.save(update_fields=["version"])
+        schedule_lobby_changed(lobby.uuid, lobby.version, "join")
         return lobby
 
 
@@ -225,7 +240,7 @@ def leave_lobby(lobby_uuid: str | UUID, user: User) -> Lobby:
         before = _game_from_lobby(lobby)
         lobby.memberships.filter(user_id=user.pk).delete()
         after = engine.reconcile(_game_from_lobby(lobby))
-        return _commit(lobby, before, after)
+        return _commit(lobby, before, after, reason="leave")
 
 
 def mark_ready(lobby_uuid: str | UUID, user: User) -> Lobby:
@@ -235,7 +250,30 @@ def mark_ready(lobby_uuid: str | UUID, user: User) -> Lobby:
         _require_status(lobby, rules.READY)
         before = _game_from_lobby(lobby)
         after = engine.mark_ready(before, _user_id(user))
-        return _commit(lobby, before, after)
+        return _commit(lobby, before, after, reason="ready")
+
+
+def unready(lobby_uuid: str | UUID, user: User) -> Lobby:
+    with transaction.atomic():
+        lobby = _get_locked_lobby(lobby_uuid)
+        _require_member(lobby, user)
+        _require_status(lobby, rules.READY)
+        before = _game_from_lobby(lobby)
+        after = engine.unready(before, _user_id(user))
+        return _commit(lobby, before, after, reason="unready")
+
+
+def start_lobby(lobby_uuid: str | UUID, user: User) -> Lobby:
+    with transaction.atomic():
+        lobby = _get_locked_lobby(lobby_uuid)
+        _require_host(lobby, user)
+        _require_status(lobby, rules.READY)
+        before = _game_from_lobby(lobby)
+        participating = before.ready | {_user_id(user)}
+        participating_ids = {int(user_id) for user_id in participating}
+        lobby.memberships.exclude(user_id__in=participating_ids).delete()
+        after = engine.start(_game_from_lobby(lobby), participating)
+        return _commit(lobby, before, after, reason="start")
 
 
 def vote(lobby_uuid: str | UUID, user: User, movie_id: int, choice: str) -> Lobby:
@@ -245,13 +283,27 @@ def vote(lobby_uuid: str | UUID, user: User, movie_id: int, choice: str) -> Lobb
         if choice not in rules.VOTE_CHOICES:
             raise InvalidChoiceError(f"Unknown vote choice: {choice!r}")
         _require_status(lobby, rules.PLAYING)
+        if lobby.revealed:
+            raise InvalidStateError(f"Lobby {lobby.uuid} already revealed the current film")
         before = _game_from_lobby(lobby)
         if before.current is None:
-            return _commit(lobby, before, engine.reconcile(before))
+            return _commit(lobby, before, engine.reconcile(before), reason="reconcile")
         if movie_id != before.current:
             return lobby
         after = engine.vote(before, _user_id(user), movie_id, choice)
-        return _commit(lobby, before, after)
+        return _commit(lobby, before, after, reason="vote")
+
+
+def next_round(lobby_uuid: str | UUID, user: User) -> Lobby:
+    with transaction.atomic():
+        lobby = _get_locked_lobby(lobby_uuid)
+        _require_member(lobby, user)
+        _require_status(lobby, rules.PLAYING)
+        if not lobby.revealed:
+            raise InvalidStateError(f"Lobby {lobby.uuid} has not revealed the current film")
+        before = _game_from_lobby(lobby)
+        after = engine.next_round(before)
+        return _commit(lobby, before, after, reason="next_round")
 
 
 def pick(lobby_uuid: str | UUID, user: User, movie_id: int) -> Lobby:
@@ -259,11 +311,13 @@ def pick(lobby_uuid: str | UUID, user: User, movie_id: int) -> Lobby:
         lobby = _get_locked_lobby(lobby_uuid)
         _require_member(lobby, user)
         _require_status(lobby, rules.FINAL_ROUND)
+        if lobby.picks_revealed:
+            raise InvalidStateError(f"Lobby {lobby.uuid} already revealed the final picks")
         before = _game_from_lobby(lobby)
         if movie_id not in before.candidates:
             raise InvalidChoiceError(f"Movie {movie_id} is not a finalist in lobby {lobby.uuid}")
         after = engine.pick(before, _user_id(user), movie_id)
-        return _commit(lobby, before, after)
+        return _commit(lobby, before, after, reason="pick")
 
 
 def advance(lobby_uuid: str | UUID, user: User) -> Lobby:
@@ -271,19 +325,23 @@ def advance(lobby_uuid: str | UUID, user: User) -> Lobby:
         lobby = _get_locked_lobby(lobby_uuid)
         _require_host(lobby, user)
         _require_status(lobby, rules.PLAYING)
+        if lobby.revealed:
+            raise InvalidStateError(f"Lobby {lobby.uuid} is revealed; use next_round")
         before = _game_from_lobby(lobby)
         after = engine.reconcile(before) if before.current is None else engine.advance(before)
-        return _commit(lobby, before, after)
+        return _commit(lobby, before, after, reason="advance")
 
 
 def finalize_lobby(lobby_uuid: str | UUID, user: User) -> Lobby:
     with transaction.atomic():
         lobby = _get_locked_lobby(lobby_uuid)
-        _require_host(lobby, user)
+        _require_member(lobby, user)
         _require_status(lobby, rules.FINAL_ROUND)
+        if not lobby.picks_revealed and lobby.host_id != user.pk:
+            raise NotHostError(f"User {user.pk} may not finalize lobby {lobby.uuid} before every pick is in")
         before = _game_from_lobby(lobby)
         after = engine.finalize(before)
-        return _commit(lobby, before, after)
+        return _commit(lobby, before, after, reason="finalize")
 
 
 def end_lobby(lobby_uuid: str | UUID, user: User) -> Lobby:
@@ -295,4 +353,18 @@ def end_lobby(lobby_uuid: str | UUID, user: User) -> Lobby:
         _require_status(lobby, rules.READY, rules.PLAYING, rules.FINAL_ROUND)
         before = _game_from_lobby(lobby)
         after = engine.end(before)
-        return _commit(lobby, before, after)
+        return _commit(lobby, before, after, reason="end")
+
+
+def restart_lobby(lobby_uuid: str | UUID, user: User) -> Lobby:
+    with transaction.atomic():
+        lobby = _get_locked_lobby(lobby_uuid)
+        _require_host(lobby, user)
+        _require_status(lobby, rules.FINISHED)
+        if lobby.group_id is not None:
+            new_lobby = create_lobby(user, group=lobby.group)
+        else:
+            members = [membership.user for membership in lobby.memberships.select_related("user")]
+            new_lobby = create_lobby(user, members=members)
+        schedule_lobby_restarted(lobby.uuid, new_lobby.uuid)
+        return new_lobby

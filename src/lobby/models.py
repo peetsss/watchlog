@@ -50,6 +50,8 @@ class Lobby(models.Model):
         on_delete=models.PROTECT,
         related_name="lobby_winners",
     )
+    revealed = models.BooleanField(default=False)
+    picks_revealed = models.BooleanField(default=False)
     version = models.IntegerField(default=0)  # type: ignore[argument]
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)

@@ -6,7 +6,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase as DjangoTestCase
 
 from groups.models import Group, GroupMovie
-from lobby import engine, rules, services
+from lobby import engine, rules, selectors, services
 from lobby.exceptions import (
     AlreadyActiveLobbyError,
     InvalidChoiceError,
@@ -49,10 +49,15 @@ class LobbyTestCase(DjangoTestCase):
     def members(self, lobby: Lobby) -> list[User]:
         return [membership.user for membership in lobby.memberships.select_related("user")]
 
-    def start(self, lobby: Lobby, users: Iterable[User] | None = None) -> Lobby:
+    def start_all(self, lobby: Lobby, users: Iterable[User] | None = None) -> Lobby:
         for user in self.members(lobby) if users is None else users:
             lobby = services.mark_ready(lobby.uuid, user)
-        return lobby
+        return services.start_lobby(lobby.uuid, User.objects.get(pk=lobby.host_id))
+
+    def start_with(self, lobby: Lobby, users: Iterable[User]) -> Lobby:
+        for user in users:
+            lobby = services.mark_ready(lobby.uuid, user)
+        return services.start_lobby(lobby.uuid, User.objects.get(pk=lobby.host_id))
 
     def vote_current(self, lobby: Lobby, users: Iterable[User], choice: str = engine.INTERESTED) -> Lobby:
         current = lobby.pool[lobby.pool_index]
@@ -63,13 +68,22 @@ class LobbyTestCase(DjangoTestCase):
     def play_to_final(self, lobby: Lobby, users: Iterable[User] | None = None) -> Lobby:
         voters = list(users) if users is not None else self.members(lobby)
         while lobby.status == Lobby.Status.PLAYING:
-            lobby = self.vote_current(lobby, voters)
+            if lobby.revealed:
+                lobby = services.next_round(lobby.uuid, voters[0])
+            else:
+                lobby = self.vote_current(lobby, voters)
         return lobby
 
     def pick_for_all(self, lobby: Lobby, movie_id: int) -> Lobby:
         for user in self.members(lobby):
             lobby = services.pick(lobby.uuid, user, movie_id)
         return lobby
+
+    def finish(self, lobby: Lobby, users: Iterable[User] | None = None) -> Lobby:
+        lobby = self.play_to_final(lobby, users)
+        winner = lobby.finalists[0]
+        lobby = self.pick_for_all(lobby, winner)
+        return services.finalize_lobby(lobby.uuid, self.alice)
 
 
 class CreateLobbyTest(LobbyTestCase):
@@ -82,6 +96,8 @@ class CreateLobbyTest(LobbyTestCase):
         self.assertEqual(lobby.pool_index, 0)
         self.assertEqual(len(lobby.pool), len(self.movies))
         self.assertEqual(lobby.version, 0)
+        self.assertFalse(lobby.revealed)
+        self.assertFalse(lobby.picks_revealed)
         self.assertIsNone(lobby.started_at)
         roles = dict(lobby.memberships.values_list("user_id", "role"))
         self.assertEqual(
@@ -157,7 +173,7 @@ class JoinLobbyTest(LobbyTestCase):
     def test_join_rejects_ineligible_lobbies(self) -> None:
         with self.assertRaises(NotJoinableError):
             services.join_lobby(self.create_group().uuid, self.dave)
-        started = self.start(self.create_open(members=[self.bob]), [self.alice, self.bob])
+        started = self.start_all(self.create_open(members=[self.bob]), [self.alice, self.bob])
         with self.assertRaises(NotJoinableError):
             services.join_lobby(started.uuid, self.carol)
         with self.assertRaises(LobbyNotFoundError):
@@ -166,121 +182,215 @@ class JoinLobbyTest(LobbyTestCase):
 
 class AuthTest(LobbyTestCase):
     def test_non_member_cannot_read_or_mutate(self) -> None:
-        lobby = self.start(self.create_open(members=[self.bob]), [self.alice, self.bob])
+        lobby = self.start_all(self.create_open(members=[self.bob]), [self.alice, self.bob])
         actions = (
             ("vote", lambda: services.vote(lobby.uuid, self.dave, lobby.pool[0], engine.INTERESTED)),
             ("ready", lambda: services.mark_ready(lobby.uuid, self.dave)),
+            ("unready", lambda: services.unready(lobby.uuid, self.dave)),
+            ("start", lambda: services.start_lobby(lobby.uuid, self.dave)),
             ("pick", lambda: services.pick(lobby.uuid, self.dave, lobby.pool[0])),
             ("state", lambda: services.get_state(lobby.uuid, self.dave)),
             ("lobby", lambda: services.get_lobby_for_member(lobby.uuid, self.dave)),
+            ("restart", lambda: services.restart_lobby(lobby.uuid, self.dave)),
         )
         for name, action in actions:
-            with self.subTest(name=name), self.assertRaises(NotAMemberError):
+            with self.subTest(name=name), self.assertRaises((NotAMemberError, NotHostError)):
                 action()
 
     def test_non_host_cannot_run_host_commands(self) -> None:
-        lobby = self.start(self.create_open(members=[self.bob]), [self.alice, self.bob])
+        lobby = self.start_all(self.create_open(members=[self.bob]), [self.alice, self.bob])
         actions = (
             ("advance", lambda: services.advance(lobby.uuid, self.bob)),
             ("finalize", lambda: services.finalize_lobby(lobby.uuid, self.bob)),
             ("end", lambda: services.end_lobby(lobby.uuid, self.bob)),
         )
         for name, action in actions:
-            with self.subTest(name=name), self.assertRaises(NotHostError):
+            with self.subTest(name=name), self.assertRaises((NotHostError, InvalidStateError)):
                 action()
+
+
+class StartTest(LobbyTestCase):
+    def test_ready_does_not_start_the_game(self) -> None:
+        lobby = self.create_open(members=[self.bob])
+        lobby = services.mark_ready(lobby.uuid, self.alice)
+        lobby = services.mark_ready(lobby.uuid, self.bob)
+        self.assertEqual(lobby.status, Lobby.Status.READY)
+        self.assertIsNone(lobby.started_at)
+
+    def test_host_start_keeps_only_ready_players(self) -> None:
+        lobby = self.create_open(members=[self.bob, self.carol])
+        lobby = services.mark_ready(lobby.uuid, self.bob)
+        lobby = services.start_lobby(lobby.uuid, self.alice)
+        self.assertEqual(lobby.status, Lobby.Status.PLAYING)
+        self.assertEqual(set(lobby.memberships.values_list("user_id", flat=True)), {self.alice.id, self.bob.id})
+        self.assertIsNotNone(lobby.started_at)
+        self.assertEqual(lobby.ready, sorted([str(self.alice.id), str(self.bob.id)], key=int))
+
+    def test_host_is_included_even_when_not_ready(self) -> None:
+        lobby = self.create_open(members=[self.bob])
+        lobby = services.mark_ready(lobby.uuid, self.bob)
+        lobby = services.start_lobby(lobby.uuid, self.alice)
+        self.assertIn(self.alice.id, set(lobby.memberships.values_list("user_id", flat=True)))
+
+    def test_unready_toggle_only_works_before_start(self) -> None:
+        lobby = self.create_open(members=[self.bob])
+        lobby = services.mark_ready(lobby.uuid, self.alice)
+        lobby = services.unready(lobby.uuid, self.alice)
+        self.assertEqual(lobby.ready, [])
+        with self.assertRaises(InvalidStateError):
+            services.unready(self.start_all(lobby).uuid, self.alice)
+
+    def test_non_host_and_non_ready_states_reject_start(self) -> None:
+        lobby = self.create_open(members=[self.bob])
+        with self.assertRaises(NotHostError):
+            services.start_lobby(lobby.uuid, self.bob)
+        started = self.start_all(lobby)
+        with self.assertRaises(InvalidStateError):
+            services.start_lobby(started.uuid, self.alice)
+
+    def test_empty_pool_finishes_on_start(self) -> None:
+        lobby = services.create_lobby(self.alice, [], pool=[])
+        version = lobby.version
+        lobby = services.start_lobby(lobby.uuid, self.alice)
+        self.assertEqual(lobby.status, Lobby.Status.FINISHED)
+        self.assertIsNone(lobby.winner_movie_id)
+        self.assertIsNone(lobby.started_at)
+        self.assertIsNotNone(lobby.finished_at)
+        self.assertEqual(lobby.version, version + 1)
 
 
 class StateValidationTest(LobbyTestCase):
     def test_mark_ready_requires_ready_state(self) -> None:
-        lobby = self.start(self.create_open(members=[self.bob]), [self.alice, self.bob])
+        lobby = self.start_all(self.create_open(members=[self.bob]), [self.alice, self.bob])
         with self.assertRaises(InvalidStateError):
             services.mark_ready(lobby.uuid, self.alice)
 
-    def test_vote_requires_playing_state(self) -> None:
+    def test_vote_requires_playing_and_unrevealed(self) -> None:
         ready = self.create_open(members=[self.bob])
         with self.assertRaises(InvalidStateError):
             services.vote(ready.uuid, self.alice, ready.pool[0], engine.INTERESTED)
-        final = self.play_to_final(self.start(ready, [self.alice, self.bob]))
+        playing = self.start_all(ready, [self.alice, self.bob])
+        current = playing.pool[playing.pool_index]
+        services.vote(playing.uuid, self.alice, current, engine.INTERESTED)
+        revealed = services.vote(playing.uuid, self.bob, current, engine.INTERESTED)
+        self.assertTrue(revealed.revealed)
         with self.assertRaises(InvalidStateError):
-            services.vote(final.uuid, self.alice, final.finalists[0], engine.INTERESTED)
+            services.vote(revealed.uuid, self.alice, current, engine.INTERESTED)
 
-    def test_pick_requires_final_round(self) -> None:
-        lobby = self.start(self.create_open(members=[self.bob]), [self.alice, self.bob])
+    def test_pick_requires_final_round_and_unrevealed(self) -> None:
+        lobby = self.start_all(self.create_open(members=[self.bob]), [self.alice, self.bob])
         with self.assertRaises(InvalidStateError):
             services.pick(lobby.uuid, self.alice, lobby.pool[0])
+        final = self.play_to_final(lobby, [self.alice, self.bob])
+        winner = final.finalists[0]
+        final = self.pick_for_all(final, winner)
+        self.assertTrue(final.picks_revealed)
+        with self.assertRaises(InvalidStateError):
+            services.pick(final.uuid, self.alice, winner)
 
-    def test_host_commands_require_their_status(self) -> None:
+    def test_advance_requires_host_playing_and_no_reveal(self) -> None:
         ready = self.create_open(members=[self.bob])
+        with self.assertRaises(NotHostError):
+            services.advance(ready.uuid, self.bob)
         with self.assertRaises(InvalidStateError):
             services.advance(ready.uuid, self.alice)
 
-        playing = self.start(ready, [self.alice, self.bob])
-        with self.assertRaises(InvalidStateError):
-            services.finalize_lobby(playing.uuid, self.alice)
+        playing = self.start_all(ready, [self.alice, self.bob])
+        self.assertEqual(services.advance(playing.uuid, self.alice).pool_index, 1)
 
-        final = self.play_to_final(playing)
+        revealed = self.vote_current(self.start_all(self.create_open(members=[self.bob])), [self.alice, self.bob])
         with self.assertRaises(InvalidStateError):
-            services.advance(final.uuid, self.alice)
-        services.finalize_lobby(final.uuid, self.alice)
+            services.advance(revealed.uuid, self.alice)
+
+    def test_next_round_requires_reveal(self) -> None:
+        lobby = self.start_all(self.create_open(members=[self.bob]), [self.alice, self.bob])
         with self.assertRaises(InvalidStateError):
-            services.finalize_lobby(final.uuid, self.alice)
+            services.next_round(lobby.uuid, self.alice)
+        revealed = self.vote_current(lobby, [self.alice, self.bob])
+        next_lobby = services.next_round(revealed.uuid, self.bob)
+        self.assertEqual(next_lobby.pool_index, 1)
+        self.assertFalse(next_lobby.revealed)
+
+    def test_finalize_permissions_and_state(self) -> None:
+        final = self.play_to_final(self.start_all(self.create_open(members=[self.bob, self.carol])))
+        winner = final.finalists[0]
+        with self.assertRaises(NotHostError):
+            services.finalize_lobby(final.uuid, self.bob)
+
+        partial = services.pick(final.uuid, self.alice, winner)
+        partial = services.finalize_lobby(partial.uuid, self.alice)
+        self.assertEqual(partial.status, Lobby.Status.FINISHED)
+        self.assertEqual(partial.winner_movie_id, winner)
+
+    def test_any_member_can_finalize_after_all_picks(self) -> None:
+        final = self.play_to_final(self.start_all(self.create_open(members=[self.bob])))
+        final = self.pick_for_all(final, final.finalists[0])
+        final = services.finalize_lobby(final.uuid, self.bob)
+        self.assertEqual(final.status, Lobby.Status.FINISHED)
 
     def test_invalid_choice_and_non_finalist_pick_are_rejected(self) -> None:
-        lobby = self.start(self.create_open(members=[self.bob]), [self.alice, self.bob])
+        lobby = self.start_all(self.create_open(members=[self.bob]), [self.alice, self.bob])
         with self.assertRaises(InvalidChoiceError):
             services.vote(lobby.uuid, self.alice, lobby.pool[0], "maybe")
         final = self.play_to_final(lobby)
         with self.assertRaises(InvalidChoiceError):
             services.pick(final.uuid, self.alice, 999_999)
 
+    def test_end_requires_host_and_active_state(self) -> None:
+        lobby = self.create_open(members=[self.bob])
+        with self.assertRaises(NotHostError):
+            services.end_lobby(lobby.uuid, self.bob)
+        ended = services.end_lobby(lobby.uuid, self.alice)
+        self.assertEqual(ended.status, Lobby.Status.FINISHED)
+        self.assertIsNone(ended.winner_movie_id)
+        self.assertIsNotNone(ended.finished_at)
+        self.assertEqual(services.end_lobby(ended.uuid, self.alice).version, ended.version)
+
 
 class VersionTest(LobbyTestCase):
-    def test_ready_start_and_end_bump_once(self) -> None:
+    def test_each_meaningful_change_bumps_version_once(self) -> None:
         lobby = self.create_open(members=[self.bob])
+        self.assertEqual(lobby.version, 0)
         lobby = services.mark_ready(lobby.uuid, self.alice)
         self.assertEqual(lobby.version, 1)
         lobby = services.mark_ready(lobby.uuid, self.alice)
         self.assertEqual(lobby.version, 1)
-        lobby = services.mark_ready(lobby.uuid, self.bob)
+        lobby = services.unready(lobby.uuid, self.alice)
         self.assertEqual(lobby.version, 2)
-        self.assertEqual(lobby.status, Lobby.Status.PLAYING)
-        lobby = services.end_lobby(lobby.uuid, self.alice)
-        self.assertEqual(lobby.version, 3)
-        lobby = services.end_lobby(lobby.uuid, self.alice)
-        self.assertEqual(lobby.version, 3)
+        lobby = services.mark_ready(lobby.uuid, self.alice)
+        lobby = services.mark_ready(lobby.uuid, self.bob)
+        self.assertEqual(lobby.version, 4)
+        lobby = services.start_lobby(lobby.uuid, self.alice)
+        self.assertEqual(lobby.version, 5)
 
-    def test_vote_bumps_only_on_change(self) -> None:
-        lobby = self.start(self.create_open(members=[self.bob]), [self.alice, self.bob])
-        version = lobby.version
         current = lobby.pool[lobby.pool_index]
         lobby = services.vote(lobby.uuid, self.alice, current, engine.INTERESTED)
-        self.assertEqual(lobby.version, version + 1)
+        self.assertEqual(lobby.version, 6)
         lobby = services.vote(lobby.uuid, self.alice, current, engine.INTERESTED)
-        self.assertEqual(lobby.version, version + 1)
-        lobby = services.vote(lobby.uuid, self.alice, current, engine.WATCHED)
-        self.assertEqual(lobby.version, version + 2)
+        self.assertEqual(lobby.version, 6)
+        lobby = services.vote(lobby.uuid, self.bob, current, engine.INTERESTED)
+        self.assertEqual(lobby.version, 7)
+        self.assertTrue(lobby.revealed)
+        lobby = services.next_round(lobby.uuid, self.alice)
+        self.assertEqual(lobby.version, 8)
 
-    def test_pick_bumps_only_on_change(self) -> None:
-        lobby = self.play_to_final(self.start(self.create_open(members=[self.bob]), [self.alice, self.bob]))
-        version = lobby.version
-        lobby = services.pick(lobby.uuid, self.alice, lobby.finalists[0])
-        self.assertEqual(lobby.version, version + 1)
-        lobby = services.pick(lobby.uuid, self.alice, lobby.finalists[0])
-        self.assertEqual(lobby.version, version + 1)
-        lobby = services.pick(lobby.uuid, self.alice, lobby.finalists[1])
-        self.assertEqual(lobby.version, version + 2)
-
-    def test_finalize_bumps_version(self) -> None:
-        lobby = self.play_to_final(self.start(self.create_open(members=[self.bob]), [self.alice, self.bob]))
-        version = lobby.version
-        lobby = services.finalize_lobby(lobby.uuid, self.alice)
-        self.assertEqual(lobby.version, version + 1)
+        final = self.play_to_final(lobby)
+        version = final.version
+        player_count = final.memberships.count()
+        winner = final.finalists[0]
+        final = self.pick_for_all(final, winner)
+        self.assertEqual(final.version, version + player_count)
+        self.assertTrue(final.picks_revealed)
+        version = final.version
+        final = services.finalize_lobby(final.uuid, self.alice)
+        self.assertEqual(final.version, version + 1)
+        self.assertEqual(services.end_lobby(final.uuid, self.alice).version, final.version)
 
 
 class GameFlowTest(LobbyTestCase):
     def test_full_game_to_winner(self) -> None:
         users = [self.alice, self.bob, self.carol]
-        lobby = self.start(self.create_open(members=users), users)
+        lobby = self.start_all(self.create_open(members=users), users)
         self.assertEqual(lobby.status, Lobby.Status.PLAYING)
         self.assertIsNotNone(lobby.started_at)
         lobby = self.play_to_final(lobby, users)
@@ -288,17 +398,32 @@ class GameFlowTest(LobbyTestCase):
         self.assertEqual(len(lobby.finalists), engine.FINALIST_COUNT)
         winner = lobby.finalists[0]
         lobby = self.pick_for_all(lobby, winner)
+        self.assertEqual(lobby.status, Lobby.Status.FINAL_ROUND)
+        self.assertTrue(lobby.picks_revealed)
+        lobby = services.finalize_lobby(lobby.uuid, self.alice)
         self.assertEqual(lobby.status, Lobby.Status.FINISHED)
         self.assertEqual(lobby.winner_movie_id, winner)
         self.assertIsNotNone(lobby.finished_at)
 
+    def test_all_votes_reveal_without_advancing(self) -> None:
+        users = [self.alice, self.bob, self.carol]
+        lobby = self.start_all(self.create_open(members=users), users)
+        current = lobby.pool[0]
+        lobby = self.vote_current(lobby, users)
+        self.assertTrue(lobby.revealed)
+        self.assertEqual(lobby.pool[lobby.pool_index], current)
+        self.assertEqual(lobby.pool_index, 0)
+        self.assertIn(current, lobby.finalists)
+        lobby = services.next_round(lobby.uuid, self.alice)
+        self.assertEqual(lobby.pool_index, 1)
+
     def test_stale_vote_and_unknown_movie_are_noops(self) -> None:
         users = [self.alice, self.bob, self.carol]
-        lobby = self.start(self.create_open(members=users), users)
+        lobby = self.start_all(self.create_open(members=users), users)
         first = lobby.pool[0]
         lobby = self.vote_current(lobby, users)
-        self.assertIn(first, lobby.finalists)
         expected_votes = {str(user.pk): engine.INTERESTED for user in users}
+        lobby = services.next_round(lobby.uuid, self.alice)
         version = lobby.version
         lobby = services.vote(lobby.uuid, self.alice, first, engine.WATCHED)
         self.assertEqual(lobby.votes[str(first)], expected_votes)
@@ -309,7 +434,7 @@ class GameFlowTest(LobbyTestCase):
 
     def test_force_advance_skips_current_without_a_finalist(self) -> None:
         users = [self.alice, self.bob, self.carol]
-        lobby = self.start(self.create_open(members=users), users)
+        lobby = self.start_all(self.create_open(members=users), users)
         current = lobby.pool[0]
         lobby = services.advance(lobby.uuid, self.alice)
         self.assertEqual(lobby.pool_index, 1)
@@ -318,39 +443,33 @@ class GameFlowTest(LobbyTestCase):
 
     def test_vote_exhaustion_with_finalists_enters_final_round(self) -> None:
         lobby = services.create_lobby(self.dave, [], pool_size=2)
-        lobby = services.mark_ready(lobby.uuid, self.dave)
-        lobby = services.vote(lobby.uuid, self.dave, lobby.pool[0], engine.INTERESTED)
-        lobby = services.vote(lobby.uuid, self.dave, lobby.pool[1], engine.WATCHED)
+        lobby = self.start_all(lobby)
+        lobby = self.vote_current(lobby, [self.dave])
+        lobby = services.next_round(lobby.uuid, self.dave)
+        lobby = self.vote_current(lobby, [self.dave], engine.WATCHED)
+        lobby = services.next_round(lobby.uuid, self.dave)
         self.assertEqual(lobby.status, Lobby.Status.FINAL_ROUND)
         self.assertEqual(len(lobby.finalists), 1)
 
     def test_vote_exhaustion_without_finalists_finishes(self) -> None:
         lobby = services.create_lobby(self.dave, [], pool_size=2)
-        lobby = services.mark_ready(lobby.uuid, self.dave)
-        lobby = services.vote(lobby.uuid, self.dave, lobby.pool[0], engine.WATCHED)
-        lobby = services.vote(lobby.uuid, self.dave, lobby.pool[1], engine.WATCHED)
+        lobby = self.start_all(lobby)
+        lobby = self.vote_current(lobby, [self.dave], engine.WATCHED)
+        lobby = services.next_round(lobby.uuid, self.dave)
+        lobby = self.vote_current(lobby, [self.dave], engine.WATCHED)
+        lobby = services.next_round(lobby.uuid, self.dave)
         self.assertEqual(lobby.status, Lobby.Status.FINISHED)
         self.assertIsNone(lobby.winner_movie_id)
         self.assertEqual(lobby.finalists, [])
         self.assertIsNotNone(lobby.finished_at)
 
-    def test_empty_pool_finishes_when_ready(self) -> None:
-        lobby = services.create_lobby(self.alice, [], pool=[])
-        version = lobby.version
-        lobby = services.mark_ready(lobby.uuid, self.alice)
-        self.assertEqual(lobby.status, Lobby.Status.FINISHED)
-        self.assertIsNone(lobby.winner_movie_id)
-        self.assertIsNone(lobby.started_at)
-        self.assertIsNotNone(lobby.finished_at)
-        self.assertEqual(lobby.version, version + 1)
-
     def test_finalize_without_or_with_partial_picks(self) -> None:
-        no_picks = self.play_to_final(self.start(self.create_open(members=[self.bob]), [self.alice, self.bob]))
+        no_picks = self.play_to_final(self.start_all(self.create_open(members=[self.bob])))
         no_picks = services.finalize_lobby(no_picks.uuid, self.alice)
         self.assertEqual(no_picks.status, Lobby.Status.FINISHED)
         self.assertIsNone(no_picks.winner_movie_id)
 
-        partial = self.play_to_final(self.start(self.create_open(members=[self.bob]), [self.alice, self.bob]))
+        partial = self.play_to_final(self.start_all(self.create_open(members=[self.bob])))
         winner = partial.finalists[0]
         partial = services.pick(partial.uuid, self.alice, winner)
         partial = services.finalize_lobby(partial.uuid, self.alice)
@@ -359,8 +478,8 @@ class GameFlowTest(LobbyTestCase):
 
     def test_end_clears_active_lobbies_without_a_winner(self) -> None:
         ready = self.create_open(members=[self.bob])
-        playing = self.start(self.create_open(members=[self.bob]), [self.alice, self.bob])
-        final = self.play_to_final(self.start(self.create_open(members=[self.bob]), [self.alice, self.bob]))
+        playing = self.start_all(self.create_open(members=[self.bob]))
+        final = self.play_to_final(self.start_all(self.create_open(members=[self.bob, self.carol])))
         for name, lobby in (("ready", ready), ("playing", playing), ("final", final)):
             with self.subTest(name=name):
                 ended = services.end_lobby(lobby.uuid, self.alice)
@@ -372,61 +491,54 @@ class GameFlowTest(LobbyTestCase):
 class LeaveTest(LobbyTestCase):
     def test_leave_removes_member_and_prunes_votes(self) -> None:
         users = [self.alice, self.bob, self.carol]
-        lobby = self.start(self.create_open(members=users), users)
+        lobby = self.start_all(self.create_open(members=users), users)
         current = lobby.pool[lobby.pool_index]
         lobby = services.vote(lobby.uuid, self.alice, current, engine.INTERESTED)
         lobby = services.vote(lobby.uuid, self.bob, current, engine.INTERESTED)
+        lobby = services.vote(lobby.uuid, self.carol, current, engine.INTERESTED)
+        lobby = services.next_round(lobby.uuid, self.alice)
+        current = lobby.pool[lobby.pool_index]
+        for user in users:
+            lobby = services.vote(lobby.uuid, user, current, engine.INTERESTED)
         version = lobby.version
         lobby = services.leave_lobby(lobby.uuid, self.bob)
         self.assertEqual(lobby.memberships.count(), 2)
         self.assertNotIn(str(self.bob.pk), lobby.ready)
         self.assertNotIn(str(self.bob.pk), lobby.votes.get(str(current), {}))
         self.assertEqual(lobby.version, version + 1)
-        lobby = services.vote(lobby.uuid, self.carol, current, engine.INTERESTED)
+        self.assertTrue(lobby.revealed)
         self.assertIn(current, lobby.finalists)
-        self.assertEqual(lobby.status, Lobby.Status.PLAYING)
 
-    def test_leave_completes_the_current_round_immediately(self) -> None:
+    def test_leave_can_reveal_the_current_round(self) -> None:
         users = [self.alice, self.bob, self.carol]
-        lobby = self.start(self.create_open(members=users), users)
+        lobby = self.start_all(self.create_open(members=users), users)
         current = lobby.pool[lobby.pool_index]
         lobby = services.vote(lobby.uuid, self.alice, current, engine.INTERESTED)
         lobby = services.vote(lobby.uuid, self.bob, current, engine.INTERESTED)
         lobby = services.leave_lobby(lobby.uuid, self.carol)
+        self.assertTrue(lobby.revealed)
         self.assertIn(current, lobby.finalists)
-        self.assertEqual(lobby.pool_index, 1)
 
-    def test_leave_can_start_the_game(self) -> None:
+    def test_leave_during_ready_does_not_start_the_game(self) -> None:
         lobby = self.create_open(members=[self.bob, self.carol])
         lobby = services.mark_ready(lobby.uuid, self.alice)
         lobby = services.mark_ready(lobby.uuid, self.bob)
+        lobby = services.leave_lobby(lobby.uuid, self.carol)
         self.assertEqual(lobby.status, Lobby.Status.READY)
-        lobby = services.leave_lobby(lobby.uuid, self.carol)
-        self.assertEqual(lobby.status, Lobby.Status.PLAYING)
-        self.assertIsNotNone(lobby.started_at)
+        self.assertEqual(lobby.memberships.count(), 2)
 
-    def test_leave_can_resolve_the_final_round(self) -> None:
+    def test_leave_can_reveal_the_final_picks(self) -> None:
         users = [self.alice, self.bob, self.carol]
-        lobby = self.play_to_final(self.start(self.create_open(members=users), users), users)
-        winner = lobby.finalists[0]
-        lobby = services.pick(lobby.uuid, self.alice, winner)
-        lobby = services.pick(lobby.uuid, self.bob, winner)
-        lobby = services.leave_lobby(lobby.uuid, self.carol)
-        self.assertEqual(lobby.status, Lobby.Status.FINISHED)
-        self.assertEqual(lobby.winner_movie_id, winner)
-
-    def test_leave_records_a_group_winner(self) -> None:
-        users = [self.alice, self.bob, self.carol]
-        lobby = self.play_to_final(self.start(self.create_group(), users), users)
-        winner = lobby.finalists[0]
-        lobby = services.pick(lobby.uuid, self.alice, winner)
-        lobby = services.pick(lobby.uuid, self.bob, winner)
-        lobby = services.leave_lobby(lobby.uuid, self.carol)
-        self.assertEqual(lobby.status, Lobby.Status.FINISHED)
-        self.assertEqual(lobby.winner_movie_id, winner)
-        group_movie = GroupMovie.objects.get(group=self.group, movie_id=winner)
-        self.assertEqual(group_movie.status, GroupMovie.Status.SUGGESTED)
-        self.assertEqual(group_movie.suggested_by_id, self.alice.id)
+        final = self.play_to_final(self.start_all(self.create_open(members=users), users), users)
+        winner = final.finalists[0]
+        final = services.pick(final.uuid, self.alice, winner)
+        final = services.pick(final.uuid, self.bob, winner)
+        final = services.leave_lobby(final.uuid, self.carol)
+        self.assertEqual(final.status, Lobby.Status.FINAL_ROUND)
+        self.assertTrue(final.picks_revealed)
+        self.assertIsNone(final.winner_movie_id)
+        final = services.finalize_lobby(final.uuid, self.alice)
+        self.assertEqual(final.winner_movie_id, winner)
 
     def test_leave_rejects_host_non_member_and_finished(self) -> None:
         lobby = self.create_open(members=[self.bob])
@@ -439,43 +551,73 @@ class LeaveTest(LobbyTestCase):
             services.leave_lobby(lobby.uuid, self.bob)
 
 
+class RestartTest(LobbyTestCase):
+    def test_group_restart_creates_a_ready_lobby_with_current_group_members(self) -> None:
+        users = [self.alice, self.bob, self.carol]
+        finished = self.finish(self.start_all(self.create_group(), users), users)
+        self.assertEqual(finished.status, Lobby.Status.FINISHED)
+        new_lobby = services.restart_lobby(finished.uuid, self.alice)
+        self.assertNotEqual(new_lobby.pk, finished.pk)
+        self.assertEqual(new_lobby.status, Lobby.Status.READY)
+        self.assertEqual(new_lobby.type, Lobby.Type.GROUP)
+        self.assertEqual(
+            set(new_lobby.memberships.values_list("user_id", flat=True)), {self.alice.id, self.bob.id, self.carol.id}
+        )
+        self.assertEqual(services.get_active_group_lobby(self.group).pk, new_lobby.pk)
+
+    def test_open_restart_copies_current_members(self) -> None:
+        lobby = self.start_all(self.create_open(members=[self.bob]))
+        services.end_lobby(lobby.uuid, self.alice)
+        new_lobby = services.restart_lobby(lobby.uuid, self.alice)
+        self.assertEqual(new_lobby.status, Lobby.Status.READY)
+        self.assertEqual(new_lobby.type, Lobby.Type.OPEN)
+        self.assertEqual(set(new_lobby.memberships.values_list("user_id", flat=True)), {self.alice.id, self.bob.id})
+
+    def test_restart_requires_host_and_finished_state(self) -> None:
+        lobby = self.create_open(members=[self.bob])
+        with self.assertRaises(NotHostError):
+            services.restart_lobby(lobby.uuid, self.bob)
+        with self.assertRaises(InvalidStateError):
+            services.restart_lobby(lobby.uuid, self.alice)
+        services.end_lobby(lobby.uuid, self.alice)
+        with self.assertRaises(NotHostError):
+            services.restart_lobby(lobby.uuid, self.bob)
+
+
 class GroupWinnerTest(LobbyTestCase):
     def test_group_winner_is_added_as_suggested(self) -> None:
         users = [self.alice, self.bob, self.carol]
-        lobby = self.play_to_final(self.start(self.create_group(), users), users)
-        winner = lobby.finalists[0]
-        lobby = self.pick_for_all(lobby, winner)
-        self.assertEqual(lobby.winner_movie_id, winner)
+        lobby = self.finish(self.start_all(self.create_group(), users), users)
+        winner = lobby.winner_movie_id
+        self.assertIsNotNone(winner)
         group_movie = GroupMovie.objects.get(group=self.group, movie_id=winner)
         self.assertEqual(group_movie.status, GroupMovie.Status.SUGGESTED)
         self.assertEqual(group_movie.suggested_by_id, self.alice.id)
 
     def test_existing_group_movie_is_preserved(self) -> None:
         users = [self.alice, self.bob, self.carol]
-        lobby = self.play_to_final(self.start(self.create_group(), users), users)
-        winner = lobby.finalists[0]
+        candidates = self.play_to_final(self.start_all(self.create_group(), users), users)
+        winner = candidates.finalists[0]
         existing = GroupMovie.objects.create(group=self.group, movie_id=winner, suggested_by=self.bob)
-        self.pick_for_all(lobby, winner)
+        lobby = self.pick_for_all(candidates, winner)
+        services.finalize_lobby(lobby.uuid, self.alice)
         existing.refresh_from_db()
         self.assertEqual(existing.suggested_by_id, self.bob.id)
         self.assertEqual(GroupMovie.objects.filter(group=self.group, movie_id=winner).count(), 1)
 
     def test_open_and_winnerless_group_lobbies_add_nothing(self) -> None:
         users = [self.alice, self.bob]
-        open_lobby = self.play_to_final(self.start(self.create_open(members=users), users), users)
-        self.pick_for_all(open_lobby, open_lobby.finalists[0])
-        group_lobby = self.play_to_final(
-            self.start(self.create_group(), [self.alice, self.bob, self.carol]),
-            [self.alice, self.bob, self.carol],
-        )
+        open_lobby = self.finish(self.start_all(self.create_open(members=users), users), users)
+        self.assertIsNotNone(open_lobby.winner_movie_id)
+        group_lobby = self.play_to_final(self.start_all(self.create_group(), users), users)
         services.finalize_lobby(group_lobby.uuid, self.alice)
         self.assertEqual(GroupMovie.objects.count(), 0)
 
 
 class ReadModelTest(LobbyTestCase):
-    def test_state_vote_privacy_and_progress(self) -> None:
+    def test_state_vote_privacy_until_reveal(self) -> None:
         users = [self.alice, self.bob, self.carol]
-        lobby = self.start(self.create_open(members=users), users)
+        lobby = self.start_all(self.create_open(members=users), users)
         current = lobby.pool[lobby.pool_index]
         services.vote(lobby.uuid, self.alice, current, engine.INTERESTED)
         services.vote(lobby.uuid, self.bob, current, engine.WATCHED)
@@ -485,9 +627,28 @@ class ReadModelTest(LobbyTestCase):
         self.assertEqual(bob_state.viewer_vote, engine.WATCHED)
         self.assertEqual(alice_state.submitted_count, 2)
         self.assertEqual(alice_state.player_count, 3)
+        self.assertFalse(alice_state.revealed)
+        self.assertIsNone(alice_state.vote_tally)
+        self.assertEqual(alice_state.ballot, ())
         self.assertEqual(alice_state.current_movie.id, current)
         self.assertTrue(alice_state.viewer_is_host)
         self.assertFalse(bob_state.viewer_is_host)
+
+    def test_state_exposes_tally_and_ballot_after_reveal(self) -> None:
+        users = [self.alice, self.bob, self.carol]
+        lobby = self.start_all(self.create_open(members=users), users)
+        current = lobby.pool[lobby.pool_index]
+        services.vote(lobby.uuid, self.alice, current, engine.INTERESTED)
+        services.vote(lobby.uuid, self.bob, current, engine.WATCHED)
+        services.vote(lobby.uuid, self.carol, current, engine.NOT_INTERESTED)
+        state = services.get_state(lobby.uuid, self.alice)
+        self.assertTrue(state.revealed)
+        self.assertEqual(state.vote_tally.interested, 1)
+        self.assertEqual(state.vote_tally.watched, 1)
+        self.assertEqual(state.vote_tally.not_interested, 1)
+        self.assertEqual({entry.user_id for entry in state.ballot}, {user.id for user in users})
+        self.assertTrue(state.capabilities.can_next_round)
+        self.assertFalse(state.capabilities.can_advance)
 
     def test_ready_state_lists_players_and_ready_flags(self) -> None:
         lobby = self.create_open(members=[self.bob])
@@ -500,10 +661,14 @@ class ReadModelTest(LobbyTestCase):
         self.assertEqual(state.status, Lobby.Status.READY)
         self.assertEqual(state.submitted_count, 0)
         self.assertIsNone(state.viewer_vote)
+        self.assertEqual(state.ready_count, 1)
+        self.assertTrue(state.viewer_ready)
+        self.assertTrue(state.capabilities.can_start)
+        self.assertTrue(state.capabilities.can_unready)
 
     def test_state_pick_privacy_and_counts(self) -> None:
         users = [self.alice, self.bob]
-        lobby = self.play_to_final(self.start(self.create_open(members=users), users), users)
+        lobby = self.play_to_final(self.start_all(self.create_open(members=users), users), users)
         winner = lobby.finalists[0]
         services.pick(lobby.uuid, self.alice, winner)
         alice_state = services.get_state(lobby.uuid, self.alice)
@@ -512,26 +677,59 @@ class ReadModelTest(LobbyTestCase):
         self.assertIsNone(bob_state.viewer_pick)
         self.assertTrue(alice_state.finalists[0].viewer_picked)
         self.assertFalse(bob_state.finalists[0].viewer_picked)
-        self.assertEqual(bob_state.finalists[0].pick_count, 1)
+        self.assertIsNone(bob_state.finalists[0].pick_count)
         self.assertEqual(bob_state.submitted_count, 1)
+        self.assertFalse(bob_state.picks_revealed)
+
+        services.pick(lobby.uuid, self.bob, winner)
+        revealed = services.get_state(lobby.uuid, self.bob)
+        self.assertTrue(revealed.picks_revealed)
+        self.assertEqual(revealed.finalists[0].pick_count, 2)
+        self.assertIsNone(revealed.winner)
+        self.assertTrue(revealed.capabilities.can_finalize)
 
     def test_state_exposes_group_winner_and_timestamps(self) -> None:
         users = [self.alice, self.bob, self.carol]
-        lobby = self.play_to_final(self.start(self.create_group(), users), users)
-        winner = lobby.finalists[0]
-        self.pick_for_all(lobby, winner)
+        lobby = self.finish(self.start_all(self.create_group(), users), users)
         state = services.get_state(lobby.uuid, self.alice)
         self.assertEqual(state.group_uuid, self.group.uuid)
         self.assertEqual(state.group_name, self.group.name)
-        self.assertEqual(state.winner.id, winner)
+        self.assertEqual(state.winner.id, lobby.winner_movie_id)
         self.assertEqual(state.status, Lobby.Status.FINISHED)
         self.assertIsNotNone(state.started_at)
         self.assertIsNotNone(state.finished_at)
+        self.assertTrue(state.capabilities.can_restart)
 
     def test_state_uses_a_constant_number_of_queries(self) -> None:
-        lobby = self.start(self.create_open(members=[self.bob]), [self.alice, self.bob])
+        lobby = self.start_all(self.create_open(members=[self.bob]), [self.alice, self.bob])
         with self.assertNumQueries(3):
             services.get_state(lobby.uuid, self.alice)
+
+    def test_join_preview_reflects_membership_and_type(self) -> None:
+        open_lobby = self.create_open(members=[self.bob])
+        preview = selectors.get_join_preview(open_lobby.uuid, self.carol)
+        self.assertTrue(preview.can_join)
+        self.assertFalse(preview.is_member)
+        self.assertEqual(preview.player_count, 2)
+
+        preview = selectors.get_join_preview(open_lobby.uuid, self.alice)
+        self.assertFalse(preview.can_join)
+        self.assertTrue(preview.is_member)
+
+        group_lobby = self.create_group()
+        preview = selectors.get_join_preview(group_lobby.uuid, self.dave)
+        self.assertFalse(preview.can_join)
+        self.assertFalse(preview.is_member)
+
+    def test_active_lobby_summary(self) -> None:
+        lobby = self.start_all(self.create_open(members=[self.bob]), [self.alice, self.bob])
+        summary = selectors.get_active_lobby_for_user(self.alice)
+        self.assertIsNotNone(summary)
+        self.assertEqual(summary.uuid, lobby.uuid)
+        self.assertEqual(summary.player_count, 2)
+        self.assertEqual(summary.current_movie_title, Movie.objects.get(pk=lobby.pool[0]).title)
+        services.end_lobby(lobby.uuid, self.alice)
+        self.assertIsNone(selectors.get_active_lobby_for_user(self.alice))
 
     def test_reads_require_membership(self) -> None:
         lobby = self.create_open(members=[self.bob])
