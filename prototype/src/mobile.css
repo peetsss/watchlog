@@ -1,0 +1,176 @@
+/* --------------------------------------------------------------------------
+   Mobile platform layer. This is not a redesign — it removes the browser
+   tells that make the app feel embedded rather than installed.
+   -------------------------------------------------------------------------- */
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+button,
+[role="button"],
+.btn,
+.icon-button {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+a {
+  touch-action: manipulation;
+}
+
+/* iOS will zoom the whole page into an input below 16px. Fix the cause, not
+   the viewport. The range input has no text and is excluded. */
+@media (pointer: coarse), (max-width: 1024px) {
+  input:not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  .icon-button:active,
+  .filter-chip:active,
+  .group-tab:active,
+  .reel-choice:active,
+  .text-button:active,
+  .text-link:active,
+  .search-clear:active,
+  .hub-log-entry:active,
+  .premiere-about:active,
+  .side-nav-link:active,
+  .bottom-nav-link:active,
+  .side-group:active,
+  .group-card:active,
+  .group-row:active,
+  .group-open-link:active,
+  .group-crumbs a:active,
+  .hub-board-crews:active,
+  .hub-log-feature:active,
+  .hub-log-archive-entry:active,
+  .search-back-link:active {
+    opacity: 0.72;
+  }
+
+  .watch-card:has(.watch-card-open:active) .watch-card-poster {
+    transform: scale(0.995);
+  }
+
+  .premiere-select:active .premiere-poster {
+    transform: translateY(-2px) scale(0.995);
+  }
+
+  .group-name-link:active h2 {
+    color: var(--amber);
+  }
+
+  .reel-info:active,
+  .premiere-about-film:active,
+  .premiere-groups-link:active,
+  .premiere-again:active {
+    opacity: 0.72;
+  }
+}
+
+/* Inner scroll areas keep their own bounce but never chain the page behind
+   them. The root stops pull-to-refresh in the app shell. */
+.detail-sheet,
+.dialog-content,
+.lobby-shell {
+  overscroll-behavior: contain;
+}
+
+/* Page content gets the landscape insets too; fixed chrome already has them. */
+.page {
+  padding-right: env(safe-area-inset-right);
+  padding-left: env(safe-area-inset-left);
+}
+
+/* Landscape notches: fixed and sticky chrome has to respect the left/right
+   insets, not only the top and bottom ones. */
+@media (max-width: 1024px) {
+  .mobile-top {
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-left: max(20px, env(safe-area-inset-left));
+  }
+
+  .bottom-nav {
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+
+  .lobby-top {
+    padding-right: max(32px, env(safe-area-inset-right));
+    padding-left: max(32px, env(safe-area-inset-left));
+  }
+
+  .waiting-inner,
+  .reel-content,
+  .premiere-final-inner,
+  .premiere-winner-inner {
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-left: max(16px, env(safe-area-inset-left));
+  }
+
+  .group-tab {
+    height: 44px;
+  }
+
+  .premiere-about {
+    min-height: 44px;
+  }
+
+  .hub-board-crews,
+  .search-back-link,
+  .group-open-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 760px) {
+  .detail-hero {
+    touch-action: pan-x;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .lobby-top {
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-left: max(16px, env(safe-area-inset-left));
+  }
+
+  .group-tab {
+    height: 44px;
+  }
+
+  .room-actionbar {
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-left: max(20px, env(safe-area-inset-left));
+  }
+
+  .premiere-bar {
+    right: max(12px, env(safe-area-inset-right));
+    left: max(12px, env(safe-area-inset-left));
+    width: auto;
+    transform: none;
+  }
+
+  .detail-sheet {
+    padding-right: env(safe-area-inset-right);
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .dialog-content {
+    padding-right: max(18px, env(safe-area-inset-right));
+    padding-left: max(18px, env(safe-area-inset-left));
+  }
+}
