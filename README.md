@@ -123,6 +123,9 @@ uv run python scripts/seed_dev_data.py
 This creates `alice`, `bob` and `carol` with the password `correct horse` and a
 `Friday Film Club` group.
 
+Lobby REST routes live under `/api/lobby/` (csrf, active, create, preview, join,
+state and actions). State responses carry an `ETag` of the form `"v<version>"`.
+
 The API tests create and use a separate `watchlog_test` database, run Alembic
 once and truncate tables between tests.
 
