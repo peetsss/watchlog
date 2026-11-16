@@ -16,6 +16,7 @@ from app.schemas.groups import (
     GroupFilmScores,
     GroupList,
     GroupMember,
+    GroupPreview,
     GroupStats,
     MemberScore,
     MemberScoreStats,
@@ -126,6 +127,24 @@ async def create_group(db: AsyncSession, user: User, name: str, description: str
 
 async def get_group_detail(db: AsyncSession, group: Group) -> GroupDetail:
     return await _summary(db, group)
+
+
+async def get_group_preview(db: AsyncSession, user: User, group_id: UUID) -> GroupPreview:
+    group = await _get_group(db, group_id)
+    membership = await db.scalar(
+        select(GroupMembership.user_id).where(
+            GroupMembership.group_id == group.id,
+            GroupMembership.user_id == user.id,
+        )
+    )
+    return GroupPreview(
+        id=group.id,
+        name=group.name,
+        description=group.description,
+        member_count=await _member_count(db, group.id),
+        film_count=await _film_count(db, group.id),
+        is_member=membership is not None,
+    )
 
 
 async def join_group(db: AsyncSession, user: User, group_id: UUID) -> GroupDetail:

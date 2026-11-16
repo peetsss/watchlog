@@ -5,7 +5,7 @@ here should be additive; a breaking change needs a new path or a versioned
 contract.
 
 Parity verified on 2026-11-16: the Django suite passes 181 tests, the FastAPI
-suite passes 193 tests, and the real API was smoke-tested for auth, groups,
+suite passes 197 tests, and the real API was smoke-tested for auth, groups,
 movie detail, lobby REST and two-client lobby WebSockets. The TMDB search path
 needs `TMDB_API_KEY`; without it the endpoint correctly returns `502
 tmdb_unavailable`.
@@ -88,6 +88,7 @@ clients. The alias is intentionally hidden from OpenAPI.
 |---|---|---|
 | GET | `/api/groups` | Viewer's groups with members and counts |
 | POST | `/api/groups` | `{name, description?}`, returns `201` group detail |
+| GET | `/api/groups/{group_id}/preview` | Name, description and counts; auth required, membership not |
 | GET | `/api/groups/{group_id}` | Group detail; members only |
 | GET | `/api/groups/{group_id}/watchlist` | `{films: [...]}` with club and viewer scores |
 | POST | `/api/groups/{group_id}/films` | `{tmdb_id, media_type}`, idempotent |
@@ -95,7 +96,7 @@ clients. The alias is intentionally hidden from OpenAPI.
 | PUT | `/api/groups/{group_id}/films/{film_id}/score` | `{score: 1..10}` |
 | GET | `/api/groups/{group_id}/films/{film_id}/scores` | Per-member scores |
 | GET | `/api/groups/{group_id}/stats` | Counts, average and per-member stats |
-| GET | `/api/groups/{group_id}/invite` | `{invite_link}`; group UUID stays in the URL |
+| GET | `/api/groups/{group_id}/invite` | `{invite_link}`; group UUID is in `/join/group/{uuid}` |
 | POST | `/api/groups/{group_id}/members` | Join by UUID, idempotent |
 | DELETE | `/api/groups/{group_id}/members/me` | Leave, `204` |
 | POST | `/api/groups/{group_id}/lobbies` | Create a group lobby |

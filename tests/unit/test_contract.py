@@ -18,6 +18,7 @@ from app.schemas.groups import (
     GroupFilmScores,
     GroupList,
     GroupMember,
+    GroupPreview,
     GroupStats,
     MemberScore,
     MemberScoreStats,
@@ -57,6 +58,7 @@ EXPECTED_PATHS = {
     "/api/groups/{group_id}/lobbies",
     "/api/groups/{group_id}/members",
     "/api/groups/{group_id}/members/me",
+    "/api/groups/{group_id}/preview",
     "/api/groups/{group_id}/stats",
     "/api/groups/{group_id}/watchlist",
     "/api/lobby/",
@@ -104,6 +106,14 @@ def test_group_contract_fields() -> None:
         "created_at",
     }
     assert _fields(GroupList) == {"groups"}
+    assert _fields(GroupPreview) == {
+        "id",
+        "name",
+        "description",
+        "member_count",
+        "film_count",
+        "is_member",
+    }
     assert _fields(MovieSummary) == {
         "id",
         "tmdb_id",

@@ -94,6 +94,34 @@ async def test_join_and_leave_group(client: AsyncClient, app: FastAPI) -> None:
     assert detail.json()["member_count"] == 1
 
 
+async def test_group_preview(client: AsyncClient, app: FastAPI) -> None:
+    await register_member(client)
+    group = await create_group(client, "Friday Film Club", "Weekly picks")
+
+    response = await client.get(f"/api/groups/{group['id']}/preview")
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": group["id"],
+        "name": "Friday Film Club",
+        "description": "Weekly picks",
+        "member_count": 1,
+        "film_count": 0,
+        "is_member": True,
+    }
+
+    async with new_client(app) as bob_client:
+        await register_member(bob_client, "bob")
+
+        preview = await bob_client.get(f"/api/groups/{group['id']}/preview")
+        assert preview.status_code == 200
+        assert preview.json()["is_member"] is False
+        assert preview.json()["member_count"] == 1
+
+    missing = await client.get(f"/api/groups/{uuid4()}/preview")
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "not_found"
+
+
 async def test_non_members_are_forbidden(client: AsyncClient, app: FastAPI) -> None:
     await register_member(client)
     group = await create_group(client, "Friday Film Club")
@@ -309,7 +337,7 @@ async def test_invite_link(client: AsyncClient) -> None:
     response = await client.get(f"/api/groups/{group['id']}/invite")
 
     assert response.status_code == 200
-    assert response.json()["invite_link"] == f"http://testserver/join/{group['id']}"
+    assert response.json()["invite_link"] == f"http://testserver/join/group/{group['id']}"
 
 
 async def test_group_stats_when_empty(client: AsyncClient) -> None:

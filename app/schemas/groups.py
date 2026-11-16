@@ -26,6 +26,15 @@ class GroupList(BaseModel):
     groups: list[GroupSummary]
 
 
+class GroupPreview(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    member_count: int
+    film_count: int
+    is_member: bool
+
+
 class GroupDetail(GroupSummary):
     created_at: datetime
 

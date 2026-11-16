@@ -14,6 +14,7 @@ from app.schemas.groups import (
     GroupFilmList,
     GroupFilmScores,
     GroupList,
+    GroupPreview,
     GroupStats,
     InviteLinkResponse,
     ScoreRequest,
@@ -33,6 +34,11 @@ async def list_groups(user: CurrentUser, db: SessionDep) -> GroupList:
 @router.post("", response_model=GroupDetail, status_code=status.HTTP_201_CREATED)
 async def create_group(payload: CreateGroupRequest, user: CurrentUser, db: SessionDep) -> GroupDetail:
     return await group_service.create_group(db, user, payload.name, payload.description)
+
+
+@router.get("/{group_id}/preview", response_model=GroupPreview)
+async def preview_group(group_id: UUID, user: CurrentUser, db: SessionDep) -> GroupPreview:
+    return await group_service.get_group_preview(db, user, group_id)
 
 
 @router.get("/{group_id}", response_model=GroupDetail)
@@ -106,7 +112,7 @@ async def get_group_stats(context: GroupContextDep, db: SessionDep) -> GroupStat
 @router.get("/{group_id}/invite", response_model=InviteLinkResponse)
 async def get_invite_link(request: Request, context: GroupContextDep) -> InviteLinkResponse:
     base_url = str(request.base_url).rstrip("/")
-    return InviteLinkResponse(invite_link=f"{base_url}/join/{context.group.id}")
+    return InviteLinkResponse(invite_link=f"{base_url}/join/group/{context.group.id}")
 
 
 @router.post("/{group_id}/members", response_model=GroupDetail)

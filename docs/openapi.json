@@ -435,6 +435,52 @@
         "title": "GroupMember",
         "type": "object"
       },
+      "GroupPreview": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "film_count": {
+            "title": "Film Count",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_member": {
+            "title": "Is Member",
+            "type": "boolean"
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "member_count",
+          "film_count",
+          "is_member"
+        ],
+        "title": "GroupPreview",
+        "type": "object"
+      },
       "GroupStats": {
         "properties": {
           "average_score": {
@@ -2751,6 +2797,49 @@
           }
         },
         "summary": "Leave Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/preview": {
+      "get": {
+        "operationId": "preview_group_api_groups__group_id__preview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Group",
         "tags": [
           "groups"
         ]
