@@ -12,6 +12,10 @@ type ApiMovieDetail = components["schemas"]["MovieDetail"];
 type ApiMovieSearchResult = components["schemas"]["MovieSearchResult"];
 type ApiHomeResponse = components["schemas"]["HomeResponse"];
 type ApiHomeLogEntry = components["schemas"]["HomeLogEntry"];
+type ApiLobbyState = components["schemas"]["LobbyState"];
+type ApiLobbySummary = components["schemas"]["LobbySummary"];
+type ApiLobbyPreview = components["schemas"]["JoinPreview"];
+type ApiMovieRef = components["schemas"]["MovieRef"];
 
 export type GroupMemberView = Person & {
   role: "admin" | "member";
@@ -127,6 +131,118 @@ export type HomeView = {
   log: HomeLogEntryView[];
 };
 
+export type LobbyVote = "in" | "seen" | "out";
+export type LobbyStatus = "ready" | "playing" | "final_round" | "finished";
+export type LobbyStage = "waiting" | "playing" | "final" | "winner";
+
+export type LobbyPlayerView = Person & {
+  isHost: boolean;
+  isGuest: boolean;
+  isReady: boolean;
+};
+
+export type LobbyBallotEntryView = {
+  person: Person;
+  choice: LobbyVote;
+};
+
+export type LobbyFinalistView = {
+  movie: MovieSummaryView;
+  pickCount: number | null;
+  viewerPicked: boolean;
+};
+
+export type LobbyCapabilitiesView = {
+  canStart: boolean;
+  canUnready: boolean;
+  canAdvance: boolean;
+  canNextRound: boolean;
+  canFinalize: boolean;
+  canEnd: boolean;
+  canLeave: boolean;
+  canRestart: boolean;
+};
+
+export type LobbyView = {
+  uuid: string;
+  type: "group" | "open";
+  status: LobbyStatus;
+  stage: LobbyStage;
+  version: number;
+  hostId: string | null;
+  groupId: string | null;
+  groupName: string | null;
+  viewerId: string;
+  viewerIsHost: boolean;
+  viewerReady: boolean;
+  players: LobbyPlayerView[];
+  playerCount: number;
+  readyCount: number;
+  poolSize: number;
+  poolIndex: number;
+  roundNumber: number;
+  remainingCount: number;
+  currentMovie: MovieSummaryView | null;
+  submittedCount: number;
+  viewerVote: LobbyVote | null;
+  revealed: boolean;
+  voteTally: {
+    interested: number;
+    watched: number;
+    notInterested: number;
+    total: number;
+  } | null;
+  ballot: LobbyBallotEntryView[];
+  finalists: LobbyFinalistView[];
+  picksRevealed: boolean;
+  viewerPick: number | null;
+  winner: MovieSummaryView | null;
+  shortlisted: boolean;
+  tie: boolean;
+  capabilities: LobbyCapabilitiesView;
+};
+
+export type LobbySummaryView = {
+  uuid: string;
+  type: "group" | "open";
+  status: LobbyStatus;
+  groupName: string | null;
+  hostUsername: string | null;
+  playerCount: number;
+  currentMovieTitle: string | null;
+};
+
+export type LobbyPreviewView = {
+  uuid: string;
+  type: "group" | "open";
+  status: LobbyStatus;
+  groupId: string | null;
+  groupName: string | null;
+  hostUsername: string | null;
+  playerCount: number;
+  canJoin: boolean;
+  isMember: boolean;
+};
+
+const VOTE_FROM_API: Record<string, LobbyVote> = {
+  interested: "in",
+  watched: "seen",
+  not_interested: "out",
+};
+
+export const VOTE_TO_API: Record<LobbyVote, string> = {
+  in: "interested",
+  seen: "watched",
+  out: "not_interested",
+};
+
+function statusToStage(status: LobbyStatus): LobbyStage {
+  if (status === "ready") return "waiting";
+  if (status === "playing") return "playing";
+  if (status === "final_round") return "final";
+  return "winner";
+}
+
 export function splitList(value: string | null | undefined): string[] {
   if (!value) return [];
   return value
@@ -192,7 +308,20 @@ export function groupPreviewToView(preview: ApiGroupPreview): GroupPreviewView {
   };
 }
 
-export function movieSummaryToView(movie: ApiMovieSummary): MovieSummaryView {
+type MovieFields = {
+  id: number;
+  tmdb_id: number | null;
+  title: string;
+  release_date: string | null;
+  runtime: number | null;
+  genres: string | null;
+  director: string | null;
+  description: string | null;
+  poster_path: string | null;
+  backdrop_path: string | null;
+};
+
+function movieFieldsToView(movie: MovieFields): MovieSummaryView {
   return {
     id: movie.id,
     tmdbId: movie.tmdb_id,
@@ -207,6 +336,11 @@ export function movieSummaryToView(movie: ApiMovieSummary): MovieSummaryView {
     backdrop: movie.backdrop_path,
   };
 }
+
+export function movieSummaryToView(movie: ApiMovieSummary): MovieSummaryView {
+  return movieFieldsToView(movie);
+}
+
 
 export function movieDetailToView(movie: ApiMovieDetail): MovieDetailView {
   return {
@@ -293,5 +427,132 @@ export function homeToView(home: ApiHomeResponse): HomeView {
         }
       : null,
     log: home.log.map(homeLogToView),
+  };
+}
+
+export function movieRefToView(movie: ApiMovieRef): MovieSummaryView {
+  return movieFieldsToView(movie);
+}
+
+export function lobbySummaryToView(summary: ApiLobbySummary): LobbySummaryView {
+  return {
+    uuid: summary.uuid,
+    type: summary.type,
+    status: summary.status as LobbyStatus,
+    groupName: summary.group_name,
+    hostUsername: summary.host_username,
+    playerCount: summary.player_count,
+    currentMovieTitle: summary.current_movie_title,
+  };
+}
+
+export function lobbyPreviewToView(preview: ApiLobbyPreview): LobbyPreviewView {
+  return {
+    uuid: preview.uuid,
+    type: preview.type,
+    status: preview.status as LobbyStatus,
+    groupId: preview.group_uuid ?? null,
+    groupName: preview.group_name,
+    hostUsername: preview.host_username,
+    playerCount: preview.player_count,
+    canJoin: preview.can_join,
+    isMember: preview.is_member,
+  };
+}
+
+export function lobbyToView(state: ApiLobbyState): LobbyView {
+  const status = state.status as LobbyStatus;
+  const players: LobbyPlayerView[] = state.players.map((player) => ({
+    id: player.id,
+    name: player.name,
+    short: player.initials,
+    color: player.color,
+    isHost: player.is_host,
+    isGuest: player.is_guest,
+    isReady: player.is_ready,
+  }));
+  const playerById = new Map(players.map((player) => [player.id, player]));
+  const currentMovie = state.current_movie ? movieRefToView(state.current_movie) : null;
+  const finalists: LobbyFinalistView[] = state.finalists.map((finalist) => ({
+    movie: movieRefToView(finalist.movie),
+    pickCount: finalist.pick_count,
+    viewerPicked: finalist.viewer_picked,
+  }));
+  const ballot: LobbyBallotEntryView[] = state.ballot.map((entry) => {
+    const player = playerById.get(entry.participant_id);
+    return {
+      person: player ?? {
+        id: entry.participant_id,
+        name: entry.name,
+        short: entry.name.slice(0, 2).toUpperCase(),
+        color: "#8d8880",
+      },
+      choice: VOTE_FROM_API[entry.choice] ?? "out",
+    };
+  });
+
+  const shortlisted = Boolean(
+    state.revealed &&
+      currentMovie &&
+      finalists.some((finalist) => finalist.movie.id === currentMovie.id),
+  );
+  const revealedCounts = finalists
+    .map((finalist) => finalist.pickCount)
+    .filter((count): count is number => count !== null)
+    .sort((a, b) => b - a);
+  const tie =
+    state.picks_revealed &&
+    revealedCounts.length > 1 &&
+    revealedCounts[0] > 0 &&
+    revealedCounts[0] === revealedCounts[1];
+
+  return {
+    uuid: state.uuid,
+    type: state.type === "group" ? "group" : "open",
+    status,
+    stage: statusToStage(status),
+    version: state.version,
+    hostId: state.host_id,
+    groupId: state.group_uuid ?? null,
+    groupName: state.group_name,
+    viewerId: state.viewer_id,
+    viewerIsHost: state.viewer_is_host,
+    viewerReady: state.viewer_ready,
+    players,
+    playerCount: state.player_count,
+    readyCount: state.ready_count,
+    poolSize: state.pool_size,
+    poolIndex: state.pool_index,
+    roundNumber: state.round_number,
+    remainingCount: state.remaining_count,
+    currentMovie,
+    submittedCount: state.submitted_count,
+    viewerVote: state.viewer_vote ? (VOTE_FROM_API[state.viewer_vote] ?? null) : null,
+    revealed: state.revealed,
+    voteTally: state.vote_tally
+      ? {
+          interested: state.vote_tally.interested,
+          watched: state.vote_tally.watched,
+          notInterested: state.vote_tally.not_interested,
+          total: state.vote_tally.total,
+        }
+      : null,
+    ballot,
+    finalists,
+    picksRevealed: state.picks_revealed,
+    viewerPick: state.viewer_pick,
+    winner: state.winner ? movieRefToView(state.winner) : null,
+    shortlisted,
+    tie,
+    capabilities: {
+      canStart: state.capabilities.can_start,
+      canUnready: state.capabilities.can_unready,
+      canAdvance: state.capabilities.can_advance,
+      canNextRound: state.capabilities.can_next_round,
+      canFinalize: state.capabilities.can_finalize,
+      canEnd: state.capabilities.can_end,
+      canLeave: state.capabilities.can_leave,
+      canRestart: state.capabilities.can_restart,
+    },
   };
 }

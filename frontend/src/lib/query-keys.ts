@@ -19,3 +19,10 @@ export const movieKeys = {
 export const homeKeys = {
   all: ["home"] as const,
 };
+
+export const lobbyKeys = {
+  all: ["lobby"] as const,
+  active: () => [...lobbyKeys.all, "active"] as const,
+  state: (lobbyId: string) => [...lobbyKeys.all, "state", lobbyId] as const,
+  preview: (lobbyId: string) => [...lobbyKeys.all, "preview", lobbyId] as const,
+};
