@@ -52,5 +52,15 @@ class ViewerEnvelope(BaseModel):
     viewer: Viewer
 
 
+class ViewerStats(BaseModel):
+    titles_watched: int
+    average_score: float | None
+
+
+class MeEnvelope(BaseModel):
+    viewer: Viewer
+    stats: ViewerStats
+
+
 class CSRFResponse(BaseModel):
     csrf_token: str = Field(serialization_alias="csrfToken")

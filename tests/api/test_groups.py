@@ -216,6 +216,9 @@ async def test_scores_and_the_watched_rule(
         reset = await set_film_status(client, group["id"], film["id"], "up_next")
         assert reset["status"] == "up_next"
 
+        me = await client.get("/api/me")
+        assert me.json()["stats"] == {"titles_watched": 1, "average_score": 8.0}
+
 
 async def test_all_three_members_must_score(
     client: AsyncClient,

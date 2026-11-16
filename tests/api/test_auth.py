@@ -50,6 +50,7 @@ async def test_register_me_logout_and_login(client: AsyncClient) -> None:
     me = await client.get("/api/me")
     assert me.status_code == 200
     assert me.json()["viewer"] == viewer
+    assert me.json()["stats"] == {"titles_watched": 0, "average_score": None}
 
     logout = await client.post("/api/auth/logout", headers=csrf_headers(member_token))
     assert logout.status_code == 204
