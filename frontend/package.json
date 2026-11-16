@@ -12,7 +12,8 @@
     "verify": "node scripts/verify-flow.mjs",
     "verify:edges": "node scripts/verify-edges.mjs",
     "verify:detail": "node scripts/verify-detail.mjs",
-    "verify:guest": "node scripts/verify-guest.mjs"
+    "verify:auth": "node scripts/verify-auth.mjs",
+    "verify:all": "npm run verify && npm run verify:auth && npm run verify:edges && npm run verify:detail"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

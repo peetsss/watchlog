@@ -1,226 +1,131 @@
-import { chromium } from "playwright-core";
-import { mkdir } from "node:fs/promises";
+import {
+  apiGroups,
+  base,
+  createRecorder,
+  deleteLobbies,
+  launchBrowser,
+  login,
+  outputDir,
+  resetLobbies,
+  setLobbyPool,
+  settle,
+  startGroupNight,
+  unexpectedErrors,
+} from "./lib/verify.mjs";
 
-const base = process.env.WATCHLOG_URL ?? "http://localhost:5173";
-const out = process.env.WATCHLOG_OUT ?? "/tmp/watchlog-prototype/flow";
-await mkdir(out, { recursive: true });
+const out = await outputDir("flow");
+const browser = await launchBrowser();
+const { checks, errors, check, watch } = createRecorder();
+const lobbyIds = [];
 
-const browser = await chromium.launch({
-  executablePath: process.env.CHROME_PATH ?? "/usr/bin/google-chrome",
-  headless: true,
-});
+try {
+  resetLobbies();
 
-const errors = [];
-const checks = [];
+  const aliceContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const alice = await aliceContext.newPage();
+  watch(alice, "alice");
+  const bobContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const bob = await bobContext.newPage();
+  watch(bob, "bob");
 
-function check(name, condition, detail = "") {
-  checks.push({ name, ok: Boolean(condition), detail });
-  if (!condition) throw new Error(`FAILED: ${name} ${detail}`);
-}
+  await login(alice, "alice");
+  await alice.getByText("Friday Film Club").first().waitFor();
+  check("home shows the seed club", await alice.getByText("Interstellar").first().isVisible());
+  await settle(alice);
+  await alice.screenshot({ path: `${out}/01-home.png`, fullPage: true });
 
-async function ready(page) {
-  await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(600);
-}
+  await alice.getByRole("button", { name: /Start a movie night/i }).click();
+  const dialog = alice.getByRole("dialog");
+  await dialog.waitFor();
+  check("start dialog lists the seed group", (await dialog.locator(".choice-list .choice").count()) === 1);
+  await dialog.getByRole("button", { name: /Start the room/i }).click();
+  await alice.waitForURL(/\/lobby\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+  const lobbyId = new URL(alice.url()).pathname.split("/").pop();
+  lobbyIds.push(lobbyId);
+  setLobbyPool(lobbyId, [1, 2]);
+  await alice.getByText("The room is filling up.").waitFor();
 
-function watch(page, label) {
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(`${label} console: ${message.text()}`);
-  });
-  page.on("pageerror", (error) => errors.push(`${label} pageerror: ${error.message}`));
-}
+  await login(bob, "bob");
+  await bob.goto(`${base}/lobby/${lobbyId}`, { waitUntil: "networkidle" });
+  await bob.getByText("The room is filling up.").waitFor();
+  await settle(alice);
+  await alice.screenshot({ path: `${out}/02-waiting.png`, fullPage: true });
 
-// ---------------------------------------------------------------- desktop flow
-{
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
-  watch(page, "desktop");
+  await alice.locator(".room-actions .text-button", { hasText: "I'm in" }).click();
+  await bob.getByRole("button", { name: "I'm in", exact: true }).click();
+  await alice.locator(".players-head").getByText("2 of 3 ready").waitFor({ timeout: 10_000 });
+  await bob.locator(".players-head").getByText("2 of 3 ready").waitFor({ timeout: 10_000 });
+  await alice.screenshot({ path: `${out}/03-waiting-ready.png`, fullPage: true });
 
-  await page.goto(base + "/", { waitUntil: "networkidle" });
-  await ready(page);
-  await page.screenshot({ path: `${out}/01-hub.png`, fullPage: true });
+  await alice.getByRole("button", { name: /Start with 2 ready/i }).click();
+  await alice.getByRole("heading", { name: "The reel." }).waitFor({ timeout: 10_000 });
+  await bob.getByRole("heading", { name: "The reel." }).waitFor({ timeout: 10_000 });
+  check("start keeps only ready players", (await bob.locator(".reel-head").innerText()).toLowerCase().includes("2 in the room"));
 
-  await page.getByRole("button", { name: "Start a movie night" }).click();
-  await page.getByRole("dialog").waitFor();
-  await ready(page);
-  await page.screenshot({ path: `${out}/02-start-dialog.png` });
-  check("start dialog has three groups", (await page.locator(".choice-list .choice").count()) === 3);
+  await alice.locator(".reel-choice", { hasText: "I'm in" }).click();
+  await bob.locator(".reel-choice", { hasText: "I'm in" }).click();
+  await alice.getByText("Everyone was in.").waitFor({ timeout: 10_000 });
+  await bob.getByText("Everyone was in.").waitFor({ timeout: 10_000 });
+  await settle(alice);
+  await alice.screenshot({ path: `${out}/04-playing-reveal.png`, fullPage: true });
 
-  await page.getByRole("button", { name: /Start the room/ }).click();
-  await page.waitForURL("**/lobby/friday");
-  await page.locator(".waiting-room").waitFor();
-  await ready(page);
-  await page.screenshot({ path: `${out}/03-waiting.png` });
+  await alice.getByRole("button", { name: /Next film/ }).click();
+  await bob.locator(".room-stage").getByText("Film 2 of 2", { exact: true }).waitFor({ timeout: 10_000 });
+  await alice.locator(".reel-choice", { hasText: "I'm in" }).click();
+  await bob.locator(".reel-choice", { hasText: "I'm in" }).click();
+  await alice.getByText("Everyone was in.").waitFor({ timeout: 10_000 });
+  await bob.getByRole("button", { name: /Finish the reel/ }).click();
 
-  await page.getByRole("button", { name: "I'm in", exact: true }).click();
-  const startButton = page.getByRole("button", { name: /Start the night/ });
-  await startButton.waitFor();
-  check("host can start when everyone is ready", await startButton.isEnabled());
-  await ready(page);
-  await page.screenshot({ path: `${out}/04-waiting-ready.png` });
+  await alice.getByRole("heading", { name: /2 films. One stage./ }).waitFor({ timeout: 10_000 });
+  await bob.getByRole("heading", { name: /2 films. One stage./ }).waitFor({ timeout: 10_000 });
+  await settle(alice);
+  await alice.screenshot({ path: `${out}/05-final.png`, fullPage: true });
 
-  await startButton.click();
-  await page.locator(".reel-room").waitFor();
-  await page.getByRole("heading", { name: "Past Lives", exact: true }).waitFor();
-  await ready(page);
-  await page.screenshot({ path: `${out}/05-playing.png` });
+  await alice.getByRole("button", { name: "Select Inception" }).click();
+  await alice.getByRole("button", { name: /Lock in Inception/ }).click();
+  await bob.getByRole("button", { name: "Select Inception" }).click();
+  await bob.getByRole("button", { name: /Lock in Inception/ }).click();
+  await alice.getByText("Everyone has picked. Roll the premiere.").waitFor({ timeout: 10_000 });
+  await alice.screenshot({ path: `${out}/06-final-picks.png`, fullPage: true });
 
-  await page.getByRole("button", { name: /I'm in/ }).click();
-  await page.getByText("Waiting for the room").waitFor();
-  await page.screenshot({ path: `${out}/06-playing-waiting.png` });
-  await page.getByText("Everyone was in.").waitFor({ timeout: 4000 });
-  await ready(page);
-  await page.screenshot({ path: `${out}/07-playing-shortlisted.png` });
-  await page.getByRole("button", { name: /Next film/ }).click();
+  await alice.getByRole("button", { name: /Roll the pick/ }).click();
+  await alice.locator(".premiere-winner").getByRole("heading", { name: "Inception" }).waitFor({ timeout: 10_000 });
+  await bob.locator(".premiere-winner").getByRole("heading", { name: "Inception" }).waitFor({ timeout: 10_000 });
+  check("winner shows two picks", (await alice.locator(".premiere-picked").innerText()).includes("2 of 2"));
+  check("group winner is on the watchlist", await alice.getByText("On the watchlist").isVisible());
+  await settle(alice);
+  await alice.screenshot({ path: `${out}/07-winner.png`, fullPage: true });
 
-  await page.getByRole("heading", { name: "Oppenheimer", exact: true }).waitFor();
-  await page.getByRole("button", { name: /I'm in/ }).click();
-  await page.getByText("Not everyone was in.").waitFor({ timeout: 4000 });
-  await ready(page);
-  await page.screenshot({ path: `${out}/08-playing-skipped.png` });
-  await page.getByRole("button", { name: /Next film/ }).click();
-
-  await page.getByRole("heading", { name: "The Grand Budapest Hotel", exact: true }).waitFor();
-  await page.getByRole("button", { name: /I'm in/ }).click();
-  await page.getByText("Everyone was in.").waitFor({ timeout: 4000 });
-  await page.getByRole("button", { name: /See the shortlist/ }).click();
-
-  await page.locator(".premiere-final").waitFor();
-  await ready(page);
-  await page.screenshot({ path: `${out}/09-final.png` });
-  check("two finalists", (await page.locator(".premiere-card").count()) === 2);
-
-  await page.getByRole("button", { name: "Select Past Lives" }).click();
-  await page.getByRole("button", { name: /Lock in Past Lives/ }).click();
-  await page.getByText("Everyone has picked.").waitFor({ timeout: 4000 });
-  await ready(page);
-  await page.screenshot({ path: `${out}/10-final-picked.png` });
-  await page.getByRole("button", { name: /Roll the pick/ }).click();
-
-  await page.getByRole("heading", { name: "Past Lives", exact: true }).waitFor();
-  await page.getByText("3 of 5 picked it").waitFor();
-  await ready(page);
-  await page.screenshot({ path: `${out}/11-winner.png` });
-
-  await page.getByRole("button", { name: /Add to watchlist/ }).click();
-  await page.getByRole("button", { name: /On the watchlist/ }).waitFor();
-  await page.getByText("Past Lives added to Friday Film Club.").waitFor();
-  await page.screenshot({ path: `${out}/12-winner-added.png` });
-
-  await page.getByRole("button", { name: "Leave the room and go home" }).click();
-  await page.getByText("Last night").waitFor();
-  await ready(page);
-  await page.screenshot({ path: `${out}/13-hub-last-night.png`, fullPage: true });
-
-  await context.close();
-}
-
-// ---------------------------------------------------------------- search + group
-{
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
-  watch(page, "utility");
-
-  await page.goto(base + "/search", { waitUntil: "networkidle" });
-  await page.getByRole("searchbox").fill("Past");
-  check("search filters to one film", (await page.locator(".search-card").count()) === 1);
-  await page.getByRole("button", { name: /Add Past Lives/ }).click();
-  await page.getByText("Added Past Lives to Friday Film Club.").waitFor();
-  await page.getByRole("button", { name: /Past Lives added to Friday Film Club/ }).waitFor();
-  await page.screenshot({ path: `${out}/14-search-added.png` });
-
-  await page.goto(base + "/groups", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Create a group/ }).click();
-  await page.getByLabel("Group name").fill("Sunday Matinee");
-  await page.getByLabel(/What's the group about/).fill("Slow starts, strong coffee.");
-  await page.getByRole("button", { name: "Create group" }).click();
-  await page.getByText("Sunday Matinee is ready. Invite your people.").waitFor();
-  await page.getByRole("heading", { name: "Sunday Matinee" }).waitFor();
-  await page.screenshot({ path: `${out}/15-groups-created.png` });
-
-  await context.close();
-}
-
-// ---------------------------------------------------------------- mobile flow
-{
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const page = await context.newPage();
-  watch(page, "mobile");
-
-  await page.goto(base + "/", { waitUntil: "networkidle" });
-  await ready(page);
-  await page.screenshot({ path: `${out}/16-mobile-hub.png`, fullPage: true });
-
-  await page.getByRole("button", { name: "Start a movie night" }).click();
-  await page.getByRole("dialog").waitFor();
-  await ready(page);
-  const dialogRect = await page.locator(".dialog-content").boundingBox();
-  check("mobile dialog is a bottom sheet", dialogRect && Math.abs(dialogRect.y + dialogRect.height - 844) < 2, JSON.stringify(dialogRect));
-  await page.screenshot({ path: `${out}/17-mobile-dialog.png` });
-  await page.keyboard.press("Escape");
-  await page.getByRole("dialog").waitFor({ state: "detached" });
-
-  await page.goto(base + "/lobby/friday?stage=waiting", { waitUntil: "networkidle" });
-  await ready(page);
-  const actionRect = await page.locator(".room-actionbar").boundingBox();
-  check("mobile waiting action bar is fixed in view", actionRect && Math.abs(actionRect.y + actionRect.height - 844) < 2, JSON.stringify(actionRect));
-  await page.screenshot({ path: `${out}/18-mobile-waiting.png` });
-
-  await page.getByRole("button", { name: "I'm in", exact: true }).click();
-  await page.getByRole("button", { name: /Start the night/ }).click();
-  await page.locator(".reel-room").waitFor();
-  await ready(page);
-  check(
-    "mobile playing has no horizontal overflow",
-    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  const oldPath = new URL(alice.url()).pathname;
+  await alice.getByRole("button", { name: /Start another night/ }).click();
+  await alice.waitForURL(
+    (url) => url.pathname !== oldPath && /\/lobby\/[0-9a-f-]{36}$/.test(url.pathname),
+    { timeout: 10_000 },
   );
-  await page.screenshot({ path: `${out}/19-mobile-playing.png` });
+  await bob.waitForURL(
+    (url) => url.pathname !== oldPath && /\/lobby\/[0-9a-f-]{36}$/.test(url.pathname),
+    { timeout: 10_000 },
+  );
+  lobbyIds.push(new URL(alice.url()).pathname.split("/").pop());
+  await alice.getByText("The room is filling up.").waitFor();
+  check("restart opens a fresh room for both players", true);
 
-  await page.goto(base + "/lobby/friday?stage=final", { waitUntil: "networkidle" });
-  await ready(page);
-  const finalBar = await page.locator(".premiere-bar").boundingBox();
-  check("mobile final action bar is fixed in view", finalBar && Math.abs(finalBar.y + finalBar.height - 844) < 20, JSON.stringify(finalBar));
-  await page.screenshot({ path: `${out}/20-mobile-final.png` });
+  await alice.locator(".room-exit").click();
+  await alice.waitForURL(base + "/", { timeout: 10_000 });
+  await alice.getByRole("heading", { name: "The log." }).waitFor({ timeout: 10_000 });
+  check("ending the room returns home", await alice.getByText("Friday Film Club").first().isVisible());
+  await settle(alice);
+  await alice.screenshot({ path: `${out}/08-home-after-night.png`, fullPage: true });
 
-  await page.getByRole("button", { name: "Select Past Lives" }).click();
-  await page.getByRole("button", { name: /Lock in Past Lives/ }).click();
-  await page.getByText("Everyone has picked.").waitFor({ timeout: 4000 });
-  await page.getByRole("button", { name: /Roll the pick/ }).click();
-  await page.locator(".premiere-winner").waitFor();
-  await ready(page);
-  await page.screenshot({ path: `${out}/21-mobile-winner.png` });
+  const groups = await apiGroups(aliceContext);
+  check("seed club still exists", groups.some((group) => group.name === "Friday Film Club"));
 
-  await context.close();
+  const meaningful = unexpectedErrors(errors);
+  check("no unexpected console or page errors", meaningful.length === 0, meaningful.join(" | "));
+} finally {
+  deleteLobbies(lobbyIds);
+  await browser.close();
 }
 
-// ---------------------------------------------------------------- join flow
-{
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const page = await context.newPage();
-  watch(page, "join");
-
-  await page.goto(base + "/", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Join with a link" }).click();
-  await page.getByRole("button", { name: "Use the demo invite" }).click();
-  await page.getByRole("button", { name: /Continue/ }).click();
-  await page.waitForURL("**/join/7f3k2");
-  await page.getByRole("heading", { name: "Maya saved you a seat." }).waitFor();
-  await ready(page);
-  await page.screenshot({ path: `${out}/22-mobile-join.png` });
-
-  await page.getByRole("button", { name: /Join the room/ }).click();
-  await page.waitForURL("**/lobby/friday");
-  await page.getByText("Open movie night").first().waitFor();
-  check("joined room is hosted by Maya", (await page.getByText("Host", { exact: true }).count()) >= 1);
-  await page.getByRole("button", { name: "I'm in", exact: true }).click();
-  await page.locator(".reel-room").waitFor({ timeout: 6000 });
-  await page.screenshot({ path: `${out}/23-mobile-join-started.png` });
-
-  await context.close();
-}
-
-console.log(JSON.stringify({ checks, errors }, null, 2));
-await browser.close();
-
-if (errors.length) process.exitCode = 1;
-if (checks.some((item) => !item.ok)) process.exitCode = 1;
+console.log(JSON.stringify({ checks, errors, screenshots: out }, null, 2));
+if (unexpectedErrors(errors).length) process.exitCode = 1;

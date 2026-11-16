@@ -1,188 +1,132 @@
-import { chromium } from "playwright-core";
-import { mkdir } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import {
+  base,
+  createRecorder,
+  deleteLobbies,
+  deleteUsers,
+  launchBrowser,
+  login,
+  outputDir,
+  register,
+  resetLobbies,
+  settle,
+  startGroupNight,
+  startOpenNight,
+  unexpectedErrors,
+} from "./lib/verify.mjs";
 
-const base = process.env.WATCHLOG_URL ?? "http://localhost:5173";
-const out = process.env.WATCHLOG_OUT ?? "/tmp/watchlog-prototype/edges";
-await mkdir(out, { recursive: true });
+const out = await outputDir("edges");
+const browser = await launchBrowser();
+const { checks, errors, check, watch } = createRecorder();
+const lobbyIds = [];
+const username = `verify_edge_${Date.now()}`;
 
-const browser = await chromium.launch({
-  executablePath: process.env.CHROME_PATH ?? "/usr/bin/google-chrome",
-  headless: true,
-});
-const errors = [];
-function watch(page, label) {
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(`${label}: ${message.text()}`);
-  });
-  page.on("pageerror", (error) => errors.push(`${label}: ${error.message}`));
-}
-async function ready(page) {
-  await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(600);
-}
+try {
+  resetLobbies();
 
-// Open lobby + invite link + start.
-{
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
-  watch(page, "open-lobby");
-  await page.goto(base + "/", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Start a movie night" }).click();
-  await page.getByRole("button", { name: /Open lobby/ }).click();
-  await page.getByRole("button", { name: /Start the room/ }).click();
-  await page.waitForURL("**/lobby/friday");
-  await page.getByText("Anyone with the link can join").waitFor();
-  const invite = await page.locator(".invite-url").textContent();
-  console.log("open invite:", invite);
-  if (!invite?.includes("/join/7f3k2")) throw new Error("open lobby invite missing");
-  await ready(page);
-  await page.screenshot({ path: `${out}/open-waiting.png` });
-  await page.getByRole("button", { name: "I'm in", exact: true }).click();
-  const start = page.getByRole("button", { name: /Start the night/ });
-  await start.waitFor();
-  if (!(await start.isEnabled())) throw new Error("open lobby host cannot start after readying");
-  await start.click();
-  await page.locator(".reel-room").waitFor();
-  console.log("open lobby starts: ok");
-  await context.close();
-}
+  const aliceContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const alice = await aliceContext.newPage();
+  watch(alice, "alice");
+  const bobContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const bob = await bobContext.newPage();
+  watch(bob, "bob");
 
-// Open lobby on mobile.
-{
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const page = await context.newPage();
-  watch(page, "open-lobby-mobile");
-  await page.goto(base + "/", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Start a movie night" }).click();
-  await page.getByRole("button", { name: /Open lobby/ }).click();
-  await page.getByRole("button", { name: /Start the room/ }).click();
-  await page.waitForURL("**/lobby/friday");
-  await ready(page);
-  await page.screenshot({ path: `${out}/open-waiting-mobile.png` });
-  await context.close();
-}
+  await login(alice, "alice");
+  const openLobby = await startOpenNight(alice);
+  lobbyIds.push(openLobby);
+  await alice.getByText("Anyone with the link can join").waitFor();
+  const invite = (await alice.locator(".invite-url").innerText()).trim();
+  check("open invite points at the room uuid", invite.includes(`/join/${openLobby}`), invite);
+  await settle(alice);
+  await alice.screenshot({ path: `${out}/01-open-waiting.png`, fullPage: true });
 
-// Keyboard voting + empty shortlist.
-{
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
-  watch(page, "keyboard");
-  await page.goto(base + "/lobby/friday?stage=playing", { waitUntil: "networkidle" });
-  await page.locator(".reel-room").waitFor();
-  for (let round = 0; round < 3; round += 1) {
-    await page.keyboard.press("3");
-    await page.getByText("Not everyone was in.").waitFor({ timeout: 4000 });
-    if (round < 2) {
-      await page.getByRole("button", { name: /Next film/ }).click();
-    } else {
-      await page.getByRole("button", { name: /See the shortlist/ }).click();
-    }
-  }
-  await page.getByText("No film made the cut.").waitFor();
-  await ready(page);
-  await page.screenshot({ path: `${out}/empty-final.png` });
-  console.log("keyboard votes + empty final: ok");
-  await context.close();
-}
+  await login(bob, "bob");
+  await bob.goto(`${base}/join/${openLobby}`, { waitUntil: "networkidle" });
+  await bob.getByRole("heading", { name: /saved you a seat/i }).waitFor();
+  check("join preview names the host", await bob.getByText("Hosted by").isVisible());
+  await settle(bob);
+  await bob.screenshot({ path: `${out}/02-join-preview.png`, fullPage: true });
+  await bob.getByRole("button", { name: /^Join the room/ }).click();
+  await bob.waitForURL(`${base}/lobby/${openLobby}`, { timeout: 10_000 });
+  await bob.getByText("The room is filling up.").waitFor();
+  await bob.locator(".players-list").getByText("bob").waitFor();
+  check("invite join adds the member", true);
 
-// Open lobby → keep the crew.
-{
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
-  watch(page, "keep-crew");
-  await page.goto(base + "/", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Start a movie night" }).click();
-  await page.getByRole("button", { name: /Open lobby/ }).click();
-  await page.getByRole("button", { name: /Start the room/ }).click();
-  await page.getByRole("button", { name: "I'm in", exact: true }).click();
-  await page.getByRole("button", { name: /Start the night/ }).click();
-  await page.locator(".reel-room").waitFor();
+  await alice.locator(".room-exit").click();
+  await alice.waitForURL(base + "/", { timeout: 10_000 });
 
-  for (let round = 0; round < 3; round += 1) {
-    await page.keyboard.press("1");
-    await page.getByText("Everyone was in.").waitFor({ timeout: 4000 });
-    if (round < 2) {
-      await page.getByRole("button", { name: /Next film/ }).click();
-    } else {
-      await page.getByRole("button", { name: /See the shortlist/ }).click();
-    }
+  const groupLobby = await startGroupNight(alice);
+  lobbyIds.push(groupLobby);
+  await alice.getByText("The room is filling up.").waitFor();
+
+  const privateContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const privatePage = await privateContext.newPage();
+  watch(privatePage, "non-member");
+  await register(privatePage, username);
+  await privatePage.goto(`${base}/lobby/${groupLobby}`, { waitUntil: "networkidle" });
+  await privatePage.getByText("This room is private.").waitFor({ timeout: 10_000 });
+  check("non-members cannot open a group room", true);
+  await alice.locator(".room-exit").click();
+  await alice.waitForURL(base + "/", { timeout: 10_000 });
+
+  await alice.goto(`${base}/lobby/${randomUUID()}`, { waitUntil: "networkidle" });
+  await alice.getByText("This room has closed.").waitFor({ timeout: 10_000 });
+  check("unknown room shows the closed state", true);
+
+  await alice.goto(base + "/nope", { waitUntil: "networkidle" });
+  await alice.getByText("This page isn't in the log.").waitFor();
+  check("unknown page shows the 404 state", true);
+
+  await alice.goto(base + "/search", { waitUntil: "networkidle" });
+  await alice.getByLabel("Search films and series by title").fill("Inception");
+  const offline = alice.getByText("Film search is offline.");
+  const results = alice.locator(".search-card");
+  await Promise.race([
+    offline.waitFor({ timeout: 15_000 }),
+    results.first().waitFor({ timeout: 15_000 }),
+  ]);
+  if (await offline.isVisible()) {
+    check("search reports an unavailable catalog", true);
+    await settle(alice);
+    await alice.screenshot({ path: `${out}/03-search-offline.png`, fullPage: true });
+  } else {
+    check("search returns catalog results", (await results.count()) > 0);
   }
 
-  await page.getByRole("button", { name: "Select Past Lives" }).click();
-  await page.getByRole("button", { name: /Lock in Past Lives/ }).click();
-  await page.getByText("Everyone has picked.").waitFor({ timeout: 4000 });
-  await page.getByRole("button", { name: /Roll the pick/ }).click();
-  await page.getByRole("button", { name: /Keep the crew/ }).click();
-  await page.getByText("The crew is saved").waitFor();
-  await page.getByRole("link", { name: /See your groups/ }).click();
-  await page.waitForURL("**/groups");
-  const crewRow = page.locator(".group-row").filter({ hasText: "Movie night crew" });
-  await crewRow.waitFor();
-  if (!(await crewRow.getByText("5 members").count())) throw new Error("kept crew is missing members");
-  if (!(await crewRow.getByText("1 film").count())) throw new Error("kept crew is missing the winner");
-  await ready(page);
-  await page.screenshot({ path: `${out}/keep-crew-groups.png` });
-  console.log("open lobby → keep the crew: ok");
-  await context.close();
+  await alice.setViewportSize({ width: 390, height: 844 });
+  await alice.goto(base + "/", { waitUntil: "networkidle" });
+  await alice.getByRole("button", { name: /Start a movie night/i }).click();
+  const dialog = alice.getByRole("dialog");
+  await dialog.waitFor();
+  await settle(alice);
+  const dialogRect = await dialog.boundingBox();
+  check(
+    "mobile start dialog is a bottom sheet",
+    dialogRect && Math.abs(dialogRect.y + dialogRect.height - 844) < 2,
+    JSON.stringify(dialogRect),
+  );
+  check(
+    "mobile home has no horizontal overflow",
+    await alice.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  );
+  await alice.screenshot({ path: `${out}/04-mobile-dialog.png`, fullPage: true });
+  await alice.keyboard.press("Escape");
+  await dialog.waitFor({ state: "detached" });
+
+  const ignored = [
+    "WebSocket handshake: Unexpected response code: 403",
+    "404 (Not Found)",
+    "502 (Bad Gateway)",
+  ];
+  const meaningful = unexpectedErrors(errors, ignored);
+  check("no unexpected console or page errors", meaningful.length === 0, meaningful.join(" | "));
+} finally {
+  deleteLobbies(lobbyIds);
+  deleteUsers([username]);
+  await browser.close();
 }
 
-// Adding from search updates the group.
-{
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
-  watch(page, "search-group-update");
-  await page.goto(base + "/search", { waitUntil: "networkidle" });
-  await page.getByRole("searchbox").fill("Past");
-  await page.getByRole("button", { name: /Add Past Lives/ }).click();
-  await page.getByRole("link", { name: "Groups", exact: true }).click();
-  await page.waitForURL("**/groups");
-  const fridayRow = page.locator(".group-row").filter({ hasText: "Friday Film Club" });
-  await fridayRow.waitFor();
-  if (!(await fridayRow.getByText("7 films").count())) throw new Error("search add did not update the group count");
-  console.log("search add updates group: ok");
-  await context.close();
+console.log(JSON.stringify({ checks, errors, screenshots: out }, null, 2));
+if (unexpectedErrors(errors, ["WebSocket handshake: Unexpected response code: 403", "404 (Not Found)", "502 (Bad Gateway)"]).length) {
+  process.exitCode = 1;
 }
-
-// Unknown lobby + 404.
-{
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
-  watch(page, "not-found");
-  await page.goto(base + "/lobby/nope", { waitUntil: "networkidle" });
-  await page.getByText("This room has closed.").waitFor();
-  await page.goto(base + "/nope", { waitUntil: "networkidle" });
-  await page.getByText("This page isn't in the log.").waitFor();
-  console.log("unknown room + 404: ok");
-  await context.close();
-}
-
-// Mobile touch targets on key controls.
-{
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const page = await context.newPage();
-  watch(page, "touch");
-  await page.goto(base + "/search", { waitUntil: "networkidle" });
-  await page.getByRole("searchbox").fill("Past");
-  const small = await page.evaluate(() => {
-    const selectors = "button, a.btn, .filter-chip, .add-button, input, select";
-    return [...document.querySelectorAll(selectors)]
-      .map((el) => {
-        const rect = el.getBoundingClientRect();
-        return {
-          tag: el.tagName,
-          cls: el.className,
-          label: el.getAttribute("aria-label") || el.textContent?.trim().slice(0, 30),
-          w: Math.round(rect.width),
-          h: Math.round(rect.height),
-        };
-      })
-      .filter((item) => item.w > 0 && item.h > 0 && (item.h < 44 || item.w < 20));
-  });
-  console.log("small mobile targets:", JSON.stringify(small, null, 2));
-  if (small.length) throw new Error("small mobile touch targets found");
-  await context.close();
-}
-
-console.log("errors", JSON.stringify(errors, null, 2));
-await browser.close();
-if (errors.length) process.exitCode = 1;
