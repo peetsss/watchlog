@@ -66,9 +66,15 @@ def _truncate_database(settings: Settings) -> None:
 
 @pytest.fixture(scope="session")
 def test_settings() -> Settings:
-    settings = Settings(env="test", docs_enabled=True, postgres_db=TEST_DATABASE)
-    if settings.postgres_db != TEST_DATABASE:
-        raise RuntimeError(f"Tests must use {TEST_DATABASE}, got {settings.postgres_db}")
+    settings = Settings(
+        env="test",
+        docs_enabled=True,
+        postgres_db=TEST_DATABASE,
+        database_url=None,
+    )
+    url = make_url(settings.sqlalchemy_url)
+    if settings.postgres_db != TEST_DATABASE or url.database != TEST_DATABASE:
+        raise RuntimeError(f"Tests must use {TEST_DATABASE}, got {url.database}")
     if settings.postgres_db in FORBIDDEN_DATABASES:
         raise RuntimeError(f"Refusing to run tests against {settings.postgres_db}")
     return settings
