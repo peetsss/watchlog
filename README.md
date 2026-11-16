@@ -126,6 +126,12 @@ This creates `alice`, `bob` and `carol` with the password `correct horse` and a
 Lobby REST routes live under `/api/lobby/` (csrf, active, create, preview, join,
 state and actions). State responses carry an `ETag` of the form `"v<version>"`.
 
+Realtime lives at `/ws/lobby/<uuid>/` and uses the same session cookie. Send the
+same action names and read `lobby.state`, `lobby.error`, `lobby.left`,
+`lobby.removed` and `lobby.restarted`. Close codes are `4401` (unauthorized),
+`4403` (forbidden), `4404` (not found), `4000` (left) and `4001` (restarted). The
+REST state endpoint remains the fallback when the socket is unavailable.
+
 The API tests create and use a separate `watchlog_test` database, run Alembic
 once and truncate tables between tests.
 
