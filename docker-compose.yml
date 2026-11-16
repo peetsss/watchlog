@@ -33,6 +33,12 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-watchlog_db}
       POSTGRES_USER: ${POSTGRES_USER:-watchlog}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchlog_password}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-watchlog} -d ${POSTGRES_DB:-watchlog_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     networks:
       - watchlog
     volumes:
@@ -43,6 +49,12 @@ services:
     image: redis:7-alpine
     container_name: watchlog-redis
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
     networks:
       - watchlog
     volumes:

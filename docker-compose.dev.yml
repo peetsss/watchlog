@@ -18,6 +18,40 @@ services:
       - ./src:/project/src:ro
       - ./pyproject.toml:/project/pyproject.toml:ro
 
+  api:
+    profiles: ["api"]
+    image: watchlog-api:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      target: dev
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8001:8000"
+    environment:
+      WATCHLOG_ENV: dev
+      WATCHLOG_DB: watchlog_v2
+      POSTGRES_HOST: database
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-watchlog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchlog_password}
+      WATCHLOG_REDIS_URL: redis://redis:6379/0
+      WATCHLOG_ALLOWED_HOSTS: localhost,127.0.0.1,api
+      WATCHLOG_TRUSTED_ORIGINS: http://localhost:8001,http://localhost:5173
+      WATCHLOG_TMDB_API_KEY: ${TMDB_API_KEY:-}
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini:ro
+      - ./scripts:/app/scripts:ro
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - watchlog
+
   database:
     ports:
       - "127.0.0.1:5432:5432"

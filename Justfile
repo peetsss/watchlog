@@ -19,6 +19,38 @@ stop:
 stop-v:
     {{DC}} down -v
 
+# create the FastAPI database in the dev database container
+api-db:
+    {{DC}} up -d database
+    {{DC}} exec -T database sh -c 'createdb -U "$POSTGRES_USER" -T template0 watchlog_v2 2>/dev/null || true'
+
+# apply FastAPI migrations on the host
+api-migrate:
+    uv run alembic upgrade head
+
+# create a FastAPI migration from the current models
+api-revision message:
+    uv run alembic revision --autogenerate -m "{{message}}"
+
+# start the FastAPI service (dev compose profile)
+api:
+    {{DC}} --profile api up -d --build api
+
+# tail FastAPI logs
+api-logs:
+    {{DC}} logs -f api
+
+# run ruff, alembic drift check and pytest for the FastAPI app
+api-check:
+    uv run ruff check app tests alembic scripts
+    uv run ruff format --check app tests alembic scripts
+    uv run alembic check
+    uv run pytest
+
+# run FastAPI tests
+api-test *args:
+    uv run pytest {{args}}
+
 # tail all containers logs
 logs:
     {{DC}} logs -f

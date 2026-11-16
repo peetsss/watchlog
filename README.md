@@ -82,6 +82,25 @@ The lobby JSON API lives under `/api/lobby/`; the WebSocket endpoint is
 `/ws/lobby/<uuid>/`. Endpoints, payloads and close codes are documented in
 [docs/lobby-api.md](docs/lobby-api.md).
 
+### FastAPI rewrite (in progress)
+A FastAPI backend is being built alongside Django under `app/`. It uses the
+separate `watchlog_v2` database and does not serve the current UI. Django remains
+the primary app until the cutover phase.
+
+Create the API database and start the API service:
+
+```
+just api-db
+just api
+```
+
+The API listens on http://localhost:8001 and its OpenAPI docs are at
+`/api/docs`. Run its checks on the host with:
+
+```
+just api-check
+```
+
 ### Production
 Build and start the daphne ASGI stack:
 

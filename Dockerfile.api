@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+ARG PYTHON_VERSION=3.14-slim-trixie
+
+FROM python:${PYTHON_VERSION} AS base
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_SYSTEM_PYTHON=1 \
+    UV_LINK_MODE=copy
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv export --frozen --format=requirements-txt --dev > /tmp/requirements-dev.txt && \
+    uv export --frozen --format=requirements-txt --no-dev > /tmp/requirements.txt
+
+FROM base AS deps-dev
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system --no-cache -r /tmp/requirements-dev.txt
+
+FROM base AS deps-prod
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system --no-cache -r /tmp/requirements.txt
+
+FROM deps-dev AS dev
+COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini ./
+COPY scripts ./scripts
+RUN useradd --create-home --uid 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+FROM deps-prod AS prod
+COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini ./
+COPY scripts ./scripts
+RUN useradd --create-home --uid 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+ENTRYPOINT ["python", "-m", "scripts.api_entrypoint"]
