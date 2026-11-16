@@ -5,6 +5,7 @@ from app.api.deps import CurrentUser
 from app.core.db import SessionDep
 from app.models.group import Review
 from app.schemas.auth import MeEnvelope, ViewerStats
+from app.services.scores import round_score
 from app.services.viewer import viewer_for
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -19,6 +20,6 @@ async def me(user: CurrentUser, db: SessionDep) -> MeEnvelope:
         viewer=viewer_for(user),
         stats=ViewerStats(
             titles_watched=int(count or 0),
-            average_score=round(float(average), 1) if average is not None else None,
+            average_score=round_score(average),
         ),
     )

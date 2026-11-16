@@ -1,4 +1,3 @@
-from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import and_, func, select
@@ -23,6 +22,7 @@ from app.schemas.groups import (
     MovieSummary,
 )
 from app.services.movies import get_or_create_movie
+from app.services.scores import round_score, score_decimal
 from app.services.viewer import color_for, initials_for
 
 
@@ -234,7 +234,7 @@ async def _build_film(db: AsyncSession, group_movie: GroupMovie, viewer_id: int)
         status=group_movie.status,
         added_at=group_movie.added_at,
         added_by=added_by,
-        club_score=round(float(average), 1) if average is not None else None,
+        club_score=round_score(average),
         score_count=int(count),
         your_score=float(your_score) if your_score is not None else None,
     )
@@ -262,7 +262,7 @@ async def set_score(db: AsyncSession, group: Group, user: User, film_id: int, sc
             Review.user_id == user.id,
         )
     )
-    score_value = Decimal(str(round(score, 1)))
+    score_value = score_decimal(score)
     if review is None:
         review = Review(group_movie_id=group_movie.id, user_id=user.id, score=score_value)
         db.add(review)
@@ -357,7 +357,7 @@ async def get_group_stats(db: AsyncSession, group: Group) -> GroupStats:
             user_id=user_id,
             username=username,
             score_count=int(score_count),
-            average_score=round(float(average_score), 1) if average_score is not None else None,
+            average_score=round_score(average_score),
         )
         for user_id, username, score_count, average_score in rows
     ]
@@ -366,6 +366,6 @@ async def get_group_stats(db: AsyncSession, group: Group) -> GroupStats:
         watched_count=watched_count,
         up_next_count=film_count - watched_count,
         member_count=member_count,
-        average_score=round(float(average), 1) if average is not None else None,
+        average_score=round_score(average),
         member_scores=member_scores,
     )

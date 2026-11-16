@@ -220,6 +220,28 @@ async def test_scores_and_the_watched_rule(
         assert me.json()["stats"] == {"titles_watched": 1, "average_score": 8.0}
 
 
+async def test_club_score_rounds_half_up(
+    client: AsyncClient,
+    app: FastAPI,
+    movie_factory: Callable[..., int],
+) -> None:
+    await register_member(client)
+    group = await create_group(client, "Friday Film Club")
+    movie_factory(tmdb_id=27205, title="Inception")
+    film = await add_film(client, group["id"], 27205)
+
+    async with new_client(app) as bob_client:
+        await register_member(bob_client, "bob")
+        await join_group(bob_client, group["id"])
+        await score_film(client, group["id"], film["id"], 8.5)
+        scored = await score_film(bob_client, group["id"], film["id"], 8.0)
+
+    assert scored["club_score"] == 8.3
+
+    stats = await client.get(f"/api/groups/{group['id']}/stats")
+    assert stats.json()["average_score"] == 8.3
+
+
 async def test_all_three_members_must_score(
     client: AsyncClient,
     app: FastAPI,

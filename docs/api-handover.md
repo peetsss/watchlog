@@ -127,7 +127,8 @@ clients. The alias is intentionally hidden from OpenAPI.
 - State responses carry `ETag: "v<version>"` and `Cache-Control: private,
   no-cache` with `Vary: Cookie`. Send `If-None-Match` to receive `304`.
 - Lobby action responses are `200`, create/restart `201`, leave `204`.
-- Scores are validated to 1–10 and stored to one decimal.
+- Scores are validated to 1–10 and stored to one decimal. Averages are rounded
+  half-up to one decimal, matching the old Postgres `ROUND` behavior.
 
 ### Error codes
 
