@@ -97,11 +97,20 @@ just api
 
 The API listens on http://localhost:8001 and its OpenAPI docs are at
 `/api/docs`. Auth endpoints are `GET /api/auth/csrf`, `POST /api/auth/register`,
-`POST /api/auth/login`, `POST /api/auth/logout` and `GET /api/me`. Run its checks
-on the host with:
+`POST /api/auth/login`, `POST /api/auth/logout` and `GET /api/me`. Movie
+endpoints are `GET /api/movies/search?q=` and `GET /api/movies/{id}`; search
+needs `TMDB_API_KEY` to be set. Run the checks on the host with:
 
 ```
 just api-check
+```
+
+The catalog scripts target `watchlog_v2`:
+
+```
+uv run python scripts/copy_movies.py --truncate
+uv run python scripts/ingest_tmdb.py --dry-run
+uv run python scripts/embed_movies.py --verify
 ```
 
 The API tests create and use a separate `watchlog_test` database, run Alembic
