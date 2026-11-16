@@ -5,7 +5,6 @@ import {
   CalendarDays,
   Clapperboard,
   Link2,
-  Sparkles,
   Star,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -27,9 +26,7 @@ import {
 import { cx } from "../lib/cx";
 import { usePageTitle } from "../lib/usePageTitle";
 import { useGroups } from "../state/Groups";
-import { useGuestGate } from "../state/GuestGate";
 import { useLobby } from "../state/Lobby";
-import { useViewer } from "../state/Viewer";
 import { filmAverage, scoredMembers, type ScoredMember } from "./group/score";
 import "./hub.css";
 
@@ -84,8 +81,6 @@ export function HubPage() {
   usePageTitle("Home");
   const { groups } = useGroups();
   const { lobby } = useLobby();
-  const { isMember } = useViewer();
-  const { openAccount } = useGuestGate();
   const [startOpen, setStartOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [nightDetail, setNightDetail] = useState<RecentNight | null>(null);
@@ -133,9 +128,8 @@ export function HubPage() {
             What are we watching <em>tonight</em>?
           </h1>
           <p className="lede hub-board-lede">
-            {isMember
-              ? "One room, one shortlist, one pick. Start with the club you already have — no twenty-message group chat required."
-              : "One room, one shortlist, one pick. Start a room or join with a link — no account needed. Keep the night later if you want."}
+            One room, one shortlist, one pick. Start with the club you already have — no
+            twenty-message group chat required.
           </p>
           <div className="hub-board-actions">
             <Button size="lg" onClick={() => setStartOpen(true)}>
@@ -256,27 +250,17 @@ export function HubPage() {
                       </div>
                     )
                   ) : null}
-                  {isMember ? (
-                    <div className="hub-board-idle-actions">
-                      <Button size="sm" variant="secondary" onClick={() => setStartOpen(true)}>
-                        Start with {featuredGroup.name}
-                      </Button>
-                      <Link
-                        to={`/groups/${featuredGroup.id}`}
-                        className="text-link hub-board-idle-link"
-                      >
-                        Open the watchlist <ArrowUpRight size={14} />
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="hub-board-guest-note">
-                      <Sparkles size={15} aria-hidden="true" />
-                      <span>
-                        Open rooms only. No account needed — create one after the night if you want
-                        to keep the crew.
-                      </span>
-                    </div>
-                  )}
+                  <div className="hub-board-idle-actions">
+                    <Button size="sm" variant="secondary" onClick={() => setStartOpen(true)}>
+                      Start with {featuredGroup.name}
+                    </Button>
+                    <Link
+                      to={`/groups/${featuredGroup.id}`}
+                      className="text-link hub-board-idle-link"
+                    >
+                      Open the watchlist <ArrowUpRight size={14} />
+                    </Link>
+                  </div>
                 </>
               ) : (
                 <p className="hub-board-live-copy">
@@ -288,30 +272,13 @@ export function HubPage() {
         </aside>
 
         <div className="hub-board-foot">
-          {isMember ? (
-            <>
-              <span>
-                <CalendarDays size={14} aria-hidden="true" /> Next night {nextNight}
-              </span>
-              <Link to="/groups" className="hub-board-crews">
-                {groups.length} {groups.length === 1 ? "crew" : "crews"} · {totalFilms} films
-                between you <ArrowUpRight size={13} />
-              </Link>
-            </>
-          ) : (
-            <>
-              <span>
-                <CalendarDays size={14} aria-hidden="true" /> No account needed to join a room
-              </span>
-              <button
-                type="button"
-                className="hub-board-crews hub-board-account"
-                onClick={openAccount}
-              >
-                Create an account to keep your nights <ArrowUpRight size={13} />
-              </button>
-            </>
-          )}
+          <span>
+            <CalendarDays size={14} aria-hidden="true" /> Next night {nextNight}
+          </span>
+          <Link to="/groups" className="hub-board-crews">
+            {groups.length} {groups.length === 1 ? "crew" : "crews"} · {totalFilms} films
+            between you <ArrowUpRight size={13} />
+          </Link>
         </div>
       </section>
 

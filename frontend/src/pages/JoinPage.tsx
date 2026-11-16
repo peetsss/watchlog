@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { ArrowRight, Clock, Link2, Lock, Users } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar, AvatarStack } from "../components/Avatar";
@@ -9,44 +8,18 @@ import { INVITE_CODE, invitePreview, movies } from "../data";
 import { cx } from "../lib/cx";
 import { usePageTitle } from "../lib/usePageTitle";
 import { useLobby } from "../state/Lobby";
-import { useViewer } from "../state/Viewer";
 
 export function JoinPage() {
   usePageTitle("You're invited");
   const { code } = useParams<{ code: string }>();
   const { lobby, joinOpenLobby } = useLobby();
-  const { isMember, person, startGuest, signIn } = useViewer();
   const navigate = useNavigate();
-  const [guestName, setGuestName] = useState(person?.name ?? "");
-  const [nameError, setNameError] = useState<string | null>(null);
 
   const valid = code?.toLowerCase() === INVITE_CODE;
   const activeInvite = lobby && lobby.privacy === "open" && lobby.stage !== "winner";
   const names = invitePreview.players.map((person) => person.name.split(" ")[0]);
 
   const handleJoin = () => {
-    if (!isMember) {
-      const name = guestName.trim();
-      if (!name) {
-        setNameError("Add a name so the room knows who you are.");
-        return;
-      }
-      const guest = startGuest(name);
-      if (!activeInvite) joinOpenLobby(guest);
-      navigate("/lobby/friday");
-      return;
-    }
-
-    if (activeInvite) {
-      navigate("/lobby/friday");
-      return;
-    }
-    joinOpenLobby();
-    navigate("/lobby/friday");
-  };
-
-  const handleSignIn = () => {
-    signIn();
     if (!activeInvite) joinOpenLobby();
     navigate("/lobby/friday");
   };
@@ -114,40 +87,9 @@ export function JoinPage() {
               <span>{names.slice(0, -1).join(", ")} and {names[names.length - 1]} are in.</span>
             </div>
 
-            {!isMember ? (
-              <div className="join-guest">
-                <label className="field-label" htmlFor="join-guest-name">
-                  What should we call you?
-                </label>
-                <input
-                  id="join-guest-name"
-                  className="text-input"
-                  type="text"
-                  autoComplete="name"
-                  placeholder="e.g. Sam"
-                  value={guestName}
-                  aria-invalid={Boolean(nameError)}
-                  aria-describedby={nameError ? "join-guest-error" : "join-guest-help"}
-                  onChange={(event) => {
-                    setGuestName(event.target.value);
-                    if (nameError) setNameError(null);
-                  }}
-                />
-                {nameError ? (
-                  <p className="field-error" id="join-guest-error" role="alert">
-                    {nameError}
-                  </p>
-                ) : (
-                  <p className="field-help" id="join-guest-help">
-                    No account needed. You can create one after the night to keep your picks.
-                  </p>
-                )}
-              </div>
-            ) : null}
-
             <div className="join-actions">
               <Button size="lg" onClick={handleJoin}>
-                {activeInvite ? "Rejoin the room" : isMember ? "Join the room" : "Join as guest"}{" "}
+                {activeInvite ? "Rejoin the room" : "Join the room"}{" "}
                 <ArrowRight size={17} />
               </Button>
               <button type="button" className="text-button" onClick={() => navigate("/")}>
@@ -155,17 +97,9 @@ export function JoinPage() {
               </button>
             </div>
 
-            {!isMember && !person ? (
-              <button type="button" className="text-button join-signin" onClick={handleSignIn}>
-                Already have an account? Sign in
-              </button>
-            ) : null}
-
             <p className="join-privacy">
               <Lock size={14} aria-hidden="true" />
-              {isMember
-                ? "The link is the only key. This room never appears in a public list."
-                : "No account needed. The link is the only key; this room never appears in a public list."}
+              The link is the only key. This room never appears in a public list.
             </p>
           </section>
 

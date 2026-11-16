@@ -1,11 +1,10 @@
-import { Home, LogOut, Search, UserPlus, UserRound, Users } from "lucide-react";
+import { Home, LogOut, Search, UserRound, Users } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { stageLabel } from "../data";
 import { cx } from "../lib/cx";
 import { useGroups } from "../state/Groups";
-import { useGuestGate } from "../state/GuestGate";
 import { useLobby } from "../state/Lobby";
-import { useViewer } from "../state/Viewer";
+import { useSession } from "../state/Session";
 import { Avatar } from "./Avatar";
 import { Wordmark } from "./Wordmark";
 
@@ -20,15 +19,14 @@ const groupTones = ["#e7b45a", "#9bb39a", "#8fa6bf", "#d09a83"];
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { groups } = useGroups();
   const { lobby, resetLobby } = useLobby();
-  const { isMember, person, signOut } = useViewer();
-  const { openAccount } = useGuestGate();
+  const { person, signOut } = useSession();
   const navigate = useNavigate();
-  const items = isMember ? navItems : navItems.filter((item) => item.to !== "/groups");
 
   const handleSignOut = () => {
-    signOut();
-    resetLobby();
-    navigate("/");
+    void signOut().finally(() => {
+      resetLobby();
+      navigate("/auth", { replace: true });
+    });
   };
 
   return (
@@ -43,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="side-nav" aria-label="Primary">
-          {items.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -72,28 +70,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="side-groups">
           <div className="side-label">
             <span>Your groups</span>
-            {isMember ? (
-              <Link to="/groups" className="side-label-link" aria-label="View all groups">
-                All
-              </Link>
-            ) : null}
+            <Link to="/groups" className="side-label-link" aria-label="View all groups">
+              All
+            </Link>
           </div>
-          {isMember ? (
-            groups.slice(0, 4).map((group, index) => (
-              <Link key={group.id} to={`/groups/${group.id}`} className="side-group">
-                <span
-                  className="side-group-dot"
-                  style={{ background: groupTones[index % groupTones.length] }}
-                  aria-hidden="true"
-                />
-                <span>{group.name}</span>
-              </Link>
-            ))
-          ) : (
-            <p className="side-guest-note">
-              No clubs yet. Create an account to join one, or keep playing as a guest.
-            </p>
-          )}
+          {groups.slice(0, 4).map((group, index) => (
+            <Link key={group.id} to={`/groups/${group.id}`} className="side-group">
+              <span
+                className="side-group-dot"
+                style={{ background: groupTones[index % groupTones.length] }}
+                aria-hidden="true"
+              />
+              <span>{group.name}</span>
+            </Link>
+          ))}
         </div>
 
         <div className="sidebar-foot">
@@ -106,30 +96,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             )}
             <div>
-              <strong>{person?.name ?? "Not signed in"}</strong>
-              <span>{isMember ? "Signed in" : person ? "Guest" : "Guest access"}</span>
+              <strong>{person?.name ?? "Member"}</strong>
+              <span>Member</span>
             </div>
-            {isMember ? (
-              <button
-                type="button"
-                className="side-signout"
-                onClick={handleSignOut}
-                aria-label="Sign out"
-                title="Sign out"
-              >
-                <LogOut size={15} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="side-signout"
-                onClick={openAccount}
-                aria-label="Create an account"
-                title="Create an account"
-              >
-                <UserPlus size={15} />
-              </button>
-            )}
+            <button
+              type="button"
+              className="side-signout"
+              onClick={handleSignOut}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut size={15} />
+            </button>
           </div>
           <p className="side-note">A quieter place for movie people.</p>
         </div>
@@ -146,25 +124,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <UserRound size={17} />
               </span>
             )}
-            {isMember ? (
-              <button
-                type="button"
-                className="mobile-icon-button"
-                onClick={handleSignOut}
-                aria-label="Sign out"
-              >
-                <LogOut size={16} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="mobile-icon-button"
-                onClick={openAccount}
-                aria-label="Create an account"
-              >
-                <UserPlus size={16} />
-              </button>
-            )}
+            <button
+              type="button"
+              className="mobile-icon-button"
+              onClick={handleSignOut}
+              aria-label="Sign out"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </header>
 
@@ -173,7 +140,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
 
         <nav className="bottom-nav" aria-label="Primary">
-          {items.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink

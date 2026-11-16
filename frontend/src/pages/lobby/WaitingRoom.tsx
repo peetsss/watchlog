@@ -7,7 +7,6 @@ import { copyText, inviteUrl } from "../../lib/copy";
 import { cx } from "../../lib/cx";
 import { useLobby } from "../../state/Lobby";
 import { useToast } from "../../state/Toast";
-import { useViewer } from "../../state/Viewer";
 
 function listNames(names: string[]) {
   if (names.length <= 1) return names[0] ?? "";
@@ -29,7 +28,6 @@ function waitingSentence(names: string[]) {
 export function WaitingRoom() {
   const { lobby, setReady, startNight } = useLobby();
   const { showToast } = useToast();
-  const { isGuest } = useViewer();
 
   const collage = useMemo(
     () => [movies["past-lives"], movies["grand-budapest"], movies["paddington-2"]],
@@ -176,7 +174,7 @@ export function WaitingRoom() {
                       <span className="player-name">
                         {person.name}
                         {person.id === lobby.youId ? (
-                          <span className="tag">{isGuest ? "Guest" : "You"}</span>
+                          <span className="tag">You</span>
                         ) : null}
                         {person.id === lobby.hostId ? <span className="tag tag-amber">Host</span> : null}
                       </span>

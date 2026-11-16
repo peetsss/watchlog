@@ -3,8 +3,6 @@ import { Link } from "react-router-dom";
 import { Button, buttonClass } from "../components/Button";
 import { Modal } from "../components/Modal";
 import type { RecentNight } from "../data";
-import { useGuestGate } from "../state/GuestGate";
-import { useViewer } from "../state/Viewer";
 import type { ScoredMember } from "../pages/group/score";
 
 export function NightDialog({
@@ -18,9 +16,6 @@ export function NightDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { isMember } = useViewer();
-  const { openAccount } = useGuestGate();
-
   if (!night) return null;
 
   const average = score?.average ?? night.rating;
@@ -37,15 +32,9 @@ export function NightDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          {isMember ? (
-            <Link to={`/groups/${night.groupId}`} className={buttonClass("secondary", "md")}>
-              Open the group
-            </Link>
-          ) : (
-            <Button variant="secondary" onClick={openAccount}>
-              Create an account
-            </Button>
-          )}
+          <Link to={`/groups/${night.groupId}`} className={buttonClass("secondary", "md")}>
+            Open the group
+          </Link>
         </>
       }
     >

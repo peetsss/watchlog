@@ -8,9 +8,7 @@ import { Wordmark } from "../../components/Wordmark";
 import { movieById, stageLabel } from "../../data";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { cx } from "../../lib/cx";
-import { useGuestGate } from "../../state/GuestGate";
 import { useLobby } from "../../state/Lobby";
-import { useViewer } from "../../state/Viewer";
 import { FinalRoom } from "./FinalRoom";
 import { PlayingRoom } from "./PlayingRoom";
 import { WaitingRoom } from "./WaitingRoom";
@@ -40,8 +38,6 @@ function ClosedRoom() {
 
 export function LobbyPage() {
   const { lobby } = useLobby();
-  const { isGuest, person } = useViewer();
-  const { request: requestAccount } = useGuestGate();
   const { id } = useParams<{ id: string }>();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
@@ -49,10 +45,7 @@ export function LobbyPage() {
   const detailMovie = movieById(params.get("film"));
 
   const leaveRoom = () => {
-    requestAccount({
-      reason: "leave",
-      onProceed: () => navigate("/"),
-    });
+    navigate("/");
   };
 
   usePageTitle(
@@ -103,11 +96,6 @@ export function LobbyPage() {
         <Wordmark />
         <div className="room-meta">
           <span className="room-name">{lobby.groupName}</span>
-          {isGuest ? (
-            <span className="tag" aria-label={`Playing as ${person?.name ?? "a guest"}`}>
-              Guest
-            </span>
-          ) : null}
           <span className="room-stage">{stageLabel(lobby)}</span>
         </div>
         <button

@@ -3506,6 +3506,15 @@ button {
   margin: auto;
 }
 
+.session-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* ------------------------------------------------------------------
    Animations
    ------------------------------------------------------------------ */

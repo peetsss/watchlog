@@ -60,21 +60,22 @@ type Result<T> = {
   response: Response;
 };
 
-export async function unwrap<T>(result: Result<T>): Promise<T> {
+export async function unwrap<T>(pending: Promise<Result<T>>): Promise<T> {
+  const result = await pending;
   if (result.response.ok) {
     return result.data as T;
   }
 
   let code = "request_failed";
   let message = `Request failed with status ${result.response.status}.`;
-  try {
-    const payload = (await result.response.clone().json()) as {
-      error?: { code?: string; message?: string };
-    };
-    if (payload.error?.code) code = payload.error.code;
-    if (payload.error?.message) message = payload.error.message;
-  } catch {
-    // The response did not contain the JSON error envelope.
+
+  const payload = result.error as
+    | { error?: { code?: string; message?: string } }
+    | undefined;
+  if (payload && typeof payload === "object" && payload.error) {
+    if (payload.error.code) code = payload.error.code;
+    if (payload.error.message) message = payload.error.message;
   }
+
   throw new ApiError(message, code, result.response.status);
 }

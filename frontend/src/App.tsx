@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { Film } from "lucide-react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import {
   BrowserRouter,
   Link,
+  Navigate,
   Outlet,
   Route,
   Routes,
@@ -10,21 +12,22 @@ import {
 } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { EmptyState } from "./components/EmptyState";
-import { MemberOnly } from "./components/MemberOnly";
 import { OfflineBanner } from "./components/OfflineBanner";
+import { RequireMember } from "./components/RequireMember";
 import { Wordmark } from "./components/Wordmark";
 import { buttonClass } from "./components/Button";
+import { AuthPage } from "./pages/AuthPage";
 import { GroupPage } from "./pages/group/GroupPage";
 import { GroupsPage } from "./pages/GroupsPage";
 import { HubPage } from "./pages/HubPage";
 import { JoinPage } from "./pages/JoinPage";
 import { SearchPage } from "./pages/SearchPage";
 import { LobbyPage } from "./pages/lobby/LobbyPage";
+import { queryClient } from "./lib/query";
 import { GroupsProvider } from "./state/Groups";
-import { GuestGateProvider } from "./state/GuestGate";
 import { LobbyProvider } from "./state/Lobby";
+import { SessionProvider } from "./state/Session";
 import { ToastProvider } from "./state/Toast";
-import { ViewerProvider } from "./state/Viewer";
 import "./mobile.css";
 
 function ScrollToTop() {
@@ -65,44 +68,52 @@ function NotFoundPage() {
 
 export function App() {
   return (
-    <BrowserRouter>
-      <ToastProvider>
-        <ViewerProvider>
-          <GroupsProvider>
-            <LobbyProvider>
-              <GuestGateProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ToastProvider>
+          <SessionProvider>
+            <GroupsProvider>
+              <LobbyProvider>
                 <OfflineBanner />
                 <ScrollToTop />
                 <Routes>
-                  <Route element={<ShellLayout />}>
+                  <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/login" element={<Navigate to="/auth" replace />} />
+                  <Route
+                    element={
+                      <RequireMember>
+                        <ShellLayout />
+                      </RequireMember>
+                    }
+                  >
                     <Route path="/" element={<HubPage />} />
-                    <Route
-                      path="/groups"
-                      element={
-                        <MemberOnly>
-                          <GroupsPage />
-                        </MemberOnly>
-                      }
-                    />
-                    <Route
-                      path="/groups/:id"
-                      element={
-                        <MemberOnly>
-                          <GroupPage />
-                        </MemberOnly>
-                      }
-                    />
+                    <Route path="/groups" element={<GroupsPage />} />
+                    <Route path="/groups/:id" element={<GroupPage />} />
                     <Route path="/search" element={<SearchPage />} />
                   </Route>
-                  <Route path="/lobby/:id" element={<LobbyPage />} />
-                  <Route path="/join/:code" element={<JoinPage />} />
+                  <Route
+                    path="/lobby/:id"
+                    element={
+                      <RequireMember>
+                        <LobbyPage />
+                      </RequireMember>
+                    }
+                  />
+                  <Route
+                    path="/join/:code"
+                    element={
+                      <RequireMember>
+                        <JoinPage />
+                      </RequireMember>
+                    }
+                  />
                   <Route path="*" element={<NotFoundPage />} />
                 </Routes>
-              </GuestGateProvider>
-            </LobbyProvider>
-          </GroupsProvider>
-        </ViewerProvider>
-      </ToastProvider>
-    </BrowserRouter>
+              </LobbyProvider>
+            </GroupsProvider>
+          </SessionProvider>
+        </ToastProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }

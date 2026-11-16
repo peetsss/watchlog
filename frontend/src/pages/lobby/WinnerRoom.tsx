@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Check, Film, Home, Info, Plus, Users } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Check, Film, Home, Info, Plus } from "lucide-react";
 import { AvatarStack } from "../../components/Avatar";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
@@ -8,7 +7,6 @@ import { RoomBackdrop } from "../../components/RoomBackdrop";
 import { movieById, movies, winnerCounts } from "../../data";
 import { cx } from "../../lib/cx";
 import { useGroups } from "../../state/Groups";
-import { useGuestGate } from "../../state/GuestGate";
 import { useLobby } from "../../state/Lobby";
 import { useToast } from "../../state/Toast";
 import "./premiere.css";
@@ -21,11 +19,9 @@ export function WinnerRoom({
   onLeave: () => void;
 }) {
   const { lobby, restartNight } = useLobby();
-  const { groups, addMovieToGroup, createGroup } = useGroups();
+  const { groups, addMovieToGroup } = useGroups();
   const { showToast } = useToast();
-  const { request: requestAccount } = useGuestGate();
   const [added, setAdded] = useState(false);
-  const [kept, setKept] = useState(false);
 
   if (!lobby) return null;
 
@@ -61,31 +57,9 @@ export function WinnerRoom({
   const isAdded = added || Boolean(group?.watchlist.some((entry) => entry.id === winner.id));
 
   const handleAdd = () => {
-    requestAccount({
-      reason: "save",
-      onProceed: () => {
-        if (group) addMovieToGroup(group.id, winner);
-        setAdded(true);
-        showToast(`${winner.title} added to ${lobby.groupName}.`);
-      },
-    });
-  };
-
-  const handleKeepCrew = () => {
-    if (kept) return;
-    requestAccount({
-      reason: "save",
-      onProceed: () => {
-        const newGroup = createGroup(
-          "Movie night crew",
-          "Started from an open movie night. The rest is history.",
-          lobby.players,
-        );
-        addMovieToGroup(newGroup.id, winner);
-        setKept(true);
-        showToast("The crew is saved — tonight's pick is on the watchlist.");
-      },
-    });
+    if (group) addMovieToGroup(group.id, winner);
+    setAdded(true);
+    showToast(`${winner.title} added to ${lobby.groupName}.`);
   };
 
   return (
@@ -134,29 +108,11 @@ export function WinnerRoom({
                   </>
                 )}
               </Button>
-            ) : (
-              <Button onClick={handleKeepCrew} disabled={kept}>
-                {kept ? (
-                  <>
-                    <Check size={16} /> Crew saved
-                  </>
-                ) : (
-                  <>
-                    <Users size={16} /> Keep the crew
-                  </>
-                )}
-              </Button>
-            )}
+            ) : null}
             <Button variant="secondary" onClick={onLeave}>
               <Home size={16} /> Back home
             </Button>
           </div>
-
-          {kept ? (
-            <Link to="/groups" className="text-link premiere-groups-link">
-              See your groups <Users size={13} />
-            </Link>
-          ) : null}
 
           {isHost ? (
             <button
