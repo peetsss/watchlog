@@ -591,6 +591,199 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HomeCrews": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "film_count": {
+            "title": "Film Count",
+            "type": "integer"
+          },
+          "watched_count": {
+            "title": "Watched Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "film_count",
+          "watched_count"
+        ],
+        "title": "HomeCrews",
+        "type": "object"
+      },
+      "HomeFeaturedGroup": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "film_count": {
+            "title": "Film Count",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_watched": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HomeLogEntry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/GroupMember"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "up_next": {
+            "items": {
+              "$ref": "#/components/schemas/MovieSummary"
+            },
+            "title": "Up Next",
+            "type": "array"
+          },
+          "up_next_count": {
+            "title": "Up Next Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "member_count",
+          "film_count",
+          "members",
+          "up_next_count",
+          "up_next",
+          "last_watched"
+        ],
+        "title": "HomeFeaturedGroup",
+        "type": "object"
+      },
+      "HomeLogEntry": {
+        "properties": {
+          "club_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Club Score"
+          },
+          "film_id": {
+            "title": "Film Id",
+            "type": "integer"
+          },
+          "group_id": {
+            "format": "uuid",
+            "title": "Group Id",
+            "type": "string"
+          },
+          "group_name": {
+            "title": "Group Name",
+            "type": "string"
+          },
+          "movie": {
+            "$ref": "#/components/schemas/MovieSummary"
+          },
+          "score_count": {
+            "title": "Score Count",
+            "type": "integer"
+          },
+          "watched_at": {
+            "format": "date-time",
+            "title": "Watched At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "film_id",
+          "group_id",
+          "group_name",
+          "movie",
+          "watched_at",
+          "club_score",
+          "score_count"
+        ],
+        "title": "HomeLogEntry",
+        "type": "object"
+      },
+      "HomeResponse": {
+        "properties": {
+          "active_lobby": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LobbySummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "crews": {
+            "$ref": "#/components/schemas/HomeCrews"
+          },
+          "featured_group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HomeFeaturedGroup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "log": {
+            "items": {
+              "$ref": "#/components/schemas/HomeLogEntry"
+            },
+            "title": "Log",
+            "type": "array"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/Viewer"
+          }
+        },
+        "required": [
+          "viewer",
+          "active_lobby",
+          "crews",
+          "featured_group",
+          "log"
+        ],
+        "title": "HomeResponse",
+        "type": "object"
+      },
       "InviteLinkResponse": {
         "properties": {
           "invite_link": {
@@ -2928,6 +3121,27 @@
         "summary": "Get Watchlist",
         "tags": [
           "groups"
+        ]
+      }
+    },
+    "/api/home": {
+      "get": {
+        "operationId": "home_api_home_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Home",
+        "tags": [
+          "home"
         ]
       }
     },

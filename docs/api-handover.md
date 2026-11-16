@@ -5,10 +5,10 @@ here should be additive; a breaking change needs a new path or a versioned
 contract.
 
 Parity verified on 2026-11-16: the Django suite passes 181 tests, the FastAPI
-suite passes 197 tests, and the real API was smoke-tested for auth, groups,
-movie detail, lobby REST and two-client lobby WebSockets. The TMDB search path
-needs `TMDB_API_KEY`; without it the endpoint correctly returns `502
-tmdb_unavailable`.
+suite passes 201 tests, and the real API was smoke-tested for auth, groups,
+movie detail, the member home read model, lobby REST and two-client lobby
+WebSockets. The TMDB search path needs `TMDB_API_KEY`; without it the endpoint
+correctly returns `502 tmdb_unavailable`.
 
 ## Base URLs and artifacts
 
@@ -81,6 +81,17 @@ clients. The alias is intentionally hidden from OpenAPI.
 |---|---|---|
 | GET | `/api/movies/search?q=` | Auth required; returns `{movies: [...]}` with `tmdb_id` and local `movie_id` when known |
 | GET | `/api/movies/{movie_id}` | Local catalog detail; does not expose embeddings |
+
+### Home
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/home` | Member home read model: viewer, active lobby, crew counts, featured group, up-next films and the derived watched log |
+
+The log is derived from `group_movies` with `status = 'watched'`, ordered by the
+latest review update (falling back to the film's added time). It returns club
+score and score count; per-member scores come from
+`/api/groups/{group_id}/films/{film_id}/scores`.
 
 ### Groups
 

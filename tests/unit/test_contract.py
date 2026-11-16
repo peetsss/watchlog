@@ -25,6 +25,7 @@ from app.schemas.groups import (
     MovieSummary,
     ScoreRequest,
 )
+from app.schemas.home import HomeCrews, HomeFeaturedGroup, HomeLogEntry, HomeResponse
 from app.schemas.lobby import (
     ActiveEnvelope,
     BallotEntry,
@@ -61,6 +62,7 @@ EXPECTED_PATHS = {
     "/api/groups/{group_id}/preview",
     "/api/groups/{group_id}/stats",
     "/api/groups/{group_id}/watchlist",
+    "/api/home",
     "/api/lobby/",
     "/api/lobby/active/",
     "/api/lobby/{lobby_uuid}/",
@@ -152,6 +154,37 @@ def test_group_contract_fields() -> None:
     assert _fields(AddFilmRequest) == {"tmdb_id", "media_type"}
     assert _fields(ScoreRequest) == {"score"}
     assert _fields(FilmStatusRequest) == {"status"}
+
+
+def test_home_contract_fields() -> None:
+    assert _fields(HomeCrews) == {"count", "film_count", "watched_count"}
+    assert _fields(HomeLogEntry) == {
+        "film_id",
+        "group_id",
+        "group_name",
+        "movie",
+        "watched_at",
+        "club_score",
+        "score_count",
+    }
+    assert _fields(HomeFeaturedGroup) == {
+        "id",
+        "name",
+        "description",
+        "member_count",
+        "film_count",
+        "members",
+        "up_next_count",
+        "up_next",
+        "last_watched",
+    }
+    assert _fields(HomeResponse) == {
+        "viewer",
+        "active_lobby",
+        "crews",
+        "featured_group",
+        "log",
+    }
 
 
 def test_lobby_contract_fields() -> None:
