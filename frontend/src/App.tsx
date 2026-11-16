@@ -18,6 +18,7 @@ import { Wordmark } from "./components/Wordmark";
 import { buttonClass } from "./components/Button";
 import { AuthPage } from "./pages/AuthPage";
 import { GroupPage } from "./pages/group/GroupPage";
+import { GroupJoinPage } from "./pages/GroupJoinPage";
 import { GroupsPage } from "./pages/GroupsPage";
 import { HubPage } from "./pages/HubPage";
 import { JoinPage } from "./pages/JoinPage";
@@ -96,6 +97,14 @@ export function App() {
                     element={
                       <RequireMember>
                         <LobbyPage />
+                      </RequireMember>
+                    }
+                  />
+                  <Route
+                    path="/join/group/:groupId"
+                    element={
+                      <RequireMember>
+                        <GroupJoinPage />
                       </RequireMember>
                     }
                   />

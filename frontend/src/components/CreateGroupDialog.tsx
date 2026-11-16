@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
-import { useGroups } from "../state/Groups";
+import { Loader2, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useCreateGroup } from "../lib/api-groups";
+import { ApiError } from "../lib/api";
 import { useToast } from "../state/Toast";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
@@ -12,8 +14,9 @@ export function CreateGroupDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { createGroup } = useGroups();
+  const createGroup = useCreateGroup();
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,11 +28,11 @@ export function CreateGroupDialog({
   };
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) reset();
+    if (!next && !createGroup.isPending) reset();
     onOpenChange(next);
   };
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const trimmed = name.trim();
     if (trimmed.length < 2) {
@@ -37,10 +40,23 @@ export function CreateGroupDialog({
       return;
     }
 
-    createGroup(trimmed, description.trim());
-    showToast(`${trimmed} is ready. Invite your people.`);
-    reset();
-    onOpenChange(false);
+    setError(null);
+    try {
+      const group = await createGroup.mutateAsync({
+        name: trimmed,
+        description: description.trim(),
+      });
+      showToast(`${group.name} is ready. Invite your people.`);
+      reset();
+      onOpenChange(false);
+      navigate(`/groups/${group.id}`);
+    } catch (submitError) {
+      setError(
+        submitError instanceof ApiError
+          ? submitError.message
+          : "Couldn't create the group. Try again.",
+      );
+    }
   };
 
   return (
@@ -51,11 +67,23 @@ export function CreateGroupDialog({
       description="A group is the people you watch with and the films you keep between you."
       footer={
         <>
-          <Button variant="ghost" onClick={() => handleOpenChange(false)}>
+          <Button
+            variant="ghost"
+            onClick={() => handleOpenChange(false)}
+            disabled={createGroup.isPending}
+          >
             Cancel
           </Button>
-          <Button type="submit" form="create-group-form">
-            <Plus size={16} /> Create group
+          <Button type="submit" form="create-group-form" disabled={createGroup.isPending}>
+            {createGroup.isPending ? (
+              <>
+                <Loader2 className="spin" size={16} /> Creating…
+              </>
+            ) : (
+              <>
+                <Plus size={16} /> Create group
+              </>
+            )}
           </Button>
         </>
       }

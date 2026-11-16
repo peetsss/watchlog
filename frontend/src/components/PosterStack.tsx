@@ -1,8 +1,20 @@
 import { Film } from "lucide-react";
-import type { Movie } from "../data";
 import { cx } from "../lib/cx";
+import { MoviePoster } from "./MoviePoster";
 
-export function PosterStack({ movies, className }: { movies: Movie[]; className?: string }) {
+export type PosterStackMovie = {
+  id: string | number;
+  title: string;
+  poster?: string | null;
+};
+
+export function PosterStack({
+  movies,
+  className,
+}: {
+  movies: PosterStackMovie[];
+  className?: string;
+}) {
   if (!movies.length) {
     return (
       <div className={cx("poster-stack poster-stack-empty", className)} aria-hidden="true">
@@ -14,12 +26,11 @@ export function PosterStack({ movies, className }: { movies: Movie[]; className?
   return (
     <div className={cx("poster-stack", className)} aria-hidden="true">
       {movies.slice(0, 3).map((movie, index) => (
-        <img
+        <MoviePoster
           key={movie.id}
           src={movie.poster}
-          alt=""
+          title={movie.title}
           className={`poster-stack-img poster-stack-img-${index}`}
-          loading="lazy"
         />
       ))}
     </div>

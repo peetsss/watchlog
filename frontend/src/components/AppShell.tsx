@@ -1,8 +1,8 @@
 import { Home, LogOut, Search, UserRound, Users } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { stageLabel } from "../data";
+import { useGroupList } from "../lib/api-groups";
 import { cx } from "../lib/cx";
-import { useGroups } from "../state/Groups";
 import { useLobby } from "../state/Lobby";
 import { useSession } from "../state/Session";
 import { Avatar } from "./Avatar";
@@ -17,7 +17,7 @@ const navItems = [
 const groupTones = ["#e7b45a", "#9bb39a", "#8fa6bf", "#d09a83"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { groups } = useGroups();
+  const groups = useGroupList().data ?? [];
   const { lobby, resetLobby } = useLobby();
   const { person, signOut } = useSession();
   const navigate = useNavigate();

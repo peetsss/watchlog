@@ -443,6 +443,18 @@ button {
   color: var(--muted-2);
 }
 
+.movie-poster-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  background:
+    linear-gradient(150deg, rgba(231, 180, 90, 0.08), transparent 55%),
+    var(--surface-2);
+  color: var(--muted-2);
+}
+
 .group-card-posters,
 .group-row-posters,
 .tonight-stack {
@@ -1368,6 +1380,10 @@ button {
 
 .search-back-link {
   margin-top: 14px;
+}
+
+.search-add-error {
+  margin: 0 0 16px;
 }
 
 .search-toolbar {

@@ -260,6 +260,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/groups/{group_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview Group */
+        get: operations["preview_group_api_groups__group_id__preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/groups/{group_id}/stats": {
         parameters: {
             query?: never;
@@ -606,6 +623,24 @@ export interface components {
             role: "admin" | "member";
             /** Username */
             username: string;
+        };
+        /** GroupPreview */
+        GroupPreview: {
+            /** Description */
+            description: string | null;
+            /** Film Count */
+            film_count: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Member */
+            is_member: boolean;
+            /** Member Count */
+            member_count: number;
+            /** Name */
+            name: string;
         };
         /** GroupStats */
         GroupStats: {
@@ -1534,6 +1569,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_group_api_groups__group_id__preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPreview"];
+                };
             };
             /** @description Validation Error */
             422: {

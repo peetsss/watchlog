@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
 import {
-  ArrowRight,
-  CalendarDays,
   ChevronRight,
   Film,
   Link2,
+  Loader2,
   Plus,
   Search,
   Star,
@@ -14,116 +13,164 @@ import { Link, useParams } from "react-router-dom";
 import { Avatar, AvatarStack } from "../../components/Avatar";
 import { Button, buttonClass } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
-import { StartNightDialog } from "../../components/StartNightDialog";
-import { copyText, inviteUrl } from "../../lib/copy";
+import { MoviePoster } from "../../components/MoviePoster";
+import { formatDate, type GroupFilmView } from "../../lib/adapters";
+import {
+  getGroupInviteLink,
+  useGroup,
+  useGroupStats,
+  useGroupWatchlist,
+  useSetFilmScore,
+  useSetFilmStatus,
+} from "../../lib/api-groups";
+import { ApiError } from "../../lib/api";
+import { copyText } from "../../lib/copy";
 import { cx } from "../../lib/cx";
 import { usePageTitle } from "../../lib/usePageTitle";
-import {
-  INVITE_CODE,
-  YOU,
-  movieById,
-  type GroupFilm,
-} from "../../data";
-import { useGroups } from "../../state/Groups";
 import { useToast } from "../../state/Toast";
 import { GroupFilmSheet } from "./GroupFilmSheet";
 import { GroupScoreDialog } from "./GroupScoreDialog";
-import { filmAverage, groupScoreSummary, movieForFilm, scoredMembers } from "./score";
 import "./group.css";
 
-type Filter = "all" | "up-next" | "watched";
+type Filter = "all" | "up_next" | "watched";
 type Sort = "recent" | "score" | "title";
 
-function filmTitle(film: GroupFilm) {
-  return movieForFilm(film)?.title ?? "";
-}
-
-function filmMatches(film: GroupFilm, needle: string) {
-  if (!needle) return true;
-  const movie = movieForFilm(film);
-  if (!movie) return false;
-  return `${movie.title} ${movie.director} ${movie.genres.join(" ")}`
-    .toLowerCase()
-    .includes(needle);
+function filmMeta(film: GroupFilmView): string {
+  const movie = film.movie;
+  return [
+    movie.year,
+    movie.runtime ? `${movie.runtime} min` : null,
+    movie.genres.slice(0, 2).join(", "),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export function GroupPage() {
   const { id } = useParams<{ id: string }>();
-  const { groups, setGroupFilmScore } = useGroups();
+  const groupQuery = useGroup(id);
+  const watchlistQuery = useGroupWatchlist(id);
+  const statsQuery = useGroupStats(id);
+  const setScore = useSetFilmScore();
+  const setStatus = useSetFilmStatus();
   const { showToast } = useToast();
-  const group = groups.find((entry) => entry.id === id) ?? null;
-  usePageTitle(group?.name ?? "Group");
 
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("recent");
-  const [sheetId, setSheetId] = useState<string | null>(null);
-  const [scoreId, setScoreId] = useState<string | null>(null);
-  const [startOpen, setStartOpen] = useState(false);
+  const [sheetId, setSheetId] = useState<number | null>(null);
+  const [scoreId, setScoreId] = useState<number | null>(null);
+  const [inviting, setInviting] = useState(false);
 
-  const sheetFilm = group?.films.find((film) => film.movieId === sheetId) ?? null;
-  const scoreFilm = group?.films.find((film) => film.movieId === scoreId) ?? null;
+  const group = groupQuery.data ?? null;
+  const films = watchlistQuery.data ?? [];
+  usePageTitle(group?.name ?? "Group");
+
+  const sheetFilm = films.find((film) => film.id === sheetId) ?? null;
+  const scoreFilm = films.find((film) => film.id === scoreId) ?? null;
 
   const stats = useMemo(() => {
-    if (!group) return null;
-    const upNext = group.films.filter((film) => film.status === "up-next").length;
-    const watched = group.films.filter((film) => film.status === "watched").length;
-    const scores = groupScoreSummary(group);
-    return { total: group.films.length, upNext, watched, average: scores.average, count: scores.count };
-  }, [group]);
+    const upNext = films.filter((film) => film.status === "up_next").length;
+    const watched = films.filter((film) => film.status === "watched").length;
+    const scoreCount = films.reduce((sum, film) => sum + film.scoreCount, 0);
+    return {
+      total: statsQuery.data?.filmCount ?? films.length,
+      upNext: statsQuery.data?.upNextCount ?? upNext,
+      watched: statsQuery.data?.watchedCount ?? watched,
+      average: statsQuery.data?.averageScore ?? null,
+      scoreCount,
+    };
+  }, [films, statsQuery.data]);
 
   const visible = useMemo(() => {
-    if (!group) return [];
     const needle = query.trim().toLowerCase();
-    const films = group.films.filter((film) => {
+    const filtered = films.filter((film) => {
       if (filter !== "all" && film.status !== filter) return false;
-      return filmMatches(film, needle);
+      if (!needle) return true;
+      const haystack = `${film.movie.title} ${film.movie.director ?? ""} ${film.movie.genres.join(" ")}`;
+      return haystack.toLowerCase().includes(needle);
     });
 
     if (sort === "title") {
-      return [...films].sort((a, b) => filmTitle(a).localeCompare(filmTitle(b)));
+      return [...filtered].sort((a, b) => a.movie.title.localeCompare(b.movie.title));
     }
     if (sort === "score") {
-      return [...films].sort((a, b) => {
-        const averageA = filmAverage(group, a);
-        const averageB = filmAverage(group, b);
-        if (averageA === null && averageB === null) {
-          return filmTitle(a).localeCompare(filmTitle(b));
+      return [...filtered].sort((a, b) => {
+        if (a.clubScore === null && b.clubScore === null) {
+          return a.movie.title.localeCompare(b.movie.title);
         }
-        if (averageA === null) return 1;
-        if (averageB === null) return -1;
-        return averageB - averageA || filmTitle(a).localeCompare(filmTitle(b));
+        if (a.clubScore === null) return 1;
+        if (b.clubScore === null) return -1;
+        return b.clubScore - a.clubScore || a.movie.title.localeCompare(b.movie.title);
       });
     }
-    return films;
-  }, [filter, group, query, sort]);
+    return filtered;
+  }, [films, filter, query, sort]);
 
-  if (!group || !stats) {
+  if (groupQuery.isPending || watchlistQuery.isPending) {
+    return (
+      <div className="page-inner group-page">
+        <p className="session-loading" role="status">
+          <Loader2 className="spin" size={17} aria-hidden="true" />
+          <span>Opening the watchlist…</span>
+        </p>
+      </div>
+    );
+  }
+
+  if (groupQuery.isError || watchlistQuery.isError) {
+    const error = groupQuery.error ?? watchlistQuery.error;
+    const denied = error instanceof ApiError && [403, 404].includes(error.status);
     return (
       <div className="page-inner group-page">
         <EmptyState
           icon={<Film size={24} />}
-          title="This group isn't here."
-          body="The link may be old, or the group moved. Your other crews are still where you left them."
+          title={denied ? "This group isn't here." : "The group didn't load."}
+          body={
+            denied
+              ? "The link may be old, or you're not a member. Your other crews are still where you left them."
+              : error instanceof Error
+                ? error.message
+                : "Try again in a moment."
+          }
           action={
-            <Link to="/groups" className={buttonClass("primary", "md")}>
-              Back to groups
-            </Link>
+            <div className="empty-actions">
+              {!denied ? (
+                <Button onClick={() => void Promise.all([groupQuery.refetch(), watchlistQuery.refetch()])}>
+                  Try again
+                </Button>
+              ) : null}
+              <Link to="/groups" className={buttonClass("primary", "md")}>
+                Back to groups
+              </Link>
+            </div>
           }
         />
       </div>
     );
   }
 
+  if (!group) return null;
+
   const handleInvite = async () => {
-    const copied = await copyText(inviteUrl(INVITE_CODE));
-    showToast(copied ? "Invite link copied." : "Couldn't copy the link — select it instead.");
+    setInviting(true);
+    try {
+      const link = await getGroupInviteLink(group.id);
+      const copied = await copyText(link);
+      showToast(copied ? "Invite link copied." : "Couldn't copy the link — try again.");
+    } catch (error) {
+      showToast(
+        error instanceof ApiError ? error.message : "Couldn't create an invite link.",
+      );
+    } finally {
+      setInviting(false);
+    }
   };
 
-  const openScore = (film: GroupFilm | null) => {
+  const openScore = (film: GroupFilmView | null) => {
     if (!film) return;
     setSheetId(null);
-    setScoreId(film.movieId);
+    setScoreId(film.id);
   };
 
   const clearFilters = () => {
@@ -142,29 +189,28 @@ export function GroupPage() {
           </p>
           <p className="eyebrow">
             The watchlist <span className="dot-sep">·</span>{" "}
-            {group.nextNight ? `Next night ${group.nextNight}` : "The next film is yours"}
+            {group.memberCount} {group.memberCount === 1 ? "member" : "members"}
           </p>
           <h1 className="display group-title">{group.name}</h1>
-          <p className="group-desc">{group.description}</p>
+          <p className="group-desc">
+            {group.description || "A group for the films you keep between you."}
+          </p>
           <div className="group-members">
             <AvatarStack people={group.members} size={24} />
             <span>
-              {group.members.length} {group.members.length === 1 ? "member" : "members"} ·{" "}
+              {group.memberCount} {group.memberCount === 1 ? "member" : "members"} ·{" "}
               <strong>{stats.total}</strong> {stats.total === 1 ? "film" : "films"} between you
             </span>
           </div>
         </div>
 
         <div className="group-actions">
-          <Button variant="secondary" onClick={handleInvite}>
-            <Link2 size={15} /> Invite
+          <Button variant="secondary" onClick={handleInvite} disabled={inviting}>
+            {inviting ? <Loader2 className="spin" size={15} /> : <Link2 size={15} />} Invite
           </Button>
           <Link to={`/search?group=${group.id}`} className={buttonClass("secondary", "md")}>
             <Plus size={15} /> Add a film
           </Link>
-          <Button onClick={() => setStartOpen(true)}>
-            Start a night <ArrowRight size={16} />
-          </Button>
         </div>
       </header>
 
@@ -182,9 +228,9 @@ export function GroupPage() {
           <span>Watched</span>
         </div>
         <div className="group-stat">
-          <strong>{stats.average ? stats.average.toFixed(1) : "—"}</strong>
+          <strong>{stats.average !== null ? stats.average.toFixed(1) : "—"}</strong>
           <span>Club average</span>
-          <em>{stats.count} scores</em>
+          <em>{stats.scoreCount} scores</em>
         </div>
       </div>
 
@@ -200,9 +246,9 @@ export function GroupPage() {
           </button>
           <button
             type="button"
-            className={cx("group-tab", filter === "up-next" && "is-active")}
-            aria-pressed={filter === "up-next"}
-            onClick={() => setFilter("up-next")}
+            className={cx("group-tab", filter === "up_next" && "is-active")}
+            aria-pressed={filter === "up_next"}
+            onClick={() => setFilter("up_next")}
           >
             Up next <span>{stats.upNext}</span>
           </button>
@@ -246,26 +292,23 @@ export function GroupPage() {
         <>
           <div className="watch-grid">
             {visible.map((film) => {
-              const movie = movieById(film.movieId);
-              if (!movie) return null;
-              const scored = scoredMembers(group, film);
-              const average = filmAverage(group, film);
-              const yourScore = film.scores[YOU];
-              const addedBy = group.members.find((person) => person.id === film.addedBy);
+              const movie = film.movie;
               const watched = film.status === "watched";
+              const addedBy = group.members.find((member) => member.name === film.addedBy);
+              const average = film.clubScore;
 
               return (
-                <article className="watch-card" key={film.movieId}>
+                <article className="watch-card" key={film.id}>
                   <button
                     type="button"
                     className="watch-card-open"
-                    onClick={() => setSheetId(film.movieId)}
+                    onClick={() => setSheetId(film.id)}
                     aria-label={`About ${movie.title}, club average ${
                       average !== null ? average.toFixed(1) : "not scored yet"
-                    }, ${scored.length} ${scored.length === 1 ? "score" : "scores"}`}
+                    }, ${film.scoreCount} ${film.scoreCount === 1 ? "score" : "scores"}`}
                   />
                   <div className="watch-card-poster">
-                    <img src={movie.poster} alt={`${movie.title} poster`} loading="lazy" />
+                    <MoviePoster src={movie.poster} title={movie.title} />
                     <span className={cx("watch-card-status", `is-${film.status}`)}>
                       {watched ? "Watched" : "Up next"}
                     </span>
@@ -273,9 +316,7 @@ export function GroupPage() {
 
                   <div className="watch-card-body">
                     <h2>{movie.title}</h2>
-                    <p className="watch-card-meta">
-                      {movie.year} · {movie.runtime} min · {movie.genres.slice(0, 2).join(", ")}
-                    </p>
+                    <p className="watch-card-meta">{filmMeta(film)}</p>
 
                     <div className={cx("watch-score", !watched && "is-up-next")}>
                       <div className="watch-score-top">
@@ -284,25 +325,24 @@ export function GroupPage() {
                         </span>
                         <span className="watch-score-meta">
                           <Star size={11} fill="currentColor" aria-hidden="true" />{" "}
-                          {scored.length
-                            ? `${scored.length} ${scored.length === 1 ? "score" : "scores"}`
+                          {film.scoreCount
+                            ? `${film.scoreCount} ${film.scoreCount === 1 ? "score" : "scores"}`
                             : "No scores yet"}
                         </span>
                       </div>
-                      <div className={cx("watch-score-track", !scored.length && "is-empty")} aria-hidden="true">
-                        {scored.map(({ person, score }) => (
+                      <div className={cx("watch-score-track", !film.scoreCount && "is-empty")} aria-hidden="true">
+                        {average !== null ? (
                           <span
-                            key={person.id}
                             className="watch-score-dot"
-                            style={{ left: `${score * 10}%`, background: person.color }}
+                            style={{ left: `${average * 10}%`, background: "var(--amber)" }}
                           />
-                        ))}
+                        ) : null}
                       </div>
                       <div className="watch-score-you">
                         {watched ? (
-                          yourScore !== undefined ? (
+                          film.yourScore !== null ? (
                             <>
-                              You <strong>{yourScore.toFixed(1)}</strong>
+                              You <strong>{film.yourScore.toFixed(1)}</strong>
                             </>
                           ) : (
                             <span>You haven't scored it</span>
@@ -316,8 +356,8 @@ export function GroupPage() {
                     <div className="watch-card-added">
                       {addedBy ? <Avatar person={addedBy} size={16} /> : null}
                       <span>
-                        {addedBy ? `${addedBy.name.split(" ")[0]} · ` : ""}
-                        {film.addedAt}
+                        {film.addedBy ? `${film.addedBy} · ` : ""}
+                        {formatDate(film.addedAt)}
                       </span>
                     </div>
                   </div>
@@ -328,8 +368,6 @@ export function GroupPage() {
 
           <footer className="group-foot">
             <p>
-              <CalendarDays size={14} aria-hidden="true" />
-              {group.nextNight ? `The next night is ${group.nextNight}.` : "The next night is yours to plan."}{" "}
               {stats.upNext} {stats.upNext === 1 ? "film is" : "films are"} waiting for the room.
             </p>
             <Link to={`/search?group=${group.id}`} className="text-link">
@@ -371,23 +409,32 @@ export function GroupPage() {
       />
 
       <GroupScoreDialog
-        group={group}
+        groupName={group.name}
         film={scoreFilm}
         open={Boolean(scoreFilm)}
         onOpenChange={(open) => {
           if (!open) setScoreId(null);
         }}
-        onSave={(score) => {
+        onSave={async (score) => {
           if (!scoreFilm) return;
-          setGroupFilmScore(group.id, scoreFilm.movieId, score);
-          setScoreId(null);
+          if (scoreFilm.status === "up_next") {
+            await setStatus.mutateAsync({
+              groupId: group.id,
+              filmId: scoreFilm.id,
+              status: "watched",
+            });
+          }
+          await setScore.mutateAsync({
+            groupId: group.id,
+            filmId: scoreFilm.id,
+            score,
+          });
+          showToast(
+            scoreFilm.status === "up_next"
+              ? `${scoreFilm.movie.title} is watched and scored.`
+              : "Your score is saved.",
+          );
         }}
-      />
-
-      <StartNightDialog
-        open={startOpen}
-        onOpenChange={setStartOpen}
-        initialGroupId={group.id}
       />
     </div>
   );

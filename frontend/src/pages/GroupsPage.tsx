@@ -1,34 +1,51 @@
 import { useState } from "react";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  CalendarDays,
-  Film,
-  Plus,
-  Users,
-} from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { ArrowUpRight, Film, Loader2, Plus, Users } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useQueries } from "@tanstack/react-query";
 import { AvatarStack } from "../components/Avatar";
-import { Button } from "../components/Button";
+import { Button, buttonClass } from "../components/Button";
 import { CreateGroupDialog } from "../components/CreateGroupDialog";
 import { EmptyState } from "../components/EmptyState";
 import { PosterStack } from "../components/PosterStack";
-import type { Group } from "../data";
+import { groupWatchlistQueryOptions, useGroupList } from "../lib/api-groups";
 import { usePageTitle } from "../lib/usePageTitle";
-import { useGroups } from "../state/Groups";
-import { useLobby } from "../state/Lobby";
 
 export function GroupsPage() {
   usePageTitle("Groups");
-  const { groups } = useGroups();
-  const { startLobby } = useLobby();
-  const navigate = useNavigate();
+  const groupsQuery = useGroupList();
   const [createOpen, setCreateOpen] = useState(false);
 
-  const handleStart = (group: Group) => {
-    startLobby(group);
-    navigate("/lobby/friday");
-  };
+  const groups = groupsQuery.data ?? [];
+  const watchlists = useQueries({
+    queries: groups.map((group) => groupWatchlistQueryOptions(group.id)),
+  });
+  const filmsByGroup = new Map(
+    groups.map((group, index) => [group.id, watchlists[index]?.data ?? []]),
+  );
+
+  if (groupsQuery.isPending) {
+    return (
+      <div className="page-inner groups-page">
+        <p className="session-loading" role="status">
+          <Loader2 className="spin" size={17} aria-hidden="true" />
+          <span>Opening your groups…</span>
+        </p>
+      </div>
+    );
+  }
+
+  if (groupsQuery.isError) {
+    return (
+      <div className="page-inner groups-page">
+        <EmptyState
+          icon={<Users size={24} />}
+          title="Your groups didn't load."
+          body={groupsQuery.error.message}
+          action={<Button onClick={() => groupsQuery.refetch()}>Try again</Button>}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="page-inner groups-page">
@@ -49,49 +66,65 @@ export function GroupsPage() {
         <div>
           {groups.length ? (
             <div className="group-list">
-              {groups.map((group) => (
-                <article className="group-row" key={group.id}>
-                  <PosterStack movies={group.watchlist} className="group-row-posters" />
-                  <div className="group-row-body">
-                    <div className="group-row-top">
-                      <div>
-                        <Link to={`/groups/${group.id}`} className="group-name-link">
-                          <h2 className="display">{group.name}</h2>
+              {groups.map((group) => {
+                const films = filmsByGroup.get(group.id) ?? [];
+                const lastWatched = films.find((film) => film.status === "watched");
+
+                return (
+                  <article className="group-row" key={group.id}>
+                    <PosterStack
+                      movies={films.slice(0, 3).map((film) => ({
+                        id: film.id,
+                        title: film.movie.title,
+                        poster: film.movie.poster,
+                      }))}
+                      className="group-row-posters"
+                    />
+                    <div className="group-row-body">
+                      <div className="group-row-top">
+                        <div>
+                          <Link to={`/groups/${group.id}`} className="group-name-link">
+                            <h2 className="display">{group.name}</h2>
+                          </Link>
+                          <p>
+                            {group.description || "A group for the films you keep between you."}
+                          </p>
+                        </div>
+                        <Link
+                          to={`/groups/${group.id}`}
+                          className={buttonClass("secondary", "sm")}
+                        >
+                          Open <ArrowUpRight size={14} />
                         </Link>
-                        <p>{group.description}</p>
                       </div>
-                      <Button size="sm" onClick={() => handleStart(group)}>
-                        Start a night <ArrowRight size={15} />
-                      </Button>
+                      <div className="group-row-meta">
+                        <span className="meta-item">
+                          <AvatarStack people={group.members} size={24} />
+                          {group.memberCount} {group.memberCount === 1 ? "member" : "members"}
+                        </span>
+                        <span className="meta-item">
+                          <Film size={14} aria-hidden="true" />
+                          {group.filmCount} {group.filmCount === 1 ? "film" : "films"}
+                        </span>
+                        <span className="meta-item">
+                          {lastWatched
+                            ? `Last watched: ${lastWatched.movie.title}`
+                            : "No films watched yet"}
+                        </span>
+                        <Link to={`/groups/${group.id}`} className="meta-item group-open-link">
+                          Open watchlist <ArrowUpRight size={12} />
+                        </Link>
+                      </div>
                     </div>
-                    <div className="group-row-meta">
-                      <span className="meta-item">
-                        <AvatarStack people={group.members} size={24} />
-                        {group.members.length} {group.members.length === 1 ? "member" : "members"}
-                      </span>
-                      <span className="meta-item">
-                        <Film size={14} aria-hidden="true" />
-                        {group.films.length} {group.films.length === 1 ? "film" : "films"}
-                      </span>
-                      <span className="meta-item">
-                        <CalendarDays size={14} aria-hidden="true" />
-                        {group.lastNight
-                          ? `Last night: ${group.lastNight.movie.title} · ${group.lastNight.date}`
-                          : "No nights yet"}
-                      </span>
-                      <Link to={`/groups/${group.id}`} className="meta-item group-open-link">
-                        Open watchlist <ArrowUpRight size={12} />
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <EmptyState
               icon={<Users size={24} />}
               title="No groups yet."
-              body="A group is just the people you keep coming back to. Make one, then start a room."
+              body="A group is just the people you keep coming back to. Make one, then add the first film."
               action={
                 <Button onClick={() => setCreateOpen(true)}>
                   <Plus size={16} /> Create a group
@@ -132,14 +165,14 @@ export function GroupsPage() {
 
           <div className="aside-note">
             <span className="aside-note-icon" aria-hidden="true">
-              <Users size={18} />
+              <Plus size={18} />
             </span>
             <p>
-              <strong>No group yet?</strong> Start an open room from Home and keep the crew after.
+              <strong>No group yet?</strong> Make one, add the first film, then send the invite.
             </p>
-            <Link to="/" className="text-link">
-              Go home <ArrowUpRight size={14} />
-            </Link>
+            <Button size="sm" variant="secondary" onClick={() => setCreateOpen(true)}>
+              Create a group
+            </Button>
           </div>
         </aside>
       </div>

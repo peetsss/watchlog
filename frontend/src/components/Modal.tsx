@@ -1,6 +1,6 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { cx } from "../lib/cx";
 
 export function Modal({
@@ -20,17 +20,24 @@ export function Modal({
   footer?: ReactNode;
   className?: string;
 }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="dialog-overlay" />
-        <Dialog.Popup className={cx("dialog-content", className)}>
+        <Dialog.Popup className={cx("dialog-content", className)} initialFocus={closeRef}>
           <div className="dialog-head">
             <div>
               <Dialog.Title className="dialog-title">{title}</Dialog.Title>
               <Dialog.Description className="dialog-description">{description}</Dialog.Description>
             </div>
-            <Dialog.Close type="button" className="icon-button" aria-label="Close dialog">
+            <Dialog.Close
+              ref={closeRef}
+              type="button"
+              className="icon-button"
+              aria-label="Close dialog"
+            >
               <X size={18} />
             </Dialog.Close>
           </div>
