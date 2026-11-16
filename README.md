@@ -135,6 +135,11 @@ REST state endpoint remains the fallback when the socket is unavailable.
 The API tests create and use a separate `watchlog_test` database, run Alembic
 once and truncate tables between tests.
 
+The frozen API contract and frontend handover live in
+[docs/api-handover.md](docs/api-handover.md); the snapshot is
+[docs/openapi.json](docs/openapi.json) and is regenerated with
+`just api-openapi`.
+
 ### Production
 Build and start the daphne ASGI stack:
 
