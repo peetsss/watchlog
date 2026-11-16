@@ -1,13 +1,17 @@
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, Request
+from sqlalchemy import select
 
 from app.clients.tmdb import TMDBClient
 from app.core.config import Settings
 from app.core.db import SessionDep
 from app.core.errors import AppError
 from app.core.sessions import SessionData, SessionStore
+from app.models.group import Group, GroupMembership
 from app.models.user import User
 
 
@@ -56,3 +60,31 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+@dataclass(frozen=True)
+class GroupContext:
+    group: Group
+    user: User
+
+
+async def get_group_context(
+    group_id: UUID,
+    user: CurrentUser,
+    db: SessionDep,
+) -> GroupContext:
+    group = await db.get(Group, group_id)
+    if group is None:
+        raise AppError("Group not found.", code="not_found", status_code=404)
+    membership = await db.scalar(
+        select(GroupMembership).where(
+            GroupMembership.group_id == group.id,
+            GroupMembership.user_id == user.id,
+        )
+    )
+    if membership is None:
+        raise AppError("You are not a member of this group.", code="not_a_member", status_code=403)
+    return GroupContext(group=group, user=user)
+
+
+GroupContextDep = Annotated[GroupContext, Depends(get_group_context)]
