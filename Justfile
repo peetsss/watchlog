@@ -51,6 +51,10 @@ api-check:
 api-test *args:
     uv run pytest {{args}}
 
+# write the FastAPI OpenAPI schema to docs/openapi.json
+api-openapi:
+    uv run python scripts/export_openapi.py
+
 # tail all containers logs
 logs:
     {{DC}} logs -f

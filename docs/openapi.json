@@ -1,0 +1,3205 @@
+{
+  "components": {
+    "schemas": {
+      "ActiveEnvelope": {
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LobbySummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "active"
+        ],
+        "title": "ActiveEnvelope",
+        "type": "object"
+      },
+      "AddFilmRequest": {
+        "properties": {
+          "media_type": {
+            "default": "movie",
+            "enum": [
+              "movie",
+              "series"
+            ],
+            "title": "Media Type",
+            "type": "string"
+          },
+          "tmdb_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Tmdb Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tmdb_id"
+        ],
+        "title": "AddFilmRequest",
+        "type": "object"
+      },
+      "BallotEntry": {
+        "properties": {
+          "choice": {
+            "title": "Choice",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "participant_id": {
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "name",
+          "choice"
+        ],
+        "title": "BallotEntry",
+        "type": "object"
+      },
+      "CSRFResponse": {
+        "properties": {
+          "csrfToken": {
+            "title": "Csrftoken",
+            "type": "string"
+          }
+        },
+        "required": [
+          "csrfToken"
+        ],
+        "title": "CSRFResponse",
+        "type": "object"
+      },
+      "Capabilities": {
+        "properties": {
+          "can_advance": {
+            "title": "Can Advance",
+            "type": "boolean"
+          },
+          "can_end": {
+            "title": "Can End",
+            "type": "boolean"
+          },
+          "can_finalize": {
+            "title": "Can Finalize",
+            "type": "boolean"
+          },
+          "can_leave": {
+            "title": "Can Leave",
+            "type": "boolean"
+          },
+          "can_next_round": {
+            "title": "Can Next Round",
+            "type": "boolean"
+          },
+          "can_restart": {
+            "title": "Can Restart",
+            "type": "boolean"
+          },
+          "can_start": {
+            "title": "Can Start",
+            "type": "boolean"
+          },
+          "can_unready": {
+            "title": "Can Unready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "can_start",
+          "can_unready",
+          "can_advance",
+          "can_next_round",
+          "can_finalize",
+          "can_end",
+          "can_leave",
+          "can_restart"
+        ],
+        "title": "Capabilities",
+        "type": "object"
+      },
+      "CreateGroupRequest": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateGroupRequest",
+        "type": "object"
+      },
+      "CreateLobbyRequest": {
+        "properties": {
+          "group_uuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Uuid"
+          }
+        },
+        "title": "CreateLobbyRequest",
+        "type": "object"
+      },
+      "FilmStatusRequest": {
+        "properties": {
+          "status": {
+            "enum": [
+              "up_next",
+              "watched"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "FilmStatusRequest",
+        "type": "object"
+      },
+      "FinalistRef": {
+        "properties": {
+          "movie": {
+            "$ref": "#/components/schemas/MovieRef"
+          },
+          "pick_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pick Count"
+          },
+          "viewer_picked": {
+            "title": "Viewer Picked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "movie",
+          "pick_count",
+          "viewer_picked"
+        ],
+        "title": "FinalistRef",
+        "type": "object"
+      },
+      "GroupDetail": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "film_count": {
+            "title": "Film Count",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/GroupMember"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "member_count",
+          "film_count",
+          "members",
+          "created_at"
+        ],
+        "title": "GroupDetail",
+        "type": "object"
+      },
+      "GroupFilm": {
+        "properties": {
+          "added_at": {
+            "format": "date-time",
+            "title": "Added At",
+            "type": "string"
+          },
+          "added_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Added By"
+          },
+          "club_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Club Score"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "movie": {
+            "$ref": "#/components/schemas/MovieSummary"
+          },
+          "score_count": {
+            "title": "Score Count",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "up_next",
+              "watched"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "your_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Your Score"
+          }
+        },
+        "required": [
+          "id",
+          "movie",
+          "status",
+          "added_at",
+          "added_by",
+          "club_score",
+          "score_count",
+          "your_score"
+        ],
+        "title": "GroupFilm",
+        "type": "object"
+      },
+      "GroupFilmList": {
+        "properties": {
+          "films": {
+            "items": {
+              "$ref": "#/components/schemas/GroupFilm"
+            },
+            "title": "Films",
+            "type": "array"
+          }
+        },
+        "required": [
+          "films"
+        ],
+        "title": "GroupFilmList",
+        "type": "object"
+      },
+      "GroupFilmScores": {
+        "properties": {
+          "film_id": {
+            "title": "Film Id",
+            "type": "integer"
+          },
+          "scores": {
+            "items": {
+              "$ref": "#/components/schemas/MemberScore"
+            },
+            "title": "Scores",
+            "type": "array"
+          }
+        },
+        "required": [
+          "film_id",
+          "scores"
+        ],
+        "title": "GroupFilmScores",
+        "type": "object"
+      },
+      "GroupList": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupSummary"
+            },
+            "title": "Groups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "groups"
+        ],
+        "title": "GroupList",
+        "type": "object"
+      },
+      "GroupMember": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "initials": {
+            "title": "Initials",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "admin",
+              "member"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "initials",
+          "color",
+          "role"
+        ],
+        "title": "GroupMember",
+        "type": "object"
+      },
+      "GroupStats": {
+        "properties": {
+          "average_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Score"
+          },
+          "film_count": {
+            "title": "Film Count",
+            "type": "integer"
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "member_scores": {
+            "items": {
+              "$ref": "#/components/schemas/MemberScoreStats"
+            },
+            "title": "Member Scores",
+            "type": "array"
+          },
+          "up_next_count": {
+            "title": "Up Next Count",
+            "type": "integer"
+          },
+          "watched_count": {
+            "title": "Watched Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "film_count",
+          "watched_count",
+          "up_next_count",
+          "member_count",
+          "average_score",
+          "member_scores"
+        ],
+        "title": "GroupStats",
+        "type": "object"
+      },
+      "GroupSummary": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "film_count": {
+            "title": "Film Count",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/GroupMember"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "member_count",
+          "film_count",
+          "members"
+        ],
+        "title": "GroupSummary",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InviteLinkResponse": {
+        "properties": {
+          "invite_link": {
+            "title": "Invite Link",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invite_link"
+        ],
+        "title": "InviteLinkResponse",
+        "type": "object"
+      },
+      "JoinPreview": {
+        "properties": {
+          "can_join": {
+            "title": "Can Join",
+            "type": "boolean"
+          },
+          "group_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Name"
+          },
+          "group_uuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Uuid"
+          },
+          "host_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host Username"
+          },
+          "is_member": {
+            "title": "Is Member",
+            "type": "boolean"
+          },
+          "player_count": {
+            "title": "Player Count",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "group",
+              "open"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "uuid": {
+            "format": "uuid",
+            "title": "Uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "uuid",
+          "type",
+          "status",
+          "group_uuid",
+          "group_name",
+          "host_username",
+          "player_count",
+          "can_join",
+          "is_member"
+        ],
+        "title": "JoinPreview",
+        "type": "object"
+      },
+      "JoinPreviewEnvelope": {
+        "properties": {
+          "preview": {
+            "$ref": "#/components/schemas/JoinPreview"
+          }
+        },
+        "required": [
+          "preview"
+        ],
+        "title": "JoinPreviewEnvelope",
+        "type": "object"
+      },
+      "LobbyState": {
+        "properties": {
+          "ballot": {
+            "items": {
+              "$ref": "#/components/schemas/BallotEntry"
+            },
+            "title": "Ballot",
+            "type": "array"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/Capabilities"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_movie": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MovieRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finalists": {
+            "items": {
+              "$ref": "#/components/schemas/FinalistRef"
+            },
+            "title": "Finalists",
+            "type": "array"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "group_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Name"
+          },
+          "group_uuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Uuid"
+          },
+          "host_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host Id"
+          },
+          "picks_revealed": {
+            "title": "Picks Revealed",
+            "type": "boolean"
+          },
+          "player_count": {
+            "title": "Player Count",
+            "type": "integer"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerRef"
+            },
+            "title": "Players",
+            "type": "array"
+          },
+          "pool_index": {
+            "title": "Pool Index",
+            "type": "integer"
+          },
+          "pool_size": {
+            "title": "Pool Size",
+            "type": "integer"
+          },
+          "ready_count": {
+            "title": "Ready Count",
+            "type": "integer"
+          },
+          "remaining_count": {
+            "title": "Remaining Count",
+            "type": "integer"
+          },
+          "revealed": {
+            "title": "Revealed",
+            "type": "boolean"
+          },
+          "round_number": {
+            "title": "Round Number",
+            "type": "integer"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted_count": {
+            "title": "Submitted Count",
+            "type": "integer"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "uuid": {
+            "format": "uuid",
+            "title": "Uuid",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "viewer_id": {
+            "title": "Viewer Id",
+            "type": "string"
+          },
+          "viewer_is_host": {
+            "title": "Viewer Is Host",
+            "type": "boolean"
+          },
+          "viewer_pick": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewer Pick"
+          },
+          "viewer_ready": {
+            "title": "Viewer Ready",
+            "type": "boolean"
+          },
+          "viewer_vote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewer Vote"
+          },
+          "vote_tally": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VoteTally"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "winner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MovieRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "uuid",
+          "type",
+          "status",
+          "version",
+          "host_id",
+          "group_uuid",
+          "group_name",
+          "created_at",
+          "started_at",
+          "finished_at",
+          "viewer_id",
+          "viewer_is_host",
+          "viewer_ready",
+          "players",
+          "player_count",
+          "ready_count",
+          "pool_size",
+          "pool_index",
+          "round_number",
+          "remaining_count",
+          "current_movie",
+          "submitted_count",
+          "viewer_vote",
+          "revealed",
+          "vote_tally",
+          "ballot",
+          "finalists",
+          "picks_revealed",
+          "viewer_pick",
+          "winner",
+          "capabilities"
+        ],
+        "title": "LobbyState",
+        "type": "object"
+      },
+      "LobbyStateEnvelope": {
+        "properties": {
+          "lobby": {
+            "$ref": "#/components/schemas/LobbyState"
+          }
+        },
+        "required": [
+          "lobby"
+        ],
+        "title": "LobbyStateEnvelope",
+        "type": "object"
+      },
+      "LobbySummary": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_movie_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Movie Title"
+          },
+          "group_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Name"
+          },
+          "group_uuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Uuid"
+          },
+          "host_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host Username"
+          },
+          "player_count": {
+            "title": "Player Count",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "group",
+              "open"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "uuid": {
+            "format": "uuid",
+            "title": "Uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "uuid",
+          "type",
+          "status",
+          "group_uuid",
+          "group_name",
+          "host_username",
+          "player_count",
+          "current_movie_title",
+          "created_at"
+        ],
+        "title": "LobbySummary",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "MeEnvelope": {
+        "properties": {
+          "stats": {
+            "$ref": "#/components/schemas/ViewerStats"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/Viewer"
+          }
+        },
+        "required": [
+          "viewer",
+          "stats"
+        ],
+        "title": "MeEnvelope",
+        "type": "object"
+      },
+      "MemberScore": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "initials": {
+            "title": "Initials",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "username",
+          "initials",
+          "color",
+          "score"
+        ],
+        "title": "MemberScore",
+        "type": "object"
+      },
+      "MemberScoreStats": {
+        "properties": {
+          "average_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Score"
+          },
+          "score_count": {
+            "title": "Score Count",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "username",
+          "score_count",
+          "average_score"
+        ],
+        "title": "MemberScoreStats",
+        "type": "object"
+      },
+      "MovieDetail": {
+        "properties": {
+          "actors": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actors"
+          },
+          "adult": {
+            "title": "Adult",
+            "type": "boolean"
+          },
+          "awards": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awards"
+          },
+          "backdrop_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backdrop Path"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "director": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Director"
+          },
+          "filmweb_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filmweb Score"
+          },
+          "filmweb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filmweb Url"
+          },
+          "genres": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genres"
+          },
+          "homepage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "imdb_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imdb Id"
+          },
+          "imdb_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imdb Score"
+          },
+          "imdb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imdb Url"
+          },
+          "keywords": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywords"
+          },
+          "media_type": {
+            "enum": [
+              "movie",
+              "series"
+            ],
+            "title": "Media Type",
+            "type": "string"
+          },
+          "metacritic_score": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metacritic Score"
+          },
+          "metacritic_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metacritic Url"
+          },
+          "original_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Language"
+          },
+          "original_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Title"
+          },
+          "popularity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Popularity"
+          },
+          "poster_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster Path"
+          },
+          "production_companies": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Production Companies"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "revenue": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue"
+          },
+          "rottentomato_score": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rottentomato Score"
+          },
+          "rottentomato_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rottentomato Url"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runtime"
+          },
+          "spoken_languages": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spoken Languages"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "tagline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tagline"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "tmdb_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdb Id"
+          },
+          "tmdb_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdb Score"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "vote_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vote Count"
+          },
+          "writers": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Writers"
+          }
+        },
+        "required": [
+          "id",
+          "tmdb_id",
+          "imdb_id",
+          "title",
+          "original_title",
+          "media_type",
+          "description",
+          "tagline",
+          "status",
+          "runtime",
+          "release_date",
+          "adult",
+          "genres",
+          "keywords",
+          "director",
+          "writers",
+          "actors",
+          "country",
+          "original_language",
+          "spoken_languages",
+          "production_companies",
+          "poster_path",
+          "backdrop_path",
+          "awards",
+          "revenue",
+          "budget",
+          "tmdb_score",
+          "vote_count",
+          "popularity",
+          "imdb_score",
+          "rottentomato_score",
+          "metacritic_score",
+          "filmweb_score",
+          "imdb_url",
+          "rottentomato_url",
+          "metacritic_url",
+          "filmweb_url",
+          "homepage",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "MovieDetail",
+        "type": "object"
+      },
+      "MovieRef": {
+        "properties": {
+          "backdrop_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backdrop Path"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "director": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Director"
+          },
+          "genres": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genres"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "poster_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster Path"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runtime"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "tmdb_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdb Id"
+          }
+        },
+        "required": [
+          "id",
+          "tmdb_id",
+          "title",
+          "release_date",
+          "poster_path",
+          "backdrop_path",
+          "description",
+          "runtime",
+          "genres",
+          "director"
+        ],
+        "title": "MovieRef",
+        "type": "object"
+      },
+      "MovieSearchEnvelope": {
+        "properties": {
+          "movies": {
+            "items": {
+              "$ref": "#/components/schemas/MovieSearchResult"
+            },
+            "title": "Movies",
+            "type": "array"
+          }
+        },
+        "required": [
+          "movies"
+        ],
+        "title": "MovieSearchEnvelope",
+        "type": "object"
+      },
+      "MovieSearchResult": {
+        "properties": {
+          "media_type": {
+            "enum": [
+              "movie",
+              "series"
+            ],
+            "title": "Media Type",
+            "type": "string"
+          },
+          "movie_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Movie Id"
+          },
+          "poster_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster Url"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "tmdb_id": {
+            "title": "Tmdb Id",
+            "type": "integer"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "tmdb_id",
+          "title",
+          "year",
+          "poster_url",
+          "media_type"
+        ],
+        "title": "MovieSearchResult",
+        "type": "object"
+      },
+      "MovieSummary": {
+        "properties": {
+          "backdrop_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backdrop Path"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "director": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Director"
+          },
+          "genres": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genres"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "poster_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster Path"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runtime"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "tmdb_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdb Id"
+          }
+        },
+        "required": [
+          "id",
+          "tmdb_id",
+          "title",
+          "release_date",
+          "runtime",
+          "genres",
+          "director",
+          "description",
+          "poster_path",
+          "backdrop_path"
+        ],
+        "title": "MovieSummary",
+        "type": "object"
+      },
+      "PlayerRef": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "initials": {
+            "title": "Initials",
+            "type": "string"
+          },
+          "is_guest": {
+            "title": "Is Guest",
+            "type": "boolean"
+          },
+          "is_host": {
+            "title": "Is Host",
+            "type": "boolean"
+          },
+          "is_ready": {
+            "title": "Is Ready",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "initials",
+          "color",
+          "is_host",
+          "is_guest",
+          "is_ready"
+        ],
+        "title": "PlayerRef",
+        "type": "object"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "password": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 150,
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "type": "object"
+      },
+      "ScoreRequest": {
+        "properties": {
+          "score": {
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "score"
+        ],
+        "title": "ScoreRequest",
+        "type": "object"
+      },
+      "ServiceInfo": {
+        "properties": {
+          "docs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docs"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "docs"
+        ],
+        "title": "ServiceInfo",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "Viewer": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "initials": {
+            "title": "Initials",
+            "type": "string"
+          },
+          "mode": {
+            "const": "member",
+            "title": "Mode",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "id",
+          "username",
+          "initials",
+          "color"
+        ],
+        "title": "Viewer",
+        "type": "object"
+      },
+      "ViewerEnvelope": {
+        "properties": {
+          "viewer": {
+            "$ref": "#/components/schemas/Viewer"
+          }
+        },
+        "required": [
+          "viewer"
+        ],
+        "title": "ViewerEnvelope",
+        "type": "object"
+      },
+      "ViewerStats": {
+        "properties": {
+          "average_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Score"
+          },
+          "titles_watched": {
+            "title": "Titles Watched",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "titles_watched",
+          "average_score"
+        ],
+        "title": "ViewerStats",
+        "type": "object"
+      },
+      "VoteTally": {
+        "properties": {
+          "interested": {
+            "title": "Interested",
+            "type": "integer"
+          },
+          "not_interested": {
+            "title": "Not Interested",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "watched": {
+            "title": "Watched",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "interested",
+          "watched",
+          "not_interested",
+          "total"
+        ],
+        "title": "VoteTally",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "watchlog API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Root",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/auth/csrf": {
+      "get": {
+        "operationId": "csrf_api_auth_csrf_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CSRFResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Csrf",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "operationId": "login_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewerEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "logout_api_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "operationId": "register_api_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewerEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/groups": {
+      "get": {
+        "operationId": "list_groups_api_groups_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Groups",
+        "tags": [
+          "groups"
+        ]
+      },
+      "post": {
+        "operationId": "create_group_api_groups_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}": {
+      "get": {
+        "operationId": "get_group_api_groups__group_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/films": {
+      "post": {
+        "operationId": "add_film_api_groups__group_id__films_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddFilmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupFilm"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Film",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/films/{film_id}": {
+      "patch": {
+        "operationId": "update_film_status_api_groups__group_id__films__film_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "film_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Film Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilmStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupFilm"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Film Status",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/films/{film_id}/score": {
+      "put": {
+        "operationId": "set_film_score_api_groups__group_id__films__film_id__score_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "film_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Film Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupFilm"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Film Score",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/films/{film_id}/scores": {
+      "get": {
+        "operationId": "get_film_scores_api_groups__group_id__films__film_id__scores_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "film_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Film Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupFilmScores"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Film Scores",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/invite": {
+      "get": {
+        "operationId": "get_invite_link_api_groups__group_id__invite_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteLinkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Invite Link",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/lobbies": {
+      "post": {
+        "operationId": "create_group_lobby_api_groups__group_id__lobbies_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbyStateEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Group Lobby",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/members": {
+      "post": {
+        "operationId": "join_group_api_groups__group_id__members_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/members/me": {
+      "delete": {
+        "operationId": "leave_group_api_groups__group_id__members_me_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leave Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/stats": {
+      "get": {
+        "operationId": "get_group_stats_api_groups__group_id__stats_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupStats"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Group Stats",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/watchlist": {
+      "get": {
+        "operationId": "get_watchlist_api_groups__group_id__watchlist_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupFilmList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Watchlist",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/lobby/": {
+      "post": {
+        "operationId": "create_api_lobby__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateLobbyRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbyStateEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create",
+        "tags": [
+          "lobby"
+        ]
+      }
+    },
+    "/api/lobby/active/": {
+      "get": {
+        "operationId": "active_api_lobby_active__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Active",
+        "tags": [
+          "lobby"
+        ]
+      }
+    },
+    "/api/lobby/{lobby_uuid}/": {
+      "get": {
+        "operationId": "state_api_lobby__lobby_uuid___get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lobby_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lobby Uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbyStateEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "State",
+        "tags": [
+          "lobby"
+        ]
+      }
+    },
+    "/api/lobby/{lobby_uuid}/join/": {
+      "post": {
+        "operationId": "join_api_lobby__lobby_uuid__join__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lobby_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lobby Uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbyStateEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join",
+        "tags": [
+          "lobby"
+        ]
+      }
+    },
+    "/api/lobby/{lobby_uuid}/preview/": {
+      "get": {
+        "operationId": "preview_api_lobby__lobby_uuid__preview__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lobby_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lobby Uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinPreviewEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview",
+        "tags": [
+          "lobby"
+        ]
+      }
+    },
+    "/api/lobby/{lobby_uuid}/{action}/": {
+      "post": {
+        "operationId": "action_api_lobby__lobby_uuid___action___post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lobby_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lobby Uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "title": "Action",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbyStateEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Action",
+        "tags": [
+          "lobby"
+        ]
+      }
+    },
+    "/api/me": {
+      "get": {
+        "operationId": "me_api_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/movies/search": {
+      "get": {
+        "operationId": "search_movies_api_movies_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovieSearchEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Movies",
+        "tags": [
+          "movies"
+        ]
+      }
+    },
+    "/api/movies/{movie_id}": {
+      "get": {
+        "operationId": "get_movie_api_movies__movie_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "movie_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Movie Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovieDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Movie",
+        "tags": [
+          "movies"
+        ]
+      }
+    }
+  }
+}
