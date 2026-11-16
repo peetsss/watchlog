@@ -149,6 +149,10 @@ class RedisLobbyHub:
                 raise
             except Exception:
                 logger.exception("Redis lobby subscription failed")
+                if self._pubsub is not None:
+                    with suppress(Exception):
+                        await self._pubsub.aclose()
+                    self._pubsub = None
                 await asyncio.sleep(1)
 
     async def _dispatch(self, event: LobbyEvent) -> None:
