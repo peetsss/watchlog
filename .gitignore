@@ -10,7 +10,7 @@ htmlcov/
 
 # Django
 src/staticfiles/
-media/
+/media/
 
 # Data
 TMDB_movie_dataset_v11.csv

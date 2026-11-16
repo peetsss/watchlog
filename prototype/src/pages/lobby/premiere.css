@@ -1,0 +1,484 @@
+/* --------------------------------------------------------------------------
+   End of night — the premiere
+   -------------------------------------------------------------------------- */
+
+.lobby-shell.stage-final,
+.lobby-shell.stage-winner {
+  overflow-y: auto;
+}
+
+.premiere-final {
+  position: relative;
+  min-height: 100dvh;
+  padding-bottom: 110px;
+  color: var(--text);
+}
+
+.premiere-final-inner {
+  position: relative;
+  z-index: 10;
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  padding: 88px 24px 40px;
+  text-align: center;
+  animation: riseIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.premiere-final-head .eyebrow {
+  justify-content: center;
+}
+
+.premiere-final-head h1 {
+  margin: 8px 0 12px;
+  font-size: clamp(50px, 6.2vw, 88px);
+  line-height: 0.92;
+}
+
+.premiere-final-head h1 em {
+  color: var(--amber);
+  font-style: italic;
+}
+
+.premiere-final-head .lede {
+  margin: 0 auto;
+  max-width: 46ch;
+}
+
+.premiere-lineup {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(18px, 4vw, 52px);
+  margin-top: 34px;
+}
+
+.premiere-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(300px, 40vw);
+  animation: riseIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.premiere-card:nth-child(2) {
+  animation-delay: 0.06s;
+}
+
+.premiere-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.premiere-select:disabled {
+  cursor: default;
+}
+
+.premiere-num {
+  color: var(--muted-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.premiere-poster {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.premiere-select:hover:not(:disabled) .premiere-poster {
+  transform: translateY(-5px);
+  border-color: var(--border-strong);
+}
+}
+
+.premiere-card.is-selected .premiere-poster {
+  transform: translateY(-8px);
+  border-color: rgba(231, 180, 90, 0.7);
+  box-shadow:
+    0 0 0 1px rgba(231, 180, 90, 0.2),
+    0 30px 70px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(231, 180, 90, 0.12);
+}
+
+.premiere-poster img {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+}
+
+.premiere-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--amber);
+  color: var(--amber-ink);
+  animation: riseIn 0.2s ease both;
+}
+
+.premiere-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.premiere-card-copy strong {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.premiere-card-copy span {
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.premiere-about {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  margin-top: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted-2);
+  font-size: 9.5px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.premiere-about:hover {
+  color: var(--amber);
+}
+}
+
+.premiere-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: min(780px, calc(100vw - 32px));
+  padding: 10px 12px 10px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: rgba(23, 24, 27, 0.9);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  transform: translateX(-50%);
+}
+
+.premiere-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: left;
+}
+
+.premiere-bar .btn {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.premiere-winner {
+  position: relative;
+  min-height: 100dvh;
+  overflow: visible;
+  color: var(--text);
+}
+
+.premiere-winner-inner {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 64px);
+  width: min(1120px, 100%);
+  min-height: calc(100dvh - 110px);
+  margin: 0 auto;
+  padding: 88px clamp(20px, 4vw, 48px) 40px;
+}
+
+.premiere-winner-poster {
+  width: 100%;
+  animation: premierePosterIn 0.78s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.premiere-winner-poster img {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes premierePosterIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.premiere-winner-copy {
+  min-width: 0;
+}
+
+.premiere-title {
+  max-width: 12ch;
+  margin: 0 0 14px;
+  font-size: clamp(56px, 7vw, 104px);
+  line-height: 0.9;
+  animation: riseIn 0.7s 0.14s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.premiere-meta {
+  margin: 0 0 14px;
+  color: var(--text-soft);
+  font-size: 11.5px;
+}
+
+.premiere-synopsis {
+  max-width: 52ch;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 13.5px;
+  line-height: 1.62;
+}
+
+.premiere-about-film {
+  margin-top: 10px;
+}
+
+.premiere-picked {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.premiere-winner-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.premiere-groups-link {
+  margin-top: 14px;
+}
+
+.premiere-again {
+  display: flex;
+  margin-top: 14px;
+}
+
+.premiere-tie {
+  max-width: 52ch;
+  margin: 16px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid rgba(208, 154, 131, 0.6);
+  color: var(--rose);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.premiere-winner-tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 22px;
+}
+
+.premiere-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.premiere-chip strong {
+  color: var(--text-soft);
+}
+
+.premiere-chip.is-winner {
+  border-color: rgba(231, 180, 90, 0.35);
+  background: rgba(231, 180, 90, 0.08);
+  color: var(--amber);
+}
+
+.premiere-chip.is-winner strong {
+  color: var(--amber);
+}
+
+.premiere-credit {
+  position: relative;
+  z-index: 10;
+  margin: 0;
+  padding: 0 24px 30px;
+  color: var(--muted-2);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@media (max-width: 960px) {
+  .premiere-winner-inner {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    min-height: 0;
+    padding-top: 76px;
+  }
+
+  .premiere-winner-poster {
+    order: -1;
+    width: 170px;
+    max-width: 170px;
+    justify-self: center;
+  }
+
+  .premiere-title {
+    font-size: clamp(48px, 9vw, 76px);
+  }
+}
+
+@media (max-width: 760px) {
+  .premiere-final-inner {
+    padding: 76px 16px 150px;
+  }
+
+  .premiere-final-head h1 {
+    font-size: 44px;
+  }
+
+  .premiere-lineup {
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .premiere-card {
+    width: 44vw;
+  }
+
+  .premiere-card-copy strong {
+    font-size: 18px;
+  }
+
+  .premiere-about {
+    min-height: 44px;
+  }
+
+  .premiere-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    padding: 10px 12px;
+  }
+
+  .premiere-bar .btn {
+    width: 100%;
+  }
+
+  .premiere-winner-inner {
+    padding: 76px 16px 40px;
+  }
+
+  .premiere-winner-poster {
+    width: 150px;
+    max-width: 150px;
+  }
+
+  .premiere-title {
+    font-size: 46px;
+  }
+
+  .premiere-winner-actions {
+    align-items: stretch;
+  }
+
+  .premiere-winner-actions .btn {
+    flex: 1 1 auto;
+  }
+
+  .premiere-credit {
+    padding-bottom: 24px;
+  }
+}
+
+@media (max-width: 520px) {
+  .premiere-final-head h1 {
+    font-size: 40px;
+  }
+
+  .premiere-card {
+    width: 43vw;
+  }
+
+  .premiere-card-copy strong {
+    font-size: 16px;
+  }
+
+  .premiere-num {
+    font-size: 8px;
+  }
+
+  .premiere-title {
+    font-size: 42px;
+  }
+
+  .premiere-winner-actions .btn {
+    width: 100%;
+  }
+}
