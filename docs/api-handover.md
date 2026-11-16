@@ -4,6 +4,12 @@ Status: parity contract frozen for the frontend-wiring project. Changes from
 here should be additive; a breaking change needs a new path or a versioned
 contract.
 
+Parity verified on 2026-11-16: the Django suite passes 181 tests, the FastAPI
+suite passes 193 tests, and the real API was smoke-tested for auth, groups,
+movie detail, lobby REST and two-client lobby WebSockets. The TMDB search path
+needs `TMDB_API_KEY`; without it the endpoint correctly returns `502
+tmdb_unavailable`.
+
 ## Base URLs and artifacts
 
 - Development API: `http://localhost:8001`
@@ -191,6 +197,26 @@ Client guidance:
 - A `lobby.removed` means the member is no longer in the room.
 - A `lobby.restarted` carries `new_lobby_uuid`; connect to the new room.
 
+## Django parity map
+
+| Django | FastAPI |
+|---|---|
+| `/start/` signup/login | `GET /api/auth/csrf` + `POST /api/auth/register` / `login` |
+| `/profile/` | `GET /api/me` |
+| `/logout/` | `POST /api/auth/logout` |
+| `/search/` | `GET /api/movies/search` |
+| `/add-movie/` | `POST /api/groups/{group_id}/films` |
+| `/group/<uuid>` | `GET /api/groups/{group_id}` + `/watchlist` |
+| `/create-group/` | `POST /api/groups` |
+| `/join-group/` and `/join/<uuid>/` | `POST /api/groups/{group_id}/members` |
+| `/add-score/` | `PUT /api/groups/{group_id}/films/{film_id}/score` |
+| `/group/<uuid>/info` | `GET /api/groups/{group_id}/stats` |
+| `/group-leave/` | `DELETE /api/groups/{group_id}/members/me` |
+| `/group/<uuid>/invite/` | `GET /api/groups/{group_id}/invite` |
+| `/health/` | `/health` |
+| `/api/lobby/...` | the same paths under `/api/lobby/` |
+| `/ws/lobby/...` | `/ws/lobby/<uuid>/` |
+
 ## Intentional differences from the Django app
 
 These are the only behavioral/contract differences to account for while wiring
@@ -238,6 +264,13 @@ uv run python scripts/embed_movies.py --verify
 
 API tests use a separate `watchlog_test` database and never touch the dev
 database.
+
+## Deferred
+
+Guests, guest hosting, guest→account claim, keep-the-crew, public Home/log,
+rate limits and cleanup TTLs are the next phase. Frontend wiring and the actual
+cutover are separate projects. Django admin is not replaced; use the CLI and
+SQL.
 
 ## Contract freeze
 
