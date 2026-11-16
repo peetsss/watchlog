@@ -91,6 +91,7 @@ Create the API database and start the API service:
 
 ```
 just api-db
+just api-migrate
 just api
 ```
 
@@ -102,6 +103,9 @@ on the host with:
 ```
 just api-check
 ```
+
+The API tests create and use a separate `watchlog_test` database, run Alembic
+once and truncate tables between tests.
 
 ### Production
 Build and start the daphne ASGI stack:
