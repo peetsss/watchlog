@@ -42,3 +42,11 @@ async def test_ready_returns_503_when_a_dependency_fails(client: AsyncClient, mo
 
     assert response.status_code == 503
     assert response.json()["status"] == "unavailable"
+
+
+async def test_security_headers_are_present(client: AsyncClient) -> None:
+    response = await client.get("/health")
+
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"

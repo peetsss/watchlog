@@ -95,7 +95,9 @@ just api
 ```
 
 The API listens on http://localhost:8001 and its OpenAPI docs are at
-`/api/docs`. Run its checks on the host with:
+`/api/docs`. Auth endpoints are `GET /api/auth/csrf`, `POST /api/auth/register`,
+`POST /api/auth/login`, `POST /api/auth/logout` and `GET /api/me`. Run its checks
+on the host with:
 
 ```
 just api-check
