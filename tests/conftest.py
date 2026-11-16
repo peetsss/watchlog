@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from pathlib import Path
 
 import psycopg
@@ -9,7 +9,10 @@ from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from psycopg import sql
+from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from alembic import command
 from app.core.config import Settings
@@ -99,3 +102,39 @@ async def client(app: FastAPI, test_database: Settings) -> AsyncIterator[AsyncCl
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://testserver") as http_client:
             yield http_client
+
+
+@pytest_asyncio.fixture
+async def db_session(app: FastAPI, test_database: Settings) -> AsyncIterator[AsyncSession]:
+    _truncate_database(test_database)
+    async with LifespanManager(app):
+        async with app.state.sessionmaker() as session:
+            yield session
+
+
+@pytest.fixture
+def movie_factory(test_database: Settings) -> Callable[..., int]:
+    def create(**values: object) -> int:
+        if not values:
+            raise ValueError("movie_factory requires at least one column")
+        columns = list(values)
+        statement = sql.SQL("INSERT INTO public.movies ({}) VALUES ({}) RETURNING id").format(
+            sql.SQL(", ").join(sql.Identifier(column) for column in columns),
+            sql.SQL(", ").join(sql.Placeholder() for _ in columns),
+        )
+        with psycopg.connect(_database_url(test_database), autocommit=True) as connection:
+            row = connection.execute(statement, list(values.values())).fetchone()
+        if row is None:
+            raise RuntimeError("movie_factory insert did not return an id")
+        return int(row[0])
+
+    return create
+
+
+@pytest.fixture
+def sync_session(test_database: Settings) -> Iterator[Session]:
+    _truncate_database(test_database)
+    engine = create_engine(test_database.sqlalchemy_url, pool_pre_ping=True)
+    with Session(engine) as session:
+        yield session
+    engine.dispose()

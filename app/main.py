@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app import __version__
-from app.api.routers import auth, health, me, root
+from app.api.routers import auth, health, me, movies, root
 from app.core.config import Settings, get_settings
 from app.core.csrf import CSRFMiddleware
 from app.core.db import create_engine, create_sessionmaker
@@ -56,6 +56,7 @@ def create_app(settings: Settings | None = None, session_store: SessionStore | N
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(me.router)
+    app.include_router(movies.router)
     return app
 
 

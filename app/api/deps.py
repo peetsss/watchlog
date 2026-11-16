@@ -1,7 +1,9 @@
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Request
 
+from app.clients.tmdb import TMDBClient
 from app.core.config import Settings
 from app.core.db import SessionDep
 from app.core.errors import AppError
@@ -24,6 +26,14 @@ def get_session_data(request: Request) -> SessionData | None:
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 SessionStoreDep = Annotated[SessionStore, Depends(get_session_store)]
 SessionDataDep = Annotated[SessionData | None, Depends(get_session_data)]
+
+
+async def get_tmdb_client(settings: SettingsDep) -> AsyncIterator[TMDBClient]:
+    async with TMDBClient(api_key=settings.tmdb_api_key.get_secret_value()) as client:
+        yield client
+
+
+TMDBDep = Annotated[TMDBClient, Depends(get_tmdb_client)]
 
 
 async def get_current_user(
