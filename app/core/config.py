@@ -47,6 +47,7 @@ class Settings(BaseSettings):
         SecretStr(""),
         validation_alias=AliasChoices("WATCHLOG_TMDB_API_KEY", "TMDB_API_KEY"),
     )
+    frontend_dir: str | None = None
 
     session_ttl_seconds: int = Field(14 * 24 * 60 * 60, gt=0)
     guest_session_ttl_seconds: int = Field(24 * 60 * 60, gt=0)

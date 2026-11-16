@@ -1,40 +1,42 @@
 services:
-  django:
-    container_name: watchlog
-    image: watchlog-django:prod
+  api:
+    image: watchlog:prod
     build:
       context: .
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
+    container_name: watchlog
     depends_on:
-      - database
-      - redis
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      DJANGO_ENV: prod
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      WATCHLOG_ENV: prod
+      WATCHLOG_SECRET_KEY: ${WATCHLOG_SECRET_KEY:?Set WATCHLOG_SECRET_KEY in .env}
+      WATCHLOG_ALLOWED_HOSTS: ${WATCHLOG_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      WATCHLOG_TRUSTED_ORIGINS: ${WATCHLOG_TRUSTED_ORIGINS:-http://localhost:8000}
+      WATCHLOG_DB: ${POSTGRES_DB:-watchlog_v2}
       POSTGRES_HOST: database
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-watchlog_db}
       POSTGRES_USER: ${POSTGRES_USER:-watchlog}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchlog_password}
-      REDIS_URL: redis://redis:6379/0
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      WATCHLOG_REDIS_URL: redis://redis:6379/0
+      WATCHLOG_TMDB_API_KEY: ${TMDB_API_KEY:-}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+    ports:
+      - "8000:8000"
     networks:
       - watchlog
-      - caddy
     restart: unless-stopped
 
   database:
     image: pgvector/pgvector:pg18-trixie
-    container_name: watchlog-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-watchlog_db}
+      POSTGRES_DB: ${POSTGRES_DB:-watchlog_v2}
       POSTGRES_USER: ${POSTGRES_USER:-watchlog}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchlog_password}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-watchlog} -d ${POSTGRES_DB:-watchlog_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-watchlog} -d ${POSTGRES_DB:-watchlog_v2}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -47,7 +49,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: watchlog-redis
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -63,8 +64,6 @@ services:
 
 networks:
   watchlog:
-  caddy:
-    external: true
 
 volumes:
   postgres_data:

@@ -8,9 +8,10 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Django
-src/staticfiles/
-/media/
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
 
 # Data
 TMDB_movie_dataset_v11.csv

@@ -1,7 +1,10 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app import __version__
@@ -61,7 +64,6 @@ def create_app(
     app.add_middleware(RequestContextMiddleware)
 
     register_exception_handlers(app)
-    app.include_router(root.router)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(me.router)
@@ -70,6 +72,28 @@ def create_app(
     app.include_router(home.router)
     app.include_router(lobby.router)
     app.include_router(lobby_ws_router)
+
+    frontend_dir = Path(resolved_settings.frontend_dir) if resolved_settings.frontend_dir else None
+    if frontend_dir is not None and (frontend_dir / "index.html").is_file():
+        assets_dir = frontend_dir / "assets"
+        if assets_dir.is_dir():
+            app.mount("/assets", StaticFiles(directory=assets_dir), name="frontend-assets")
+
+        @app.get("/", include_in_schema=False)
+        async def frontend_root() -> FileResponse:
+            return FileResponse(frontend_dir / "index.html", headers={"Cache-Control": "no-cache"})
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def frontend_spa(full_path: str) -> FileResponse:
+            if full_path == "api" or full_path.startswith(("api/", "ws/", "health", "ready")):
+                raise HTTPException(status_code=404)
+            candidate = (frontend_dir / full_path).resolve()
+            if full_path and candidate.is_relative_to(frontend_dir.resolve()) and candidate.is_file():
+                return FileResponse(candidate)
+            return FileResponse(frontend_dir / "index.html", headers={"Cache-Control": "no-cache"})
+    else:
+        app.include_router(root.router)
+
     return app
 
 

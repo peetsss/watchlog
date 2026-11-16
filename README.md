@@ -1,177 +1,164 @@
-# watchlog
+<p align="center">
+  <img src="logo/watchlog-horizontal-color.svg" alt="watchlog" width="420" />
+</p>
 
-**watchlog** is a web application that allows users to create groups, add movies to a watchlist, and rate them. The application utilizes the TMDB API to gather detailed information about the movies.
+<p align="center">
+  <strong>A quieter place for movie people.</strong><br />
+  Group watchlists, club scores, and a real-time movie-night lobby.
+</p>
 
-## Technologies Used
-- Django Framework
-- Django Channels with Redis for realtime lobby state
-- Bootstrap 5
-- PostgreSQL with pgvector
-- Docker and Docker Compose
-- WhiteNoise for production static files
+<p align="center">
+  <img alt="Python 3.14" src="https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white" />
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.163-009688?logo=fastapi&logoColor=white" />
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111111" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178C6?logo=typescript&logoColor=white" />
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white" />
+  <img alt="Redis" src="https://img.shields.io/badge/Redis-pub%2Fsub-DC382D?logo=redis&logoColor=white" />
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" />
+</p>
 
-## Example images
-### Index
-![Index View](docs/images/index.png)
+![watchlog home](docs/screenshots/home.jpg)
 
-### Group
-![Group View](docs/images/group.png)
+## Why watchlog?
 
-## Getting Started
+Picking a film with friends usually means a group chat, three streaming services and a spreadsheet. watchlog turns that into one room: a shared watchlist, honest scores, and a live vote where every person gets one pick.
+
+The app is built around a simple rhythm — **one room, one shortlist, one pick** — with a warm, film-club interface instead of another utility dashboard.
+
+## Features
+
+- **Groups and watchlists** — create a club, invite people by link, add films, mark them watched and keep the crew's history in one place.
+- **Club scores** — every member scores out of ten. The club average is derived from the people actually in the group, never from an invented crowd.
+- **Film detail on demand** — synopsis, credits, runtime and genres are loaded from the local catalogue when a sheet opens, not stuffed into every list response.
+- **A real movie-night lobby** — ready up, vote on each film, reveal the ballot together, shortlist unanimous picks, then run a final round of one-pick-each.
+- **Live state over WebSocket** — every player sees the same room within a moment. The REST endpoint remains a complete fallback when the socket drops.
+- **A home read model** — active room, featured crew, up-next films and a watched log in one request.
+- **Secure sessions** — HttpOnly cookie sessions stored in Redis, CSRF double-submit tokens, Origin checks and Argon2 password hashing.
+- **A typed frontend contract** — OpenAPI types generated from the committed schema, TanStack Query for server state, `openapi-fetch` for requests.
+- **One production image** — the SPA is built with Vite and served by FastAPI, alongside the API and WebSocket routes.
+
+## Screens
+
+| The club | The reel |
+| --- | --- |
+| ![group watchlist](docs/screenshots/group.jpg) | ![lobby voting](docs/screenshots/lobby.jpg) |
+
+| Groups | Mobile |
+| --- | --- |
+| ![groups](docs/screenshots/groups.jpg) | <img src="docs/screenshots/mobile-home.jpg" alt="mobile home" width="260" /> |
+
+## How a night works
+
+1. **Open a room** from Home or a group. Everyone marks themselves ready; the host starts with whoever is ready. Unready members leave the room.
+2. **Vote film by film.** Each film gets *I'm in*, *Seen it* or *Not for me*. Votes stay hidden until everyone has voted.
+3. **Unanimous yes goes through.** The reveal shows the full ballot. A film needs every vote to reach the shortlist.
+4. **Pick one finalist each.** Picks stay hidden until the room is done.
+5. **The room has spoken.** The winner lands in the group watchlist, and the night is logged on Home.
+
+The backend owns the pool, the order, the reveal and the winner. The UI never invents another player's vote.
+
+## Stack
+
+| Layer | Choice |
+| --- | --- |
+| API | FastAPI, Pydantic, SQLAlchemy async, Alembic |
+| Realtime | WebSocket + Redis pub/sub |
+| Data | PostgreSQL 18 with pgvector, Redis 7 |
+| Frontend | React 19, TypeScript, Vite, TanStack Query, `openapi-fetch` |
+| Auth | Server-side Redis sessions, CSRF, Argon2 |
+| Delivery | Multi-stage Docker image; FastAPI serves the built SPA |
+
+```text
+Browser
+  ├─ HTTP /api/*  ──────┐
+  └─ WebSocket /ws/* ───┤
+                        ▼
+                    FastAPI
+                    ├─ PostgreSQL  (catalogue, groups, scores, lobbies)
+                    └─ Redis       (sessions, CSRF, lobby pub/sub)
+```
+
+## Quick start
 
 ### Prerequisites
-Before you begin, ensure you have Docker, Docker Compose and [just](https://github.com/casey/just) installed. [uv](https://docs.astral.sh/uv/) is only needed for running Django or the data scripts directly on the host.
 
-### Setting Up the Environment
+- Docker + Docker Compose
+- [uv](https://docs.astral.sh/uv/)
+- Node.js 20+ and npm
+- [just](https://github.com/casey/just)
 
-Copy `.env.template` to `.env` and fill in the values:
+### Development
 
-```plaintext
-DJANGO_ENV=dev
-DJANGO_SECRET_KEY=
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+```bash
+cp .env.template .env
+# add a TMDB_API_KEY if you want live film search
 
-TMDB_API_KEY=your_tmdb_api_key
-
-POSTGRES_DB=watchlog_db
-POSTGRES_USER=watchlog
-POSTGRES_PASSWORD=watchlog_password
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-
-REDIS_URL=redis://127.0.0.1:6379/0
-```
-
-The production stack sets `DJANGO_ENV=prod` itself. `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` and `REDIS_URL` must be set before running it, otherwise the app refuses to start.
-
-### Running the Application
-Start the development stack (runserver with hot reload):
-
-```
-just dev
-```
-
-Apply migrations, run the tests, or open a shell:
-
-```
+uv sync
+just dev          # API + Postgres + Redis
 just migrate
-just test
-just test -- movies
-just bash
+just seed         # alice / bob / carol, password: correct horse
+
+just frontend     # Vite on http://localhost:5173
 ```
 
-Run every check (ruff lint, formatting, migration drift and tests):
+- SPA: http://localhost:5173
+- API: http://localhost:8001
+- Swagger: http://localhost:8001/api/docs
+- Health: http://localhost:8001/health
 
-```
-just check
-```
-
-Django test discovery has to run from `src/`, which is the container's `/app`.
-Running `manage.py test` from the repository root finds no tests, since `src`
-is not a package. To run the suite on the host instead:
-
-```
-cd src && POSTGRES_HOST=127.0.0.1 REDIS_URL= uv run python manage.py test
-```
-
-Tests use the in-memory channel layer. The `just test` command does the same,
-so it does not need Redis to be running.
-
-### Lobby API and realtime
-The lobby JSON API lives under `/api/lobby/`; the WebSocket endpoint is
-`/ws/lobby/<uuid>/`. Endpoints, payloads and close codes are documented in
-[docs/lobby-api.md](docs/lobby-api.md).
-
-### FastAPI rewrite (in progress)
-A FastAPI backend is being built alongside Django under `app/`. It uses the
-separate `watchlog_v2` database and does not serve the current UI. Django remains
-the primary app until the cutover phase.
-
-Create the API database and start the API service:
-
-```
-just api-db
-just api-migrate
-just api
-```
-
-The API listens on http://localhost:8001 and its OpenAPI docs are at
-`/api/docs`. Auth endpoints are `GET /api/auth/csrf`, `POST /api/auth/register`,
-`POST /api/auth/login`, `POST /api/auth/logout` and `GET /api/me`. Movie
-endpoints are `GET /api/movies/search?q=` and `GET /api/movies/{id}`; search
-needs `TMDB_API_KEY` to be set. Run the checks on the host with:
-
-```
-just api-check
-```
-
-The catalog scripts target `watchlog_v2`:
-
-```
-uv run python scripts/copy_movies.py --truncate
-uv run python scripts/ingest_tmdb.py --dry-run
-uv run python scripts/embed_movies.py --verify
-```
-
-Group content lives under `/api/groups` (detail, watchlist, films, scores, stats
-and invite link). To create a development club with films and scores:
-
-```
-uv run python scripts/seed_dev_data.py
-```
-
-This creates `alice`, `bob` and `carol` with the password `correct horse` and a
-`Friday Film Club` group.
-
-Lobby REST routes live under `/api/lobby/` (csrf, active, create, preview, join,
-state and actions). State responses carry an `ETag` of the form `"v<version>"`.
-
-Realtime lives at `/ws/lobby/<uuid>/` and uses the same session cookie. Send the
-same action names and read `lobby.state`, `lobby.error`, `lobby.left`,
-`lobby.removed` and `lobby.restarted`. Close codes are `4401` (unauthorized),
-`4403` (forbidden), `4404` (not found), `4000` (left) and `4001` (restarted). The
-REST state endpoint remains the fallback when the socket is unavailable.
-
-The API tests create and use a separate `watchlog_test` database, run Alembic
-once and truncate tables between tests.
-
-The frozen API contract and frontend handover live in
-[docs/api-handover.md](docs/api-handover.md); the snapshot is
-[docs/openapi.json](docs/openapi.json) and is regenerated with
-`just api-openapi`.
-
-### Frontend (wiring in progress)
-The React UI lives in `frontend/` and is being wired to the FastAPI API. It is
-not the primary UI yet; Django still serves the current pages.
-
-```
-cd frontend
-npm install
-npm run dev
-```
-
-Vite runs on http://localhost:5173 and proxies `/api`, `/health` and `/ws` to
-the API on http://localhost:8001.
+Vite proxies `/api`, `/health` and `/ws` to the API, so cookies and WebSockets work from one origin.
 
 ### Production
-Build and start the daphne ASGI stack:
 
-```
-just prod
+```bash
+# set WATCHLOG_SECRET_KEY, POSTGRES_PASSWORD and your host/origin values
+docker compose up -d --build
 ```
 
-The container entrypoint waits for PostgreSQL and Redis, applies migrations,
-collects static files and starts daphne. Static files are served by WhiteNoise
-with hashed, compressed names, so the app does not need a separate web server
-for `/static/`. The reverse proxy in front of the container must forward
-WebSocket upgrades to port 8000.
+Open http://localhost:8000. The image builds the SPA, runs migrations on startup and serves everything from one FastAPI process. The container exposes `/health` for readiness checks.
 
-### Data scripts
-The catalog scripts run against the configured database:
+## Tests
 
+```bash
+just check                         # ruff, formatting, Alembic drift, pytest
+cd frontend && npm run verify:all  # API-backed Playwright flows
 ```
-python src/movies/scripts/ingest_tmdb.py --dry-run
-python src/movies/scripts/ingest_tmdb.py --limit 1000
-python src/movies/scripts/embed_movies.py --dry-run
-python src/movies/scripts/embed_movies.py --verify
+
+The browser suite covers a two-user group night, auth and route gates, open-lobby invites, private rooms, the film sheet and mobile layouts. It shortens a test lobby's pool through the dev Postgres container so the full night runs in seconds; see [`frontend/README.md`](frontend/README.md) for prerequisites and cleanup details.
+
+## Project layout
+
+```text
+app/                    FastAPI app, services, models, schemas, realtime
+alembic/                database migrations
+frontend/               React SPA, generated API types, Playwright flows
+docs/openapi.json       frozen API snapshot used to generate frontend types
+docs/screenshots/       README screens
+scripts/                seed, TMDB ingest, embeddings, OpenAPI export
+tests/                  API and unit tests
+logo/                   brand assets
 ```
+
+## API
+
+- REST is under `/api`; the contract lives in [`docs/openapi.json`](docs/openapi.json) and is regenerated with `just openapi`.
+- Lobby state is personalised: before a reveal you see your vote and the submitted count; after a reveal you see the tally and the ballot. Pick counts only appear after all final picks are in.
+- Realtime: `/ws/lobby/<uuid>/` with the session cookie. The server sends the full `lobby.state` on connect and after every change. Close codes: `4401` unauthorized, `4403` forbidden/removed, `4404` not found, `4000` left, `4001` restarted.
+- The client reconnects with backoff, deduplicates by `version`, and falls back to `GET /api/lobby/<uuid>/` if the socket is unavailable.
+
+## Data scripts
+
+```bash
+just copy-movies --truncate
+just ingest --dry-run
+just embed --verify
+just seed
+```
+
+TMDB search and film import need `TMDB_API_KEY`. Without it, Search shows a clear offline state instead of a broken catalogue.
+
+## Notes and roadmap
+
+- Member-only today. Guest hosting/join, guest-to-account claim and keep-the-crew are deferred until the guest backend exists.
+- The lobby pool is 100 random catalogue films by default; there is no scheduling, notifications or admin UI yet.
+- Film metadata and imagery come from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.

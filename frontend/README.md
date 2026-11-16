@@ -5,7 +5,13 @@ Django is no longer used.
 
 ## Run it
 
-The API must be running on http://localhost:8001.
+From the repository root, start the API, Postgres and Redis:
+
+```bash
+just dev
+```
+
+Then run the frontend:
 
 ```bash
 cd frontend
@@ -13,7 +19,8 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. Vite proxies `/api`, `/health` and `/ws` to the API.
+The API is expected on http://localhost:8001. Vite proxies `/api`, `/health`
+and `/ws` to it.
 
 Seed members (from the repository root, after migrations):
 

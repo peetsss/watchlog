@@ -1,30 +1,9 @@
 services:
-  django:
-    image: watchlog-django:dev
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        USER_ID: ${USER_ID:-1000}
-        GROUP_ID: ${GROUP_ID:-1000}
-    command: python manage.py runserver 0.0.0.0:8000
-    ports:
-      - "8000:8000"
-    environment:
-      DJANGO_ENV: dev
-      DJANGO_DEBUG_TOOLBAR: 1
-    volumes:
-      - ./src:/app
-      - ./src:/project/src:ro
-      - ./pyproject.toml:/project/pyproject.toml:ro
-
   api:
-    profiles: ["api"]
     image: watchlog-api:dev
     build:
       context: .
-      dockerfile: Dockerfile.api
-      target: dev
+      dockerfile: Dockerfile.dev
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8001:8000"
@@ -53,9 +32,43 @@ services:
       - watchlog
 
   database:
+    image: pgvector/pgvector:pg18-trixie
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-watchlog_v2}
+      POSTGRES_USER: ${POSTGRES_USER:-watchlog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchlog_password}
     ports:
       - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-watchlog} -d ${POSTGRES_DB:-watchlog_v2}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - watchlog
+    volumes:
+      - postgres_data:/var/lib/postgresql
 
   redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
     ports:
       - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - watchlog
+    volumes:
+      - redis_data:/data
+
+networks:
+  watchlog:
+
+volumes:
+  postgres_data:
+  redis_data:

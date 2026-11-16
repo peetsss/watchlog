@@ -1,88 +1,97 @@
-export USER_ID := `id -u`
-export GROUP_ID := `id -g`
+DC := "docker compose -f docker-compose.dev.yml"
 
-DC := "docker compose -f docker-compose.yml -f docker-compose.dev.yml"
-
-# show all available commands
 default:
     @just --list
 
-# start development stack (hot-reload, runserver)
+# start the dev stack (API, Postgres, Redis); run `just frontend` separately
 dev:
-    {{DC}} up -d --build
+    {{DC}} up -d --build database redis api
+    @echo "API: http://localhost:8001  ·  SPA: run 'just frontend'"
 
-# stop all containers
+# start only the development database and Redis
+db:
+    {{DC}} up -d database redis
+
+# (re)start the API service
+api:
+    {{DC}} up -d --build api
+
+# follow API logs
+api-logs:
+    {{DC}} logs -f api
+
+# follow every container's logs
+logs:
+    {{DC}} logs -f
+
+# stop the dev stack
 stop:
     {{DC}} down
 
-# stop all containers and clear volumes
+# stop the dev stack and delete its volumes
 stop-v:
     {{DC}} down -v
 
-# create the FastAPI database in the dev database container
+# create the application database in the dev Postgres container
 api-db:
     {{DC}} up -d database
     {{DC}} exec -T database sh -c 'createdb -U "$POSTGRES_USER" -T template0 watchlog_v2 2>/dev/null || true'
 
-# apply FastAPI migrations on the host
-api-migrate:
+# apply Alembic migrations on the host
+migrate:
     uv run alembic upgrade head
 
-# create a FastAPI migration from the current models
-api-revision message:
+# create an Alembic revision
+revision message:
     uv run alembic revision --autogenerate -m "{{message}}"
 
-# start the FastAPI service (dev compose profile)
-api:
-    {{DC}} --profile api up -d --build api
+# seed the demo users and Friday Film Club
+seed:
+    uv run python scripts/seed_dev_data.py
 
-# tail FastAPI logs
-api-logs:
-    {{DC}} logs -f api
+# import TMDB data
+ingest *args:
+    uv run python scripts/ingest_tmdb.py {{args}}
 
-# run ruff, alembic drift check and pytest for the FastAPI app
-api-check:
+# build movie embeddings
+embed *args:
+    uv run python scripts/embed_movies.py {{args}}
+
+# copy the bundled movie dataset into the app database
+copy-movies *args:
+    uv run python scripts/copy_movies.py {{args}}
+
+# write docs/openapi.json from the running app
+openapi:
+    uv run python scripts/export_openapi.py
+
+# run the API tests
+test *args:
+    uv run pytest {{args}}
+
+# lint, format-check, migration-drift check and tests
+check:
     uv run ruff check app tests alembic scripts
     uv run ruff format --check app tests alembic scripts
     uv run alembic check
     uv run pytest
 
-# run FastAPI tests
-api-test *args:
-    uv run pytest {{args}}
+# start the Vite dev server
+frontend:
+    cd frontend && npm run dev
 
-# write the FastAPI OpenAPI schema to docs/openapi.json
-api-openapi:
-    uv run python scripts/export_openapi.py
+# build the SPA
+frontend-build:
+    cd frontend && npm run build
 
-# tail all containers logs
-logs:
-    {{DC}} logs -f
+# typecheck and build the SPA
+frontend-check:
+    cd frontend && npm run typecheck && npm run build
 
-# bash in django container
-bash:
-    {{DC}} run --rm django /bin/bash
+# run the API-backed Playwright flows
+frontend-verify:
+    cd frontend && npm run verify:all
 
-# apply migrations
-migrate:
-    {{DC}} run --rm django python manage.py makemigrations
-    {{DC}} run --rm django python manage.py migrate
-
-# run tests
-test *args:
-    {{DC}} run --rm -e REDIS_URL= django python manage.py test {{args}}
-
-# run lint, formatting, migration and test checks
-check:
-    {{DC}} run --rm --no-deps -w /project --entrypoint ruff django check --cache-dir /tmp/ruff-cache src
-    {{DC}} run --rm --no-deps -w /project --entrypoint ruff django format --check --cache-dir /tmp/ruff-cache src
-    {{DC}} run --rm --no-deps --entrypoint python django manage.py makemigrations --check --dry-run
-    {{DC}} run --rm -e REDIS_URL= django python manage.py test
-
-# create superuser
-superuser:
-    {{DC}} run --rm django python manage.py createsuperuser
-
-# start production stack (daphne ASGI)
+# build and start the production app image on :8000
 prod:
-    docker compose -f docker-compose.yml up -d --build
+    docker compose up -d --build

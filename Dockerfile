@@ -1,37 +1,42 @@
-ARG PYTHON_VERSION=3.14-slim
-ARG PYTHON_BUILD_VERSION=$PYTHON_VERSION-trixie
+# syntax=docker/dockerfile:1
+ARG NODE_VERSION=22-alpine
+ARG PYTHON_VERSION=3.14-slim-trixie
 
-FROM python:${PYTHON_BUILD_VERSION}
+FROM node:${NODE_VERSION} AS frontend
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-ARG USER_ID
-ARG GROUP_ID
+FROM python:${PYTHON_VERSION} AS runtime
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    UV_SYSTEM_PYTHON=1
-
-RUN groupadd -g $GROUP_ID -o user && useradd -o -m -u $USER_ID -g user user
-
-RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends netcat-openbsd && \
-    rm -rf /var/lib/apt/lists/*
+    UV_SYSTEM_PYTHON=1 \
+    UV_LINK_MODE=copy \
+    WATCHLOG_ENV=prod \
+    WATCHLOG_FRONTEND_DIR=/app/frontend/dist
 
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv export --frozen --format=requirements-txt --no-dev > /tmp/requirements.txt && \
+    uv pip install --system --no-cache -r /tmp/requirements.txt
 
-RUN uv export --frozen --format=requirements-txt --dev > requirements.txt && \
-    uv pip install --system --no-cache -r requirements.txt
+COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini ./
+COPY scripts ./scripts
+COPY --from=frontend /app/frontend/dist ./frontend/dist
 
-COPY ./src .
+RUN useradd --create-home --uid 1000 appuser && chown -R appuser:appuser /app
 
-RUN sed -i 's/\r$//g' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
-
-USER user
+USER appuser
 
 EXPOSE 8000
-
-ENTRYPOINT ["/app/entrypoint.sh"]
-
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+ENTRYPOINT ["python", "-m", "scripts.api_entrypoint"]
