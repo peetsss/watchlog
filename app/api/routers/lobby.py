@@ -1,0 +1,154 @@
+import json
+from uuid import UUID
+
+from fastapi import APIRouter, Request, Response, status
+from fastapi.responses import JSONResponse
+
+from app.api.deps import CurrentUser, SessionStoreDep, SettingsDep
+from app.core.db import SessionDep
+from app.core.sessions import set_csrf_cookie, set_session_cookie
+from app.domain.lobby.exceptions import InvalidActionError, LobbyNotFoundError, NotAMemberError
+from app.models.group import Group
+from app.schemas.auth import CSRFResponse
+from app.schemas.lobby import (
+    ActiveEnvelope,
+    CreateLobbyRequest,
+    JoinPreviewEnvelope,
+    LobbyState,
+    LobbyStateEnvelope,
+)
+from app.services import lobby as lobby_service
+from app.services import lobby_actions
+from app.services.auth import ensure_session
+
+router = APIRouter(prefix="/api/lobby", tags=["lobby"])
+
+_ACTION_ALIASES = {
+    "ready": "ready",
+    "unready": "unready",
+    "start": "start",
+    "vote": "vote",
+    "pick": "pick",
+    "advance": "advance",
+    "next-round": "next_round",
+    "finalize": "finalize",
+    "leave": "leave",
+    "end": "end",
+    "restart": "restart",
+}
+
+
+async def _json_body(request: Request) -> dict[str, object]:
+    body = await request.body()
+    if not body:
+        return {}
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise InvalidActionError("Request body must be valid JSON.") from exc
+    if not isinstance(payload, dict):
+        raise InvalidActionError("Request body must be a JSON object.")
+    return payload
+
+
+def _state_response(state: LobbyState, status_code: int = 200, **extra: object) -> JSONResponse:
+    response = JSONResponse(
+        {"lobby": state.model_dump(mode="json"), **extra},
+        status_code=status_code,
+    )
+    response.headers["ETag"] = f'"v{state.version}"'
+    response.headers["Cache-Control"] = "private, no-cache"
+    response.headers["Vary"] = "Cookie"
+    return response
+
+
+def _not_modified(version: int) -> Response:
+    response = Response(status_code=status.HTTP_304_NOT_MODIFIED)
+    response.headers["ETag"] = f'"v{version}"'
+    response.headers["Cache-Control"] = "private, no-cache"
+    response.headers["Vary"] = "Cookie"
+    return response
+
+
+@router.get("/csrf/", response_model=CSRFResponse, include_in_schema=False)
+async def csrf(
+    request: Request,
+    response: Response,
+    settings: SettingsDep,
+    store: SessionStoreDep,
+) -> CSRFResponse:
+    session_id, data = await ensure_session(request, store, settings)
+    set_session_cookie(response, session_id, data, settings)
+    set_csrf_cookie(response, data, settings)
+    return CSRFResponse(csrf_token=data.csrf)
+
+
+@router.get("/active/", response_model=ActiveEnvelope)
+async def active(user: CurrentUser, db: SessionDep) -> ActiveEnvelope:
+    summary = await lobby_service.get_active_lobby_for_user(db, user)
+    return ActiveEnvelope(active=summary)
+
+
+@router.post("/", response_model=LobbyStateEnvelope, status_code=status.HTTP_201_CREATED)
+async def create(
+    user: CurrentUser,
+    db: SessionDep,
+    payload: CreateLobbyRequest | None = None,
+) -> Response:
+    group_uuid = payload.group_uuid if payload is not None else None
+    group = None
+    if group_uuid is not None:
+        group = await db.get(Group, group_uuid)
+        if group is None:
+            raise LobbyNotFoundError(f"Group {group_uuid} not found.")
+    lobby = await lobby_service.create_lobby(db, user, group=group)
+    state = await lobby_service.get_state(db, lobby.id, user)
+    return _state_response(state, status_code=status.HTTP_201_CREATED)
+
+
+@router.get("/{lobby_uuid}/preview/", response_model=JoinPreviewEnvelope)
+async def preview(lobby_uuid: UUID, user: CurrentUser, db: SessionDep) -> JoinPreviewEnvelope:
+    preview_data = await lobby_service.get_join_preview(db, lobby_uuid, user)
+    if not preview_data.is_member and preview_data.type == "group":
+        raise NotAMemberError("This room is private to its group.")
+    return JoinPreviewEnvelope(preview=preview_data)
+
+
+@router.post("/{lobby_uuid}/join/", response_model=LobbyStateEnvelope)
+async def join(lobby_uuid: UUID, user: CurrentUser, db: SessionDep) -> Response:
+    await lobby_service.join_lobby(db, lobby_uuid, user)
+    state = await lobby_service.get_state(db, lobby_uuid, user)
+    return _state_response(state)
+
+
+@router.get("/{lobby_uuid}/", response_model=LobbyStateEnvelope)
+async def state(lobby_uuid: UUID, request: Request, user: CurrentUser, db: SessionDep) -> Response:
+    current = await lobby_service.get_state(db, lobby_uuid, user)
+    etag = f'"v{current.version}"'
+    if request.headers.get("if-none-match") == etag:
+        return _not_modified(current.version)
+    return _state_response(current)
+
+
+@router.post("/{lobby_uuid}/{action}/", response_model=LobbyStateEnvelope)
+async def action(
+    lobby_uuid: UUID,
+    action: str,
+    request: Request,
+    user: CurrentUser,
+    db: SessionDep,
+) -> Response:
+    action_name = _ACTION_ALIASES.get(action)
+    if action_name is None:
+        raise InvalidActionError(f"Unknown lobby action: {action!r}")
+    payload = await _json_body(request)
+    lobby = await lobby_actions.perform_action(db, lobby_uuid, user, action_name, payload)
+    if action_name == "leave":
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    current = await lobby_service.get_state(db, lobby.id, user)
+    extra = {"previous_uuid": str(lobby_uuid)} if action_name == "restart" else {}
+    return _state_response(
+        current,
+        status_code=status.HTTP_201_CREATED if action_name == "restart" else status.HTTP_200_OK,
+        **extra,
+    )

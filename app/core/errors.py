@@ -7,6 +7,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.domain.lobby.errors import error_details
+from app.domain.lobby.exceptions import LobbyError
+
 logger = logging.getLogger(__name__)
 
 _HTTP_CODES = {
@@ -51,6 +54,11 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(request: Request, exc: AppError) -> JSONResponse:
         return JSONResponse(error_payload(exc.code, exc.message), status_code=exc.status_code)
+
+    @app.exception_handler(LobbyError)
+    async def _lobby_error(request: Request, exc: LobbyError) -> JSONResponse:
+        status_code, code = error_details(exc)
+        return JSONResponse(error_payload(code, str(exc)), status_code=status_code)
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:

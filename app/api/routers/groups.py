@@ -18,7 +18,9 @@ from app.schemas.groups import (
     InviteLinkResponse,
     ScoreRequest,
 )
+from app.schemas.lobby import LobbyStateEnvelope
 from app.services import groups as group_service
+from app.services import lobby as lobby_service
 
 router = APIRouter(prefix="/api/groups", tags=["groups"])
 
@@ -36,6 +38,13 @@ async def create_group(payload: CreateGroupRequest, user: CurrentUser, db: Sessi
 @router.get("/{group_id}", response_model=GroupDetail)
 async def get_group(group_id: UUID, context: GroupContextDep, db: SessionDep) -> GroupDetail:
     return await group_service.get_group_detail(db, context.group)
+
+
+@router.post("/{group_id}/lobbies", response_model=LobbyStateEnvelope, status_code=status.HTTP_201_CREATED)
+async def create_group_lobby(context: GroupContextDep, db: SessionDep) -> LobbyStateEnvelope:
+    lobby = await lobby_service.create_lobby(db, context.user, group=context.group)
+    state = await lobby_service.get_state(db, lobby.id, context.user)
+    return LobbyStateEnvelope(lobby=state)
 
 
 @router.get("/{group_id}/watchlist", response_model=GroupFilmList)
