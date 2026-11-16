@@ -10,6 +10,8 @@ type ApiMemberScore = components["schemas"]["MemberScore"];
 type ApiMovieSummary = components["schemas"]["MovieSummary"];
 type ApiMovieDetail = components["schemas"]["MovieDetail"];
 type ApiMovieSearchResult = components["schemas"]["MovieSearchResult"];
+type ApiHomeResponse = components["schemas"]["HomeResponse"];
+type ApiHomeLogEntry = components["schemas"]["HomeLogEntry"];
 
 export type GroupMemberView = Person & {
   role: "admin" | "member";
@@ -86,6 +88,43 @@ export type MovieSearchView = {
   year: string | null;
   poster: string | null;
   mediaType: "movie" | "series";
+};
+
+export type HomeLogEntryView = {
+  filmId: number;
+  groupId: string;
+  groupName: string;
+  movie: MovieSummaryView;
+  watchedAt: string;
+  clubScore: number | null;
+  scoreCount: number;
+};
+
+export type HomeFeaturedGroupView = GroupSummaryView & {
+  upNextCount: number;
+  upNext: MovieSummaryView[];
+  lastWatched: HomeLogEntryView | null;
+};
+
+export type HomeActiveLobbyView = {
+  uuid: string;
+  type: "group" | "open";
+  status: string;
+  groupName: string | null;
+  hostUsername: string | null;
+  playerCount: number;
+  currentMovieTitle: string | null;
+};
+
+export type HomeView = {
+  crews: {
+    count: number;
+    filmCount: number;
+    watchedCount: number;
+  };
+  featuredGroup: HomeFeaturedGroupView | null;
+  activeLobby: HomeActiveLobbyView | null;
+  log: HomeLogEntryView[];
 };
 
 export function splitList(value: string | null | undefined): string[] {
@@ -211,5 +250,48 @@ export function movieSearchToView(movie: ApiMovieSearchResult): MovieSearchView 
     year: movie.year,
     poster: movie.poster_url,
     mediaType: movie.media_type,
+  };
+}
+
+export function homeLogToView(entry: ApiHomeLogEntry): HomeLogEntryView {
+  return {
+    filmId: entry.film_id,
+    groupId: entry.group_id,
+    groupName: entry.group_name,
+    movie: movieSummaryToView(entry.movie),
+    watchedAt: entry.watched_at,
+    clubScore: entry.club_score,
+    scoreCount: entry.score_count,
+  };
+}
+
+export function homeToView(home: ApiHomeResponse): HomeView {
+  const featured = home.featured_group;
+  return {
+    crews: {
+      count: home.crews.count,
+      filmCount: home.crews.film_count,
+      watchedCount: home.crews.watched_count,
+    },
+    activeLobby: home.active_lobby
+      ? {
+          uuid: home.active_lobby.uuid,
+          type: home.active_lobby.type,
+          status: home.active_lobby.status,
+          groupName: home.active_lobby.group_name,
+          hostUsername: home.active_lobby.host_username,
+          playerCount: home.active_lobby.player_count,
+          currentMovieTitle: home.active_lobby.current_movie_title,
+        }
+      : null,
+    featuredGroup: featured
+      ? {
+          ...groupSummaryToView(featured),
+          upNextCount: featured.up_next_count,
+          upNext: featured.up_next.map(movieSummaryToView),
+          lastWatched: featured.last_watched ? homeLogToView(featured.last_watched) : null,
+        }
+      : null,
+    log: home.log.map(homeLogToView),
   };
 }

@@ -311,6 +311,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Home */
+        get: operations["home_api_home_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lobby/": {
         parameters: {
             query?: never;
@@ -679,6 +696,69 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HomeCrews */
+        HomeCrews: {
+            /** Count */
+            count: number;
+            /** Film Count */
+            film_count: number;
+            /** Watched Count */
+            watched_count: number;
+        };
+        /** HomeFeaturedGroup */
+        HomeFeaturedGroup: {
+            /** Description */
+            description: string | null;
+            /** Film Count */
+            film_count: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            last_watched: components["schemas"]["HomeLogEntry"] | null;
+            /** Member Count */
+            member_count: number;
+            /** Members */
+            members: components["schemas"]["GroupMember"][];
+            /** Name */
+            name: string;
+            /** Up Next */
+            up_next: components["schemas"]["MovieSummary"][];
+            /** Up Next Count */
+            up_next_count: number;
+        };
+        /** HomeLogEntry */
+        HomeLogEntry: {
+            /** Club Score */
+            club_score: number | null;
+            /** Film Id */
+            film_id: number;
+            /**
+             * Group Id
+             * Format: uuid
+             */
+            group_id: string;
+            /** Group Name */
+            group_name: string;
+            movie: components["schemas"]["MovieSummary"];
+            /** Score Count */
+            score_count: number;
+            /**
+             * Watched At
+             * Format: date-time
+             */
+            watched_at: string;
+        };
+        /** HomeResponse */
+        HomeResponse: {
+            active_lobby: components["schemas"]["LobbySummary"] | null;
+            crews: components["schemas"]["HomeCrews"];
+            featured_group: components["schemas"]["HomeFeaturedGroup"] | null;
+            /** Log */
+            log: components["schemas"]["HomeLogEntry"][];
+            viewer: components["schemas"]["Viewer"];
         };
         /** InviteLinkResponse */
         InviteLinkResponse: {
@@ -1670,6 +1750,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    home_api_home_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeResponse"];
                 };
             };
         };

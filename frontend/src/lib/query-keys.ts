@@ -15,3 +15,7 @@ export const movieKeys = {
   search: (query: string) => [...movieKeys.all, "search", query] as const,
   detail: (movieId: number) => [...movieKeys.all, "detail", movieId] as const,
 };
+
+export const homeKeys = {
+  all: ["home"] as const,
+};

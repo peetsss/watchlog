@@ -13,7 +13,7 @@ import {
 } from "./adapters";
 import { api, ApiError, unwrap } from "./api";
 import type { components } from "./api-types";
-import { groupKeys } from "./query-keys";
+import { groupKeys, homeKeys } from "./query-keys";
 
 type GroupDetail = components["schemas"]["GroupDetail"];
 type GroupFilmScores = components["schemas"]["GroupFilmScores"];
@@ -144,6 +144,7 @@ export function useCreateGroup() {
     onSuccess: (group) => {
       queryClient.setQueryData(groupKeys.detail(group.id), group);
       void queryClient.invalidateQueries({ queryKey: groupKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: homeKeys.all });
     },
   });
 }
@@ -166,6 +167,7 @@ export function useAddFilm() {
       void queryClient.invalidateQueries({ queryKey: groupKeys.watchlist(input.groupId) });
       void queryClient.invalidateQueries({ queryKey: groupKeys.stats(input.groupId) });
       void queryClient.invalidateQueries({ queryKey: groupKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: homeKeys.all });
     },
   });
 }
@@ -186,6 +188,7 @@ export function useSetFilmScore() {
       void queryClient.invalidateQueries({
         queryKey: groupKeys.scores(input.groupId, input.filmId),
       });
+      void queryClient.invalidateQueries({ queryKey: homeKeys.all });
     },
   });
 }
@@ -207,6 +210,7 @@ export function useSetFilmStatus() {
     onSuccess: (_film, input) => {
       void queryClient.invalidateQueries({ queryKey: groupKeys.watchlist(input.groupId) });
       void queryClient.invalidateQueries({ queryKey: groupKeys.stats(input.groupId) });
+      void queryClient.invalidateQueries({ queryKey: homeKeys.all });
     },
   });
 }
@@ -226,6 +230,7 @@ export function useJoinGroup() {
       queryClient.setQueryData(groupKeys.detail(group.id), group);
       void queryClient.invalidateQueries({ queryKey: groupKeys.list() });
       void queryClient.invalidateQueries({ queryKey: groupKeys.preview(group.id) });
+      void queryClient.invalidateQueries({ queryKey: homeKeys.all });
     },
   });
 }
