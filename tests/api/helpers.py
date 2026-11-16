@@ -86,6 +86,52 @@ async def set_film_status(client: AsyncClient, group_id: str, film_id: int, stat
     return response.json()
 
 
+async def create_group_lobby(client: AsyncClient, group_id: str) -> dict:
+    response = await client.post(
+        f"/api/groups/{group_id}/lobbies",
+        headers=csrf_headers(current_csrf(client)),
+    )
+    assert response.status_code == 201
+    return response.json()["lobby"]
+
+
+async def create_lobby(client: AsyncClient, group_uuid: str | None = None) -> dict:
+    payload: dict[str, object] = {} if group_uuid is None else {"group_uuid": group_uuid}
+    response = await client.post("/api/lobby/", json=payload, headers=csrf_headers(current_csrf(client)))
+    assert response.status_code == 201
+    return response.json()["lobby"]
+
+
+async def join_open_lobby(client: AsyncClient, lobby_id: str) -> dict:
+    response = await client.post(
+        f"/api/lobby/{lobby_id}/join/",
+        headers=csrf_headers(current_csrf(client)),
+    )
+    assert response.status_code == 200
+    return response.json()["lobby"]
+
+
+async def lobby_action(
+    client: AsyncClient,
+    lobby_id: str,
+    action: str,
+    payload: dict[str, object] | None = None,
+) -> dict:
+    response = await client.post(
+        f"/api/lobby/{lobby_id}/{action}/",
+        json=payload or {},
+        headers=csrf_headers(current_csrf(client)),
+    )
+    assert response.status_code == 200
+    return response.json()["lobby"]
+
+
+async def lobby_state(client: AsyncClient, lobby_id: str) -> dict:
+    response = await client.get(f"/api/lobby/{lobby_id}/")
+    assert response.status_code == 200
+    return response.json()["lobby"]
+
+
 @asynccontextmanager
 async def new_client(app: FastAPI) -> AsyncIterator[AsyncClient]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
