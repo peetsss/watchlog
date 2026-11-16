@@ -4,7 +4,8 @@ import { cx } from "../lib/cx";
 export function Wordmark({ className }: { className?: string }) {
   return (
     <Link to="/" className={cx("wordmark", className)} aria-label="watchlog home">
-      watchlog<span className="wordmark-dot">.</span>
+      <img className="wordmark-icon" src="/brand/watchlog-icon.svg?v=3" alt="" />
+      <img className="wordmark-text" src="/brand/watchlog-wordmark.svg?v=3" alt="" />
     </Link>
   );
 }

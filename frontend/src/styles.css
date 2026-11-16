@@ -500,16 +500,33 @@ button {
 }
 
 .wordmark {
-  display: inline-block;
-  font-family: var(--font-display);
-  font-size: 28px;
-  line-height: 1;
-  letter-spacing: -0.03em;
-  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  line-height: 0;
 }
 
-.wordmark-dot {
-  color: var(--amber);
+.wordmark img {
+  display: block;
+  width: auto;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.wordmark-icon {
+  height: 60px;
+}
+
+.wordmark-text {
+  height: 32px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.wordmark:hover img {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
 }
 
 .side-nav {
@@ -2116,8 +2133,12 @@ button {
   background: linear-gradient(180deg, rgba(15, 16, 18, 0.78), transparent);
 }
 
-.lobby-top .wordmark {
-  font-size: 24px;
+.lobby-top .wordmark-icon {
+  height: 46px;
+}
+
+.lobby-top .wordmark-text {
+  height: 24px;
 }
 
 .room-meta {
@@ -3688,8 +3709,12 @@ button {
     backdrop-filter: blur(16px);
   }
 
-  .mobile-top .wordmark {
-    font-size: 24px;
+  .mobile-top .wordmark-icon {
+    height: 52px;
+  }
+
+  .mobile-top .wordmark-text {
+    height: 27px;
   }
 
   .mobile-top-actions {
@@ -4138,8 +4163,12 @@ button {
     padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
   }
 
-  .lobby-top .wordmark {
-    font-size: 22px;
+  .lobby-top .wordmark-icon {
+    height: 38px;
+  }
+
+  .lobby-top .wordmark-text {
+    height: 21px;
   }
 
   .room-exit span {

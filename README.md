@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo/watchlog-horizontal-color.svg" alt="watchlog" width="420" />
+  <img src="logo/watchlog-horizontal-dark.svg" alt="watchlog" width="420" />
 </p>
 
 <p align="center">
