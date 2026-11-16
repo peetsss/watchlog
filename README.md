@@ -113,6 +113,16 @@ uv run python scripts/ingest_tmdb.py --dry-run
 uv run python scripts/embed_movies.py --verify
 ```
 
+Group content lives under `/api/groups` (detail, watchlist, films, scores, stats
+and invite link). To create a development club with films and scores:
+
+```
+uv run python scripts/seed_dev_data.py
+```
+
+This creates `alice`, `bob` and `carol` with the password `correct horse` and a
+`Friday Film Club` group.
+
 The API tests create and use a separate `watchlog_test` database, run Alembic
 once and truncate tables between tests.
 
