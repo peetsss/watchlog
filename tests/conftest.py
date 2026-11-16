@@ -7,12 +7,16 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.core.config import Settings
+from app.core.sessions import MemorySessionStore
 from app.main import create_app
 
 
 @pytest.fixture
 def app() -> FastAPI:
-    return create_app(Settings(env="test", docs_enabled=True, _env_file=None))
+    return create_app(
+        Settings(env="test", docs_enabled=True, _env_file=None),
+        session_store=MemorySessionStore(),
+    )
 
 
 @pytest_asyncio.fixture

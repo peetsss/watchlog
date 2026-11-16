@@ -48,8 +48,10 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("WATCHLOG_TMDB_API_KEY", "TMDB_API_KEY"),
     )
 
-    session_ttl_seconds: int = 14 * 24 * 60 * 60
-    guest_session_ttl_seconds: int = 24 * 60 * 60
+    session_ttl_seconds: int = Field(14 * 24 * 60 * 60, gt=0)
+    guest_session_ttl_seconds: int = Field(24 * 60 * 60, gt=0)
+    anonymous_session_ttl_seconds: int = Field(60 * 60, gt=0)
+    session_touch_interval_seconds: int = Field(60, gt=0)
 
     @field_validator("allowed_hosts", "trusted_origins", mode="before")
     @classmethod
@@ -80,6 +82,18 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.env == "prod"
+
+    @property
+    def cookie_secure(self) -> bool:
+        return self.is_production
+
+    @property
+    def session_cookie_name(self) -> str:
+        return "__Host-wl_session" if self.is_production else "wl_session"
+
+    @property
+    def csrf_cookie_name(self) -> str:
+        return "wl_csrf"
 
 
 @lru_cache
