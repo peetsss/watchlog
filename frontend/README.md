@@ -1,18 +1,18 @@
-# watchlog prototype
+# watchlog frontend
 
-A clickable, mock-data React prototype for the lobby-first watchlog app. It exists to validate the warm film club direction and the full movie-night flow before the Django API is wired.
-
-The Django project in the repository remains the real app. This folder is a standalone Vite app and does not touch the database.
+The React UI for watchlog. It started as a mock prototype for the warm film club
+direction and is being wired to the FastAPI backend.
 
 ## Run it
 
 ```bash
-cd prototype
+cd frontend
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173.
+Open http://localhost:5173. The Vite dev server proxies `/api`, `/health` and
+`/ws` to the FastAPI dev service on http://localhost:8001.
 
 ```bash
 npm run build      # typecheck + production build

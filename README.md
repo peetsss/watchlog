@@ -140,6 +140,19 @@ The frozen API contract and frontend handover live in
 [docs/openapi.json](docs/openapi.json) and is regenerated with
 `just api-openapi`.
 
+### Frontend (wiring in progress)
+The React UI lives in `frontend/` and is being wired to the FastAPI API. It is
+not the primary UI yet; Django still serves the current pages.
+
+```
+cd frontend
+npm install
+npm run dev
+```
+
+Vite runs on http://localhost:5173 and proxies `/api`, `/health` and `/ws` to
+the API on http://localhost:8001.
+
 ### Production
 Build and start the daphne ASGI stack:
 

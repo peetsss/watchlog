@@ -16,3 +16,5 @@ docs
 TMDB_movie_dataset_v11.csv
 README.md
 Justfile
+frontend/node_modules
+frontend/dist
