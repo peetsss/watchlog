@@ -7,7 +7,7 @@ from app.core.config import Settings
 from app.core.errors import AppError
 from app.core.sessions import SessionData, SessionStore, new_session, ttl_for
 from app.models.user import User
-from app.services.passwords import hash_password, verify_password
+from app.services.passwords import hash_password, verify_dummy_password, verify_password
 
 
 async def create_user(db: AsyncSession, username: str, password: str) -> User:
@@ -24,7 +24,10 @@ async def create_user(db: AsyncSession, username: str, password: str) -> User:
 
 async def authenticate(db: AsyncSession, username: str, password: str) -> User | None:
     user = await db.scalar(select(User).where(User.username == username))
-    if user is None or not user.is_active:
+    if user is None:
+        await verify_dummy_password(password)
+        return None
+    if not user.is_active:
         return None
     if not await verify_password(password, user.password_hash):
         return None
