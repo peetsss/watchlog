@@ -131,4 +131,4 @@ class ActiveEnvelope(BaseModel):
 
 
 class CreateLobbyRequest(BaseModel):
-    group_uuid: UUID | None = None
+    group_uuid: str | None = None

@@ -28,6 +28,7 @@ from app.schemas.lobby import (
     ActiveEnvelope,
     BallotEntry,
     Capabilities,
+    CreateLobbyRequest,
     FinalistRef,
     JoinPreview,
     JoinPreviewEnvelope,
@@ -228,6 +229,7 @@ def test_lobby_contract_fields() -> None:
         "created_at",
     }
     assert _fields(ActiveEnvelope) == {"active"}
+    assert _fields(CreateLobbyRequest) == {"group_uuid"}
 
 
 def test_movie_contract_fields() -> None:

@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Callable
+from uuid import uuid4
 
 from fastapi import FastAPI
 from httpx import AsyncClient
@@ -65,6 +66,23 @@ async def test_create_state_and_etag(client: AsyncClient, movie_factory: Callabl
 
     active = await client.get("/api/lobby/active/")
     assert active.json()["active"]["uuid"] == lobby["uuid"]
+
+
+async def test_create_rejects_malformed_and_unknown_groups(
+    client: AsyncClient,
+    movie_factory: Callable[..., int],
+) -> None:
+    await register_member(client)
+    insert_movies(movie_factory, 1)
+    headers = csrf_headers(current_csrf(client))
+
+    malformed = await client.post("/api/lobby/", json={"group_uuid": "not-a-uuid"}, headers=headers)
+    assert malformed.status_code == 400
+    assert malformed.json()["error"]["code"] == "invalid_action"
+
+    unknown = await client.post("/api/lobby/", json={"group_uuid": str(uuid4())}, headers=headers)
+    assert unknown.status_code == 404
+    assert unknown.json()["error"]["code"] == "not_found"
 
 
 async def test_ready_unready_and_start(client: AsyncClient, movie_factory: Callable[..., int]) -> None:

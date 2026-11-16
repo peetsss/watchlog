@@ -95,7 +95,12 @@ async def create(
     db: LobbySessionDep,
     payload: CreateLobbyRequest | None = None,
 ) -> Response:
-    group_uuid = payload.group_uuid if payload is not None else None
+    group_uuid: UUID | None = None
+    if payload is not None and payload.group_uuid is not None:
+        try:
+            group_uuid = UUID(payload.group_uuid)
+        except ValueError as exc:
+            raise InvalidActionError("group_uuid must be a valid UUID.") from exc
     group = None
     if group_uuid is not None:
         group = await db.get(Group, group_uuid)
