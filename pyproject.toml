@@ -5,22 +5,34 @@ description = "Shared movie watchlists and lobby voting for groups"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.20.1",
     "channels>=4.3.2",
     "channels-redis>=4.3.0",
     "daphne>=4.2.3",
     "django>=6.1.2",
+    "fastapi>=0.163.1",
     "httpx>=0.28.1",
     "loguru>=0.7.3",
     "pgvector>=0.5.1",
     "psycopg2-binary>=2.9.13",
+    "psycopg[binary,pool]>=3.3.9",
+    "pwdlib[argon2]>=0.4.2",
+    "pydantic-settings>=2.16.3",
     "python-dotenv>=1.2.4",
+    "redis[hiredis]>=8.1.0",
+    "sqlalchemy[asyncio]>=2.1.8",
+    "uvicorn[standard]>=0.54.0",
     "whitenoise>=6.12.0",
 ]
 
 [dependency-groups]
 dev = [
+    "asgi-lifespan>=2.1.0",
     "django-debug-toolbar>=8.0.0",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
     "ruff>=0.17.3",
+    "time-machine>=3.6.0",
 ]
 
 [tool.ruff]
@@ -33,6 +45,13 @@ select = ["E4", "E7", "E9", "F", "I", "UP", "B"]
 [tool.ruff.lint.per-file-ignores]
 "**/watchlog/settings/*.py" = ["F403", "F405"]
 "**/migrations/*.py" = ["I001"]
+"alembic/versions/*.py" = ["F401", "I001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-ra"
 
 [tool.ruff.format]
 quote-style = "double"
