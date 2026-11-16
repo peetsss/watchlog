@@ -4,6 +4,7 @@ from httpx import ASGITransport, AsyncClient
 from app.core.config import Settings
 from app.core.sessions import MemorySessionStore
 from app.main import create_app
+from app.realtime.hub import MemoryLobbyHub
 
 
 async def test_unknown_route_uses_the_error_envelope(client: AsyncClient) -> None:
@@ -31,6 +32,7 @@ async def test_unhandled_errors_use_the_error_envelope() -> None:
     app = create_app(
         Settings(env="test", docs_enabled=True, _env_file=None),
         session_store=MemorySessionStore(),
+        hub=MemoryLobbyHub(),
     )
 
     @app.get("/boom")

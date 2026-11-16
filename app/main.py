@@ -16,9 +16,15 @@ from app.core.redis import create_redis
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.session_middleware import SessionMiddleware
 from app.core.sessions import RedisSessionStore, SessionStore
+from app.realtime.hub import LobbyHub, RedisLobbyHub
+from app.realtime.ws_lobby import router as lobby_ws_router
 
 
-def create_app(settings: Settings | None = None, session_store: SessionStore | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    session_store: SessionStore | None = None,
+    hub: LobbyHub | None = None,
+) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
 
@@ -29,9 +35,12 @@ def create_app(settings: Settings | None = None, session_store: SessionStore | N
         app.state.sessionmaker = create_sessionmaker(app.state.engine)
         app.state.redis = create_redis(resolved_settings)
         app.state.session_store = session_store or RedisSessionStore(app.state.redis)
+        app.state.hub = hub or RedisLobbyHub(app.state.redis)
+        await app.state.hub.start()
         try:
             yield
         finally:
+            await app.state.hub.stop()
             await app.state.redis.aclose()
             await app.state.engine.dispose()
 
@@ -59,6 +68,7 @@ def create_app(settings: Settings | None = None, session_store: SessionStore | N
     app.include_router(movies.router)
     app.include_router(groups.router)
     app.include_router(lobby.router)
+    app.include_router(lobby_ws_router)
     return app
 
 

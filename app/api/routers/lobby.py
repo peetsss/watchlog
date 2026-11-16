@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
 
-from app.api.deps import CurrentUser, SessionStoreDep, SettingsDep
+from app.api.deps import CurrentUser, LobbySessionDep, SessionStoreDep, SettingsDep
 from app.core.db import SessionDep
 from app.core.sessions import set_csrf_cookie, set_session_cookie
 from app.domain.lobby.exceptions import InvalidActionError, LobbyNotFoundError, NotAMemberError
@@ -92,7 +92,7 @@ async def active(user: CurrentUser, db: SessionDep) -> ActiveEnvelope:
 @router.post("/", response_model=LobbyStateEnvelope, status_code=status.HTTP_201_CREATED)
 async def create(
     user: CurrentUser,
-    db: SessionDep,
+    db: LobbySessionDep,
     payload: CreateLobbyRequest | None = None,
 ) -> Response:
     group_uuid = payload.group_uuid if payload is not None else None
@@ -115,7 +115,7 @@ async def preview(lobby_uuid: UUID, user: CurrentUser, db: SessionDep) -> JoinPr
 
 
 @router.post("/{lobby_uuid}/join/", response_model=LobbyStateEnvelope)
-async def join(lobby_uuid: UUID, user: CurrentUser, db: SessionDep) -> Response:
+async def join(lobby_uuid: UUID, user: CurrentUser, db: LobbySessionDep) -> Response:
     await lobby_service.join_lobby(db, lobby_uuid, user)
     state = await lobby_service.get_state(db, lobby_uuid, user)
     return _state_response(state)
@@ -136,7 +136,7 @@ async def action(
     action: str,
     request: Request,
     user: CurrentUser,
-    db: SessionDep,
+    db: LobbySessionDep,
 ) -> Response:
     action_name = _ACTION_ALIASES.get(action)
     if action_name is None:

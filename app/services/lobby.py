@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -19,6 +20,7 @@ from app.models.group import Group, GroupMembership, GroupMovie
 from app.models.lobby import Lobby, LobbyParticipant, LobbyPick, LobbyVote
 from app.models.movie import Movie
 from app.models.user import User
+from app.realtime.events import LobbyChanged, LobbyRestarted
 from app.schemas.lobby import (
     BallotEntry,
     Capabilities,
@@ -32,6 +34,10 @@ from app.schemas.lobby import (
 )
 from app.services.lobby_pool import resolve_pool
 from app.services.viewer import color_for, initials_for
+
+logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
 
 
 def _now() -> datetime:
@@ -159,6 +165,7 @@ async def _commit(
     participants: list[LobbyParticipant],
     before: engine.Game,
     after: engine.Game,
+    reason: str = "change",
 ) -> Lobby:
     await _record_group_winner(db, lobby, after)
     if before == after:
@@ -204,7 +211,18 @@ async def _commit(
         )
 
     await db.commit()
+    await _publish(db, LobbyChanged(lobby.id, lobby.version, reason))
     return lobby
+
+
+async def _publish(db: AsyncSession, event: LobbyChanged | LobbyRestarted) -> None:
+    publisher = db.info.get("lobby_publisher")
+    if publisher is None:
+        return
+    try:
+        await publisher(event)
+    except Exception:
+        logger.exception("Failed to publish a lobby event")
 
 
 async def create_lobby(
@@ -307,6 +325,7 @@ async def join_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     lobby.version += 1
     await db.commit()
     await db.refresh(lobby)
+    await _publish(db, LobbyChanged(lobby.id, lobby.version, "join"))
     return lobby
 
 
@@ -323,7 +342,7 @@ async def leave_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     await db.flush()
     participants = await _participants(db, lobby.id)
     after = engine.reconcile(await _game_from_lobby(db, lobby, participants))
-    return await _commit(db, lobby, participants, before, after)
+    return await _commit(db, lobby, participants, before, after, reason="leave")
 
 
 async def mark_ready(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
@@ -333,7 +352,7 @@ async def mark_ready(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     _require_status(lobby, rules.READY)
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.mark_ready(before, str(participant.id))
-    return await _commit(db, lobby, participants, before, after)
+    return await _commit(db, lobby, participants, before, after, reason="ready")
 
 
 async def unready(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
@@ -343,7 +362,7 @@ async def unready(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     _require_status(lobby, rules.READY)
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.unready(before, str(participant.id))
-    return await _commit(db, lobby, participants, before, after)
+    return await _commit(db, lobby, participants, before, after, reason="unready")
 
 
 async def start_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
@@ -360,7 +379,7 @@ async def start_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     await db.flush()
     participants = await _participants(db, lobby.id)
     after = engine.start(await _game_from_lobby(db, lobby, participants), participating)
-    return await _commit(db, lobby, participants, before, after)
+    return await _commit(db, lobby, participants, before, after, reason="start")
 
 
 async def vote(db: AsyncSession, lobby_id: UUID, user: User, movie_id: int, choice: str) -> Lobby:
@@ -376,11 +395,11 @@ async def vote(db: AsyncSession, lobby_id: UUID, user: User, movie_id: int, choi
     before = await _game_from_lobby(db, lobby, participants)
     if before.current is None:
         after = engine.reconcile(before)
-        return await _commit(db, lobby, participants, before, after)
+        return await _commit(db, lobby, participants, before, after, reason="vote")
     if movie_id != before.current:
         return lobby
     after = engine.vote(before, str(participant.id), movie_id, choice)
-    return await _commit(db, lobby, participants, before, after)
+    return await _commit(db, lobby, participants, before, after, reason="vote")
 
 
 async def next_round(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
@@ -392,7 +411,7 @@ async def next_round(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
         raise InvalidStateError(f"Lobby {lobby.id} has not revealed the current film")
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.next_round(before)
-    return await _commit(db, lobby, participants, before, after)
+    return await _commit(db, lobby, participants, before, after, reason="next_round")
 
 
 async def pick(db: AsyncSession, lobby_id: UUID, user: User, movie_id: int) -> Lobby:
@@ -406,7 +425,7 @@ async def pick(db: AsyncSession, lobby_id: UUID, user: User, movie_id: int) -> L
     if movie_id not in before.candidates:
         raise InvalidChoiceError(f"Movie {movie_id} is not a finalist in lobby {lobby.id}")
     after = engine.pick(before, str(participant.id), movie_id)
-    return await _commit(db, lobby, participants, before, after)
+    return await _commit(db, lobby, participants, before, after, reason="pick")
 
 
 async def advance(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
@@ -418,7 +437,7 @@ async def advance(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
         raise InvalidStateError(f"Lobby {lobby.id} is revealed; use next_round")
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.reconcile(before) if before.current is None else engine.advance(before)
-    return await _commit(db, lobby, participants, before, after)
+    return await _commit(db, lobby, participants, before, after, reason="advance")
 
 
 async def finalize_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
@@ -430,7 +449,7 @@ async def finalize_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
         raise NotHostError(f"User {user.id} may not finalize lobby {lobby.id} before every pick is in")
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.finalize(before)
-    return await _commit(db, lobby, participants, before, after)
+    return await _commit(db, lobby, participants, before, after, reason="finalize")
 
 
 async def end_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
@@ -442,7 +461,7 @@ async def end_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     _require_status(lobby, rules.READY, rules.PLAYING, rules.FINAL_ROUND)
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.end(before)
-    return await _commit(db, lobby, participants, before, after)
+    return await _commit(db, lobby, participants, before, after, reason="end")
 
 
 async def restart_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
@@ -454,15 +473,17 @@ async def restart_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
         group = await db.get(Group, lobby.group_id)
         if group is None:
             raise LobbyNotFoundError(f"Group {lobby.group_id} not found")
-        return await create_lobby(db, user, group=group)
-
-    member_ids = [participant.user_id for participant in participants if participant.user_id is not None]
-    members = tuple(
-        user_model
-        for user_model in await db.scalars(select(User).where(User.id.in_(member_ids)))
-        if user_model.id != user.id
-    )
-    return await create_lobby(db, user, members=members)
+        new_lobby = await create_lobby(db, user, group=group)
+    else:
+        member_ids = [participant.user_id for participant in participants if participant.user_id is not None]
+        members = tuple(
+            user_model
+            for user_model in await db.scalars(select(User).where(User.id.in_(member_ids)))
+            if user_model.id != user.id
+        )
+        new_lobby = await create_lobby(db, user, members=members)
+    await _publish(db, LobbyRestarted(lobby.id, new_lobby.id))
+    return new_lobby
 
 
 async def get_active_lobby_for_user(db: AsyncSession, user: User) -> LobbySummary | None:

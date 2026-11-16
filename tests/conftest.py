@@ -13,11 +13,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from starlette.testclient import TestClient
 
 from alembic import command
 from app.core.config import Settings
 from app.core.sessions import MemorySessionStore
 from app.main import create_app
+from app.realtime.hub import MemoryLobbyHub
 
 ROOT = Path(__file__).resolve().parents[1]
 TEST_DATABASE = "watchlog_test"
@@ -92,7 +94,7 @@ def test_database(test_settings: Settings) -> Settings:
 
 @pytest.fixture
 def app(test_database: Settings) -> FastAPI:
-    return create_app(test_database, session_store=MemorySessionStore())
+    return create_app(test_database, session_store=MemorySessionStore(), hub=MemoryLobbyHub())
 
 
 @pytest_asyncio.fixture
@@ -138,3 +140,25 @@ def sync_session(test_database: Settings) -> Iterator[Session]:
     with Session(engine) as session:
         yield session
     engine.dispose()
+
+
+@pytest.fixture
+def user_factory(test_database: Settings) -> Callable[..., int]:
+    def create(username: str) -> int:
+        with psycopg.connect(_database_url(test_database), autocommit=True) as connection:
+            row = connection.execute(
+                "INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING id",
+                (username, "unused"),
+            ).fetchone()
+        if row is None:
+            raise RuntimeError("user_factory insert did not return an id")
+        return int(row[0])
+
+    return create
+
+
+@pytest.fixture
+def ws_client(app: FastAPI, test_database: Settings) -> Iterator[TestClient]:
+    _truncate_database(test_database)
+    with TestClient(app) as client:
+        yield client

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Path, Request, status
 
-from app.api.deps import CurrentUser, GroupContextDep, TMDBDep
+from app.api.deps import CurrentUser, GroupContextDep, LobbySessionDep, TMDBDep
 from app.core.db import SessionDep
 from app.schemas.groups import (
     AddFilmRequest,
@@ -41,7 +41,7 @@ async def get_group(group_id: UUID, context: GroupContextDep, db: SessionDep) ->
 
 
 @router.post("/{group_id}/lobbies", response_model=LobbyStateEnvelope, status_code=status.HTTP_201_CREATED)
-async def create_group_lobby(context: GroupContextDep, db: SessionDep) -> LobbyStateEnvelope:
+async def create_group_lobby(context: GroupContextDep, db: LobbySessionDep) -> LobbyStateEnvelope:
     lobby = await lobby_service.create_lobby(db, context.user, group=context.group)
     state = await lobby_service.get_state(db, lobby.id, context.user)
     return LobbyStateEnvelope(lobby=state)

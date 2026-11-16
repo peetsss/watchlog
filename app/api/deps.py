@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import Depends, Request
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.tmdb import TMDBClient
 from app.core.config import Settings
@@ -13,6 +14,7 @@ from app.core.errors import AppError
 from app.core.sessions import SessionData, SessionStore
 from app.models.group import Group, GroupMembership
 from app.models.user import User
+from app.realtime.hub import LobbyHub
 
 
 def get_app_settings(request: Request) -> Settings:
@@ -30,6 +32,24 @@ def get_session_data(request: Request) -> SessionData | None:
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 SessionStoreDep = Annotated[SessionStore, Depends(get_session_store)]
 SessionDataDep = Annotated[SessionData | None, Depends(get_session_data)]
+
+
+def get_lobby_hub(request: Request) -> LobbyHub:
+    return request.app.state.hub
+
+
+LobbyHubDep = Annotated[LobbyHub, Depends(get_lobby_hub)]
+
+
+async def get_lobby_session(
+    db: SessionDep,
+    hub: LobbyHubDep,
+) -> AsyncSession:
+    db.info["lobby_publisher"] = hub.publish
+    return db
+
+
+LobbySessionDep = Annotated[AsyncSession, Depends(get_lobby_session)]
 
 
 async def get_tmdb_client(settings: SettingsDep) -> AsyncIterator[TMDBClient]:
