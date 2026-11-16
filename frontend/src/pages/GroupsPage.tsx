@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUpRight, Film, Loader2, Plus, Users } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Film, Loader2, Plus, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
 import { AvatarStack } from "../components/Avatar";
@@ -7,6 +7,7 @@ import { Button, buttonClass } from "../components/Button";
 import { CreateGroupDialog } from "../components/CreateGroupDialog";
 import { EmptyState } from "../components/EmptyState";
 import { PosterStack } from "../components/PosterStack";
+import { StartNightDialog } from "../components/StartNightDialog";
 import { groupWatchlistQueryOptions, useGroupList } from "../lib/api-groups";
 import { usePageTitle } from "../lib/usePageTitle";
 
@@ -14,6 +15,7 @@ export function GroupsPage() {
   usePageTitle("Groups");
   const groupsQuery = useGroupList();
   const [createOpen, setCreateOpen] = useState(false);
+  const [startGroupId, setStartGroupId] = useState<string | null>(null);
 
   const groups = groupsQuery.data ?? [];
   const watchlists = useQueries({
@@ -90,12 +92,17 @@ export function GroupsPage() {
                             {group.description || "A group for the films you keep between you."}
                           </p>
                         </div>
-                        <Link
-                          to={`/groups/${group.id}`}
-                          className={buttonClass("secondary", "sm")}
-                        >
-                          Open <ArrowUpRight size={14} />
-                        </Link>
+                        <div className="group-row-actions">
+                          <Button size="sm" onClick={() => setStartGroupId(group.id)}>
+                            Start a night <ArrowRight size={15} />
+                          </Button>
+                          <Link
+                            to={`/groups/${group.id}`}
+                            className={buttonClass("secondary", "sm")}
+                          >
+                            Open <ArrowUpRight size={14} />
+                          </Link>
+                        </div>
                       </div>
                       <div className="group-row-meta">
                         <span className="meta-item">
@@ -178,6 +185,13 @@ export function GroupsPage() {
       </div>
 
       <CreateGroupDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <StartNightDialog
+        open={startGroupId !== null}
+        onOpenChange={(open) => {
+          if (!open) setStartGroupId(null);
+        }}
+        initialGroupId={startGroupId ?? undefined}
+      />
     </div>
   );
 }

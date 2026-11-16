@@ -1,36 +1,31 @@
-import { useState } from "react";
-import { Check, Film, Home, Info, Plus } from "lucide-react";
-import { AvatarStack } from "../../components/Avatar";
+import { Check, Film, Home, Info, Loader2, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { RoomBackdrop } from "../../components/RoomBackdrop";
-import { movieById, movies, winnerCounts } from "../../data";
+import type { LobbyView } from "../../lib/adapters";
 import { cx } from "../../lib/cx";
-import { useGroups } from "../../state/Groups";
-import { useLobby } from "../../state/Lobby";
-import { useToast } from "../../state/Toast";
 import "./premiere.css";
 
 export function WinnerRoom({
+  lobby,
   onOpenFilm,
   onLeave,
+  onRestart,
+  pendingAction,
 }: {
-  onOpenFilm: (movieId: string, trigger?: HTMLElement | null) => void;
+  lobby: LobbyView;
+  onOpenFilm: (movieId: number, trigger?: HTMLElement | null) => void;
   onLeave: () => void;
+  onRestart: () => void;
+  pendingAction: string | null;
 }) {
-  const { lobby, restartNight } = useLobby();
-  const { groups, addMovieToGroup } = useGroups();
-  const { showToast } = useToast();
-  const [added, setAdded] = useState(false);
-
-  if (!lobby) return null;
-
-  const winner = movieById(lobby.winnerId);
+  const winner = lobby.winner;
 
   if (!winner) {
     return (
       <section className="winner-room is-empty">
-        <RoomBackdrop image={movies["past-lives"].backdrop} />
+        <RoomBackdrop />
         <div className="final-inner final-empty-inner">
           <EmptyState
             icon={<Film size={24} />}
@@ -38,7 +33,17 @@ export function WinnerRoom({
             body="The room didn't land on a film. Some nights are like that. The next one is still yours."
             action={
               <div className="empty-actions">
-                <Button onClick={restartNight}>Start over</Button>
+                {lobby.capabilities.canRestart ? (
+                  <Button onClick={onRestart} disabled={pendingAction === "restart"}>
+                    {pendingAction === "restart" ? (
+                      <>
+                        <Loader2 className="spin" size={15} /> Starting…
+                      </>
+                    ) : (
+                      "Start over"
+                    )}
+                  </Button>
+                ) : null}
                 <Button variant="ghost" onClick={onLeave}>
                   Back home
                 </Button>
@@ -50,17 +55,10 @@ export function WinnerRoom({
     );
   }
 
-  const picksFor = lobby.players.filter((person) => lobby.picks[person.id] === winner.id);
-  const counts = winnerCounts(lobby);
-  const isHost = lobby.hostId === lobby.youId;
-  const group = lobby.groupId ? groups.find((entry) => entry.id === lobby.groupId) : null;
-  const isAdded = added || Boolean(group?.watchlist.some((entry) => entry.id === winner.id));
-
-  const handleAdd = () => {
-    if (group) addMovieToGroup(group.id, winner);
-    setAdded(true);
-    showToast(`${winner.title} added to ${lobby.groupName}.`);
-  };
+  const winnerFinalist = lobby.finalists.find(
+    (finalist) => finalist.movie.id === winner.id,
+  );
+  const winnerPicks = winnerFinalist?.pickCount ?? 0;
 
   return (
     <section className="premiere-winner">
@@ -68,17 +66,26 @@ export function WinnerRoom({
 
       <div className="premiere-winner-inner">
         <div className="premiere-winner-poster">
-          <img src={winner.poster} alt={`${winner.title} poster`} />
+          {winner.poster ? (
+            <img src={winner.poster} alt={`${winner.title} poster`} />
+          ) : (
+            <span className="movie-poster-fallback" aria-hidden="true">
+              <Film size={28} />
+            </span>
+          )}
         </div>
 
         <div className="premiere-winner-copy">
-          <p className="eyebrow">Tonight's pick · {lobby.groupName}</p>
+          <p className="eyebrow">
+            Tonight's pick · {lobby.groupName ?? "Open room"}
+          </p>
           <h1 className="display premiere-title">{winner.title}</h1>
           <p className="premiere-meta">
-            {winner.year} · {winner.runtime} min · {winner.genres.join(", ")} · Dir.{" "}
-            {winner.director}
+            {[winner.year, winner.runtime ? `${winner.runtime} min` : null, winner.genres.join(", "), winner.director ? `Dir. ${winner.director}` : null]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
-          <p className="premiere-synopsis">{winner.synopsis}</p>
+          <p className="premiere-synopsis">{winner.description}</p>
 
           <button
             type="button"
@@ -89,64 +96,56 @@ export function WinnerRoom({
           </button>
 
           <div className="premiere-picked">
-            <AvatarStack people={picksFor} size={28} />
+            <Users size={15} aria-hidden="true" />
             <span>
-              {picksFor.length} of {lobby.players.length} picked it
+              {winnerPicks} of {lobby.playerCount} picked it
             </span>
           </div>
 
           <div className="premiere-winner-actions">
-            {lobby.privacy === "group" ? (
-              <Button onClick={handleAdd} disabled={isAdded}>
-                {isAdded ? (
-                  <>
-                    <Check size={16} /> On the watchlist
-                  </>
-                ) : (
-                  <>
-                    <Plus size={16} /> Add to watchlist
-                  </>
-                )}
-              </Button>
+            {lobby.groupId ? (
+              <Link
+                to={`/groups/${lobby.groupId}`}
+                className="btn btn-secondary btn-md"
+              >
+                <Check size={16} /> On the watchlist
+              </Link>
             ) : null}
             <Button variant="secondary" onClick={onLeave}>
               <Home size={16} /> Back home
             </Button>
           </div>
 
-          {isHost ? (
+          {lobby.capabilities.canRestart ? (
             <button
               type="button"
               className="text-button premiere-again"
-              onClick={() => {
-                restartNight();
-                showToast("Room reset. Ready when you are.");
-              }}
+              onClick={onRestart}
+              disabled={pendingAction === "restart"}
             >
-              Start another night
+              {pendingAction === "restart" ? "Starting another night…" : "Start another night"}
             </button>
           ) : null}
 
           {lobby.tie ? (
             <p className="premiere-tie">
-              A tie. The shortlist order broke it — next time the room should settle it with one more
-              vote.
+              A tie. The shortlist order broke it — next time the room should settle it with one
+              more vote.
             </p>
           ) : null}
 
           <div className="premiere-winner-tally" aria-label="How the shortlist finished">
-            {counts.map(({ movieId, count }) => {
-              const movie = movieById(movieId);
-              if (!movie) return null;
-              return (
-                <span
-                  key={movieId}
-                  className={cx("premiere-chip", movieId === winner.id && "is-winner")}
-                >
-                  {movie.title} <strong>{count}</strong>
-                </span>
-              );
-            })}
+            {lobby.finalists.map((finalist) => (
+              <span
+                key={finalist.movie.id}
+                className={cx(
+                  "premiere-chip",
+                  finalist.movie.id === winner.id && "is-winner",
+                )}
+              >
+                {finalist.movie.title} <strong>{finalist.pickCount ?? 0}</strong>
+              </span>
+            ))}
           </div>
         </div>
       </div>

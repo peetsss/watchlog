@@ -1,9 +1,8 @@
 import { Home, LogOut, Search, UserRound, Users } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { stageLabel } from "../data";
 import { useGroupList } from "../lib/api-groups";
+import { useActiveLobby } from "../lib/api-lobby";
 import { cx } from "../lib/cx";
-import { useLobby } from "../state/Lobby";
 import { useSession } from "../state/Session";
 import { Avatar } from "./Avatar";
 import { Wordmark } from "./Wordmark";
@@ -16,15 +15,21 @@ const navItems = [
 
 const groupTones = ["#e7b45a", "#9bb39a", "#8fa6bf", "#d09a83"];
 
+function lobbyLabel(status: string): string {
+  if (status === "ready") return "Waiting room";
+  if (status === "playing") return "Voting";
+  if (status === "final_round") return "Final round";
+  return "Finished";
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const groups = useGroupList().data ?? [];
-  const { lobby, resetLobby } = useLobby();
+  const activeLobby = useActiveLobby().data ?? null;
   const { person, signOut } = useSession();
   const navigate = useNavigate();
 
   const handleSignOut = () => {
     void signOut().finally(() => {
-      resetLobby();
       navigate("/auth", { replace: true });
     });
   };
@@ -57,12 +62,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {lobby && lobby.stage !== "winner" ? (
-          <Link to="/lobby/friday" className="side-live">
+        {activeLobby ? (
+          <Link to={`/lobby/${activeLobby.uuid}`} className="side-live">
             <span className="live-dot" aria-hidden="true" />
             <span className="side-live-copy">
               <strong>Movie night in progress</strong>
-              <span>{stageLabel(lobby)}</span>
+              <span>{lobbyLabel(activeLobby.status)}</span>
             </span>
           </Link>
         ) : null}

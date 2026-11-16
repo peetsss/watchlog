@@ -1,9 +1,37 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { inviteUrl } from "../lib/copy";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type Invite =
+  | { kind: "group"; id: string }
+  | { kind: "lobby"; id: string };
+
+function parseInvite(value: string): Invite | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (UUID.test(trimmed)) return { kind: "lobby", id: trimmed };
+
+  try {
+    const url = new URL(trimmed, window.location.origin);
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts[0] === "join" && parts[1] === "group" && UUID.test(parts[2] ?? "")) {
+      return { kind: "group", id: parts[2] };
+    }
+    if (parts[0] === "lobby" && UUID.test(parts[1] ?? "")) {
+      return { kind: "lobby", id: parts[1] };
+    }
+    if (parts[0] === "join" && UUID.test(parts[1] ?? "")) {
+      return { kind: "lobby", id: parts[1] };
+    }
+  } catch {
+    // Not a URL; fall through to the error.
+  }
+  return null;
+}
 
 export function JoinDialog({
   open,
@@ -26,22 +54,18 @@ export function JoinDialog({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    const trimmed = value.trim();
-    if (!trimmed) {
-      setError("Paste the invite link first.");
-      return;
-    }
-
-    const code = trimmed.split(/[/?#]/).filter(Boolean).pop() ?? "";
-    if (!/^[a-z0-9]{4,10}$/i.test(code)) {
-      setError("That doesn't look like an invite link.");
+    const invite = parseInvite(value);
+    if (!invite) {
+      setError("Paste a watchlog invite link or a room UUID.");
       return;
     }
 
     setError(null);
     setValue("");
     onOpenChange(false);
-    navigate(`/join/${code.toLowerCase()}`);
+    navigate(
+      invite.kind === "group" ? `/join/group/${invite.id}` : `/join/${invite.id}`,
+    );
   };
 
   return (
@@ -49,7 +73,7 @@ export function JoinDialog({
       open={open}
       onOpenChange={handleOpenChange}
       title="Join a movie night"
-      description="Paste the link the host sent you. No account switcher, no group code to hunt for."
+      description="Paste the link the host sent you. The room stays link-only."
       footer={
         <>
           <Button variant="ghost" onClick={() => handleOpenChange(false)}>
@@ -63,7 +87,7 @@ export function JoinDialog({
     >
       <form id="join-night-form" onSubmit={handleSubmit} noValidate>
         <label className="field-label" htmlFor="invite-link">
-          Invite link or code
+          Invite link or room UUID
         </label>
         <input
           id="invite-link"
@@ -72,7 +96,7 @@ export function JoinDialog({
           inputMode="url"
           autoComplete="off"
           spellCheck={false}
-          placeholder={inviteUrl("7f3k2").replace(/^https?:\/\//, "")}
+          placeholder="watchlog.app/join/…"
           value={value}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? "invite-error" : "invite-help"}
@@ -87,21 +111,11 @@ export function JoinDialog({
           </p>
         ) : (
           <p className="field-help" id="invite-help">
-            It looks like <span className="mono">watchlog.app/join/7f3k2</span>.
+            Room links look like <span className="mono">/join/&lt;room-uuid&gt;</span>. Group
+            links use <span className="mono">/join/group/&lt;group-uuid&gt;</span>.
           </p>
         )}
       </form>
-
-      <button
-        type="button"
-        className="text-button demo-link"
-        onClick={() => {
-          setValue(inviteUrl("7f3k2"));
-          setError(null);
-        }}
-      >
-        Use the demo invite
-      </button>
 
       <div className="dialog-note">
         <Info size={15} aria-hidden="true" />

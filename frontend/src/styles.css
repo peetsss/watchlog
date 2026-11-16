@@ -1264,6 +1264,13 @@ button {
   color: var(--muted);
 }
 
+.group-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .group-row-meta {
   display: flex;
   align-items: center;

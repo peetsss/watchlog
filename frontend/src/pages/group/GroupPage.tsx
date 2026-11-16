@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  ArrowRight,
   ChevronRight,
   Film,
   Link2,
@@ -14,6 +15,7 @@ import { Avatar, AvatarStack } from "../../components/Avatar";
 import { Button, buttonClass } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { MoviePoster } from "../../components/MoviePoster";
+import { StartNightDialog } from "../../components/StartNightDialog";
 import { formatDate, type GroupFilmView } from "../../lib/adapters";
 import {
   getGroupInviteLink,
@@ -61,6 +63,7 @@ export function GroupPage() {
   const [sheetId, setSheetId] = useState<number | null>(null);
   const [scoreId, setScoreId] = useState<number | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [startOpen, setStartOpen] = useState(false);
 
   const group = groupQuery.data ?? null;
   const films = watchlistQuery.data ?? [];
@@ -211,6 +214,9 @@ export function GroupPage() {
           <Link to={`/search?group=${group.id}`} className={buttonClass("secondary", "md")}>
             <Plus size={15} /> Add a film
           </Link>
+          <Button onClick={() => setStartOpen(true)}>
+            Start a night <ArrowRight size={16} />
+          </Button>
         </div>
       </header>
 
@@ -435,6 +441,12 @@ export function GroupPage() {
               : "Your score is saved.",
           );
         }}
+      />
+
+      <StartNightDialog
+        open={startOpen}
+        onOpenChange={setStartOpen}
+        initialGroupId={group.id}
       />
     </div>
   );

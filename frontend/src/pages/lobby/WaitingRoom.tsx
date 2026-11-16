@@ -2,11 +2,11 @@ import { useMemo } from "react";
 import { ArrowRight, Check, Copy, Info, Link2, Loader2, Users } from "lucide-react";
 import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
-import { INVITE_CODE, movies, people } from "../../data";
-import { copyText, inviteUrl } from "../../lib/copy";
+import { movies } from "../../data";
+import { copyText } from "../../lib/copy";
 import { cx } from "../../lib/cx";
-import { useLobby } from "../../state/Lobby";
 import { useToast } from "../../state/Toast";
+import type { LobbyView } from "../../lib/adapters";
 
 function listNames(names: string[]) {
   if (names.length <= 1) return names[0] ?? "";
@@ -20,69 +20,96 @@ function waitingSentence(names: string[]) {
     return names[0] === "you" ? "You're still deciding." : `${names[0]} is still deciding.`;
   }
   if (names.includes("you")) {
-    return `You and ${names.filter((name) => name !== "you").join(" and ")} are still deciding.`;
+    const others = names.filter((name) => name !== "you");
+    const rest =
+      others.length === 1
+        ? others[0]
+        : `${others.slice(0, -1).join(", ")} and ${others[others.length - 1]}`;
+    return `You, ${rest} are still deciding.`;
   }
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} are still deciding.`;
 }
 
-export function WaitingRoom() {
-  const { lobby, setReady, startNight } = useLobby();
+export function WaitingRoom({
+  lobby,
+  onReady,
+  onUnready,
+  onStart,
+  pendingAction,
+}: {
+  lobby: LobbyView;
+  onReady: () => void;
+  onUnready: () => void;
+  onStart: () => void;
+  pendingAction: string | null;
+}) {
   const { showToast } = useToast();
-
   const collage = useMemo(
     () => [movies["past-lives"], movies["grand-budapest"], movies["paddington-2"]],
     [],
   );
 
-  if (!lobby) return null;
-
-  const host = lobby.players.find((person) => person.id === lobby.hostId) ?? people.maya;
-  const isHost = lobby.hostId === lobby.youId;
-  const meReady = lobby.ready.includes(lobby.youId);
-  const readyCount = lobby.ready.length;
-  const allReady = readyCount === lobby.players.length;
-  const waiting = lobby.players.filter((person) => !lobby.ready.includes(person.id));
-  const waitingNames = waiting.map((person) =>
-    person.id === lobby.youId ? "you" : person.name.split(" ")[0],
+  const host = lobby.players.find((player) => player.isHost);
+  const isHost = lobby.viewerIsHost;
+  const meReady = lobby.viewerReady;
+  const allReady = lobby.readyCount === lobby.playerCount;
+  const waiting = lobby.players.filter((player) => !player.isReady);
+  const waitingNames = waiting.map((player) =>
+    player.id === lobby.viewerId ? "you" : player.name.split(" ")[0],
   );
-  const waitingText = listNames(waitingNames);
-  const displayUrl = inviteUrl(INVITE_CODE).replace(/^https?:\/\//, "");
+  const displayUrl = `${window.location.origin.replace(/^https?:\/\//, "")}/join/${lobby.uuid}`;
+  const inviteUrl = `${window.location.origin}/join/${lobby.uuid}`;
 
   const handleCopy = async () => {
-    const copied = await copyText(inviteUrl(INVITE_CODE));
+    const copied = await copyText(inviteUrl);
     showToast(copied ? "Invite link copied." : "Couldn't copy the link — select it instead.");
   };
 
   let primary: React.ReactNode;
 
-  if (!meReady) {
+  if (isHost) {
     primary = (
-      <Button onClick={() => setReady(lobby.youId, true)}>
-        I'm in <Check size={16} />
-      </Button>
-    );
-  } else if (isHost) {
-    primary = (
-      <Button onClick={startNight} disabled={!allReady}>
-        {allReady ? (
+      <Button onClick={onStart} disabled={pendingAction === "start"}>
+        {pendingAction === "start" ? (
+          <>
+            <Loader2 className="spin" size={15} /> Starting…
+          </>
+        ) : allReady ? (
           <>
             Start the night <ArrowRight size={16} />
           </>
         ) : (
-          <>Waiting on {waitingText}</>
+          <>
+            Start with {Math.max(1, lobby.readyCount)} ready <ArrowRight size={16} />
+          </>
+        )}
+      </Button>
+    );
+  } else if (!meReady) {
+    primary = (
+      <Button onClick={onReady} disabled={pendingAction === "ready"}>
+        {pendingAction === "ready" ? (
+          <>
+            <Loader2 className="spin" size={15} /> Ready…
+          </>
+        ) : (
+          <>
+            I'm in <Check size={16} />
+          </>
         )}
       </Button>
     );
   } else if (!allReady) {
     primary = (
       <span className="room-status-pill" role="status">
-        <Check size={15} /> You're in. Waiting on {waitingText}.
+        <Check size={15} /> You're in. Waiting on {listNames(waitingNames)}.
       </span>
     );
   } else {
     primary = (
       <span className="room-status-pill is-starting" role="status">
-        <Loader2 className="spin" size={15} /> {host.name.split(" ")[0]} is starting the night…
+        <Loader2 className="spin" size={15} /> {host?.name.split(" ")[0] ?? "The host"} is starting
+        the night…
       </span>
     );
   }
@@ -91,7 +118,12 @@ export function WaitingRoom() {
     <section className="waiting-room">
       <div className="waiting-collage" aria-hidden="true">
         {collage.map((movie, index) => (
-          <img key={movie.id} src={movie.poster} alt="" style={{ transform: `rotate(${index * 4 - 4}deg)` }} />
+          <img
+            key={movie.id}
+            src={movie.poster}
+            alt=""
+            style={{ transform: `rotate(${index * 4 - 4}deg)` }}
+          />
         ))}
       </div>
 
@@ -102,22 +134,22 @@ export function WaitingRoom() {
               <span className="live-pill">
                 <span className="live-dot" aria-hidden="true" /> Live
               </span>
-              {lobby.groupName} · waiting room
+              {lobby.groupName ?? "Open room"} · waiting room
             </p>
             <h1 className="display waiting-title">
               {allReady ? "Everyone's in." : "The room is filling up."}
             </h1>
             <p className="lede waiting-lede">
-              {allReady
-                ? isHost
-                  ? "The room is ready. Start when you are."
-                  : `${host.name.split(" ")[0]} is starting the night.`
-                : lobby.privacy === "open"
-                  ? "Share the link, ready up, and the host will start when everyone's in."
-                  : "Everyone in the group is already here. Ready up and the host can start."}
+              {allReady && isHost
+                ? "The room is ready. Start when you are."
+                : allReady
+                  ? `${host?.name.split(" ")[0] ?? "The host"} is starting the night.`
+                  : lobby.type === "open"
+                    ? "Share the link, ready up, and the host will start when everyone's in."
+                    : "Everyone in the group is already here. Ready up and the host can start."}
             </p>
 
-            {lobby.privacy === "open" ? (
+            {lobby.type === "open" ? (
               <>
                 <div className="invite-block">
                   <div className="invite-copy">
@@ -129,7 +161,8 @@ export function WaitingRoom() {
                   </Button>
                 </div>
                 <p className="invite-note">
-                  <Link2 size={14} aria-hidden="true" /> Anyone with the link can join. The room isn't listed publicly.
+                  <Link2 size={14} aria-hidden="true" /> Anyone with the link can join. The room
+                  isn't listed publicly.
                 </p>
               </>
             ) : (
@@ -146,37 +179,42 @@ export function WaitingRoom() {
 
             <p className="room-rules">
               <Info size={15} aria-hidden="true" />
-              Everyone votes on each film. A unanimous yes puts it on the shortlist — then everyone picks one.
+              Everyone votes on each film. A unanimous yes puts it on the shortlist — then everyone
+              picks one.
             </p>
+            {isHost && !allReady ? (
+              <p className="room-rules">
+                <Info size={15} aria-hidden="true" />
+                Starting now removes anyone who isn't ready.
+              </p>
+            ) : null}
           </div>
 
           <aside className="players-panel" aria-labelledby="players-title">
             <div className="players-head">
               <h2 id="players-title">In the room</h2>
               <span>
-                {readyCount} of {lobby.players.length} ready
+                {lobby.readyCount} of {lobby.playerCount} ready
               </span>
             </div>
             <ul className="players-list">
-              {lobby.players.map((person) => {
-                const ready = lobby.ready.includes(person.id);
+              {lobby.players.map((player) => {
+                const ready = player.isReady;
                 return (
                   <li
-                    key={person.id}
+                    key={player.id}
                     className={cx(
                       "player-row",
-                      person.id === lobby.youId && "is-you",
+                      player.id === lobby.viewerId && "is-you",
                       ready && "is-ready",
                     )}
                   >
-                    <Avatar person={person} size={40} />
+                    <Avatar person={player} size={40} />
                     <div className="player-copy">
                       <span className="player-name">
-                        {person.name}
-                        {person.id === lobby.youId ? (
-                          <span className="tag">You</span>
-                        ) : null}
-                        {person.id === lobby.hostId ? <span className="tag tag-amber">Host</span> : null}
+                        {player.name}
+                        {player.id === lobby.viewerId ? <span className="tag">You</span> : null}
+                        {player.isHost ? <span className="tag tag-amber">Host</span> : null}
                       </span>
                       <span className="player-state">{ready ? "Ready" : "Still deciding"}</span>
                     </div>
@@ -198,15 +236,15 @@ export function WaitingRoom() {
         <div className="room-actionbar">
           <div className="ready-summary">
             <div className="ready-dots" aria-hidden="true">
-              {lobby.players.map((person) => (
+              {lobby.players.map((player) => (
                 <span
-                  key={person.id}
-                  className={cx("ready-dot", lobby.ready.includes(person.id) && "is-ready")}
+                  key={player.id}
+                  className={cx("ready-dot", player.isReady && "is-ready")}
                 />
               ))}
             </div>
             <span>
-              {readyCount} of {lobby.players.length} ready
+              {lobby.readyCount} of {lobby.playerCount} ready
             </span>
           </div>
           <div className="room-actions">
@@ -214,9 +252,19 @@ export function WaitingRoom() {
               <button
                 type="button"
                 className="text-button subtle"
-                onClick={() => setReady(lobby.youId, false)}
+                onClick={onUnready}
+                disabled={pendingAction === "unready"}
               >
-                Not ready after all
+                {pendingAction === "unready" ? "Updating…" : "Not ready"}
+              </button>
+            ) : isHost ? (
+              <button
+                type="button"
+                className="text-button subtle"
+                onClick={onReady}
+                disabled={pendingAction === "ready"}
+              >
+                {pendingAction === "ready" ? "Updating…" : "I'm in"}
               </button>
             ) : null}
             {primary}

@@ -3,50 +3,49 @@ import { ArrowRight, Check, Film, Info, Loader2, Sparkles } from "lucide-react";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { RoomBackdrop } from "../../components/RoomBackdrop";
-import { movieById, type Movie } from "../../data";
+import type { LobbyView } from "../../lib/adapters";
+import type { LobbyAction } from "../../lib/api-lobby";
 import { cx } from "../../lib/cx";
-import { useLobby } from "../../state/Lobby";
 import "./premiere.css";
 
 export function FinalRoom({
+  lobby,
+  send,
+  pendingAction,
   onOpenFilm,
   onLeave,
 }: {
-  onOpenFilm: (movieId: string, trigger?: HTMLElement | null) => void;
+  lobby: LobbyView;
+  send: (action: LobbyAction, payload?: Record<string, unknown>) => Promise<boolean>;
+  pendingAction: string | null;
+  onOpenFilm: (movieId: number, trigger?: HTMLElement | null) => void;
   onLeave: () => void;
 }) {
-  const { lobby, pick, revealWinner, restartNight } = useLobby();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const myPick = lobby ? (lobby.picks[lobby.youId] ?? null) : null;
-  const picksRevealed = Boolean(lobby?.picksRevealed);
+  const [selectedId, setSelectedId] = useState<number | null>(lobby.viewerPick);
 
   useEffect(() => {
-    if (myPick) setSelectedId(myPick);
-  }, [myPick]);
+    if (lobby.viewerPick !== null) setSelectedId(lobby.viewerPick);
+  }, [lobby.viewerPick]);
 
-  if (!lobby) return null;
-
-  const finalists = lobby.shortlist
-    .map((id) => movieById(id))
-    .filter((movie): movie is Movie => Boolean(movie));
+  const finalists = lobby.finalists;
+  const myPick = lobby.viewerPick;
+  const picksRevealed = lobby.picksRevealed;
+  const canFinalize = lobby.capabilities.canFinalize;
+  const selectedFinalist = finalists.find((finalist) => finalist.movie.id === selectedId);
 
   if (!finalists.length) {
     return (
       <section className="final-room is-empty">
-        <RoomBackdrop image={movieById("grand-budapest")?.backdrop} />
+        <RoomBackdrop image={undefined} />
         <div className="final-inner final-empty-inner">
           <EmptyState
             icon={<Film size={24} />}
             title="No film made the cut."
-            body="Not one film got a unanimous yes tonight. That's allowed. Try again with a smaller pool, or call it a night."
+            body="Not one film got a unanimous yes tonight. That's allowed. Call it a night and try again."
             action={
-              <div className="empty-actions">
-                <Button onClick={restartNight}>Start over</Button>
-                <Button variant="ghost" onClick={onLeave}>
-                  Back home
-                </Button>
-              </div>
+              <Button variant="ghost" onClick={onLeave}>
+                Back home
+              </Button>
             }
           />
         </div>
@@ -54,19 +53,18 @@ export function FinalRoom({
     );
   }
 
-  const selectedMovie = selectedId ? movieById(selectedId) : null;
-
   return (
     <section className="premiere-final">
-      <RoomBackdrop image={finalists[0]?.backdrop} />
+      <RoomBackdrop image={finalists[0]?.movie.backdrop ?? undefined} />
 
       <div className="premiere-final-inner">
         <header className="premiere-final-head">
           <p className="eyebrow">
-            Final round <span className="dot-sep">·</span> {lobby.groupName}
+            Final round <span className="dot-sep">·</span>{" "}
+            {lobby.groupName ?? "Open room"}
           </p>
           <h1 className="display">
-            {finalists.length === 1 ? "One film." : "Two films."} <em>One stage.</em>
+            {finalists.length} {finalists.length === 1 ? "film" : "films"}. <em>One stage.</em>
           </h1>
           <p className="lede">
             {finalists.length === 1
@@ -76,26 +74,37 @@ export function FinalRoom({
         </header>
 
         <div className="premiere-lineup">
-          {finalists.map((movie, index) => {
+          {finalists.map((finalist, index) => {
+            const movie = finalist.movie;
             const selected = selectedId === movie.id;
             return (
               <article
                 key={movie.id}
-                className={cx("premiere-card", selected && "is-selected", myPick && "is-locked")}
+                className={cx(
+                  "premiere-card",
+                  selected && "is-selected",
+                  myPick !== null && "is-locked",
+                )}
               >
                 <button
                   type="button"
                   className="premiere-select"
                   onClick={() => {
-                    if (!myPick) setSelectedId(movie.id);
+                    if (myPick === null) setSelectedId(movie.id);
                   }}
                   aria-pressed={selected}
                   aria-label={`Select ${movie.title}`}
-                  disabled={Boolean(myPick)}
+                  disabled={myPick !== null}
                 >
                   <span className="premiere-num">{String(index + 1).padStart(2, "0")}</span>
                   <span className="premiere-poster">
-                    <img src={movie.poster} alt={`${movie.title} poster`} />
+                    {movie.poster ? (
+                      <img src={movie.poster} alt={`${movie.title} poster`} />
+                    ) : (
+                      <span className="movie-poster-fallback" aria-hidden="true">
+                        <Film size={22} />
+                      </span>
+                    )}
                     {selected ? (
                       <span className="premiere-check" aria-hidden="true">
                         <Check size={14} strokeWidth={2.8} />
@@ -105,8 +114,15 @@ export function FinalRoom({
                   <span className="premiere-card-copy">
                     <strong>{movie.title}</strong>
                     <span>
-                      {movie.year} · {movie.runtime} min · {movie.genres.slice(0, 2).join(", ")}
+                      {[movie.year, movie.runtime ? `${movie.runtime} min` : null, movie.genres.slice(0, 2).join(", ")]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </span>
+                    {picksRevealed && finalist.pickCount !== null ? (
+                      <span className="premiere-pick-count">
+                        {finalist.pickCount} {finalist.pickCount === 1 ? "pick" : "picks"}
+                      </span>
+                    ) : null}
                   </span>
                 </button>
                 <button
@@ -125,15 +141,20 @@ export function FinalRoom({
 
       <div className="premiere-bar">
         <div className="premiere-status" role="status" aria-live="polite">
-          {!myPick ? (
+          {myPick === null ? (
             <>
               <Sparkles size={15} aria-hidden="true" />
-              <span>{selectedId ? "Lock it in when you're ready." : "Pick a film to begin."}</span>
+              <span>
+                {selectedId ? "Lock it in when you're ready." : "Pick a film to begin."}
+              </span>
             </>
           ) : !picksRevealed ? (
             <>
               <Loader2 className="spin" size={15} aria-hidden="true" />
-              <span>Locked in. The room is finishing its picks…</span>
+              <span>
+                Locked in. {lobby.submittedCount} of {lobby.playerCount} picks are in
+                {lobby.viewerIsHost ? " — you can roll when you're ready." : "."}
+              </span>
             </>
           ) : (
             <>
@@ -143,14 +164,45 @@ export function FinalRoom({
           )}
         </div>
 
-        {!myPick ? (
-          <Button onClick={() => selectedId && pick(selectedId)} disabled={!selectedId}>
-            Lock in {selectedMovie?.title ?? "your film"} <ArrowRight size={15} />
+        {myPick === null ? (
+          <Button
+            onClick={() =>
+              selectedId !== null && void send("pick", { movie_id: selectedId })
+            }
+            disabled={selectedId === null || pendingAction === "pick"}
+          >
+            {pendingAction === "pick" ? (
+              <>
+                <Loader2 className="spin" size={15} /> Locking in…
+              </>
+            ) : (
+              <>
+                Lock in {selectedFinalist?.movie.title ?? "your film"} <ArrowRight size={15} />
+              </>
+            )}
+          </Button>
+        ) : canFinalize ? (
+          <Button
+            onClick={() => void send("finalize")}
+            disabled={pendingAction === "finalize"}
+          >
+            {pendingAction === "finalize" ? (
+              <>
+                <Loader2 className="spin" size={15} /> Rolling…
+              </>
+            ) : picksRevealed ? (
+              <>
+                Roll the pick <ArrowRight size={15} />
+              </>
+            ) : (
+              <>
+                Roll with {lobby.submittedCount} of {lobby.playerCount} picks{" "}
+                <ArrowRight size={15} />
+              </>
+            )}
           </Button>
         ) : (
-          <Button onClick={revealWinner} disabled={!picksRevealed}>
-            Roll the pick <ArrowRight size={15} />
-          </Button>
+          <Button disabled>Waiting for the room</Button>
         )}
       </div>
     </section>

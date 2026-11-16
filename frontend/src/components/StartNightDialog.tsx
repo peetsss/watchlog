@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Check, Info, Link2 } from "lucide-react";
+import { ArrowRight, Check, Info, Link2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useGroups } from "../state/Groups";
-import { useLobby } from "../state/Lobby";
+import { useQueryClient } from "@tanstack/react-query";
+import { useGroupList } from "../lib/api-groups";
+import { createLobby } from "../lib/api-lobby";
+import { ApiError } from "../lib/api";
+import { homeKeys, lobbyKeys } from "../lib/query-keys";
 import { cx } from "../lib/cx";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
-import { PosterStack } from "./PosterStack";
 
 export function StartNightDialog({
   open,
@@ -17,41 +19,77 @@ export function StartNightDialog({
   onOpenChange: (open: boolean) => void;
   initialGroupId?: string;
 }) {
-  const { groups } = useGroups();
-  const { startLobby } = useLobby();
+  const groups = useGroupList().data ?? [];
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"group" | "open">("group");
-  const [groupId, setGroupId] = useState(initialGroupId ?? groups[0]?.id ?? "");
+  const [groupId, setGroupId] = useState(initialGroupId ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (mode === "group" && !groups.some((group) => group.id === groupId)) {
-      setGroupId(groups[0]?.id ?? "");
-    }
-  }, [groups, groupId, mode]);
+    if (!open) return;
+    setError(null);
+    setBusy(false);
+    setMode(initialGroupId ? "group" : groups.length ? "group" : "open");
+    setGroupId(
+      initialGroupId && groups.some((group) => group.id === initialGroupId)
+        ? initialGroupId
+        : (groups[0]?.id ?? ""),
+    );
+  }, [groups, initialGroupId, open]);
 
   const selectedGroup = groups.find((group) => group.id === groupId) ?? null;
-  const canStart = mode === "open" || Boolean(selectedGroup);
+  const canStart = !busy && (mode === "open" || Boolean(selectedGroup));
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!canStart) return;
-    startLobby(mode === "group" ? selectedGroup : null, mode === "open");
-    onOpenChange(false);
-    navigate("/lobby/friday");
+    setBusy(true);
+    setError(null);
+    try {
+      const lobby = await createLobby(mode === "group" ? selectedGroup?.id : undefined);
+      void queryClient.invalidateQueries({ queryKey: homeKeys.all });
+      void queryClient.invalidateQueries({ queryKey: lobbyKeys.active() });
+      onOpenChange(false);
+      navigate(`/lobby/${lobby.uuid}`);
+    } catch (startError) {
+      if (startError instanceof ApiError && startError.code === "already_active") {
+        setError("That group already has an active room. Rejoin it from Home.");
+      } else {
+        setError(
+          startError instanceof ApiError
+            ? startError.message
+            : "Couldn't start the room. Try again.",
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <Modal
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(next) => {
+        if (!busy) onOpenChange(next);
+      }}
       title="Start a movie night"
       description="Pick a crew, or open the door. You can share the link once the room is up."
       footer={
         <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancel
           </Button>
           <Button onClick={handleStart} disabled={!canStart}>
-            Start the room <ArrowRight size={16} />
+            {busy ? (
+              <>
+                <Loader2 className="spin" size={16} /> Starting…
+              </>
+            ) : (
+              <>
+                Start the room <ArrowRight size={16} />
+              </>
+            )}
           </Button>
         </>
       }
@@ -71,13 +109,14 @@ export function StartNightDialog({
                 setGroupId(group.id);
               }}
             >
-              <PosterStack movies={group.watchlist} className="choice-posters" />
+              <span className="choice-icon" aria-hidden="true">
+                {group.name.slice(0, 2).toUpperCase()}
+              </span>
               <span className="choice-copy">
                 <strong>{group.name}</strong>
                 <span>
-                  {group.members.length}{" "}
-                  {group.members.length === 1 ? "member" : "members"} · {group.films.length}{" "}
-                  {group.films.length === 1 ? "film" : "films"}
+                  {group.memberCount} {group.memberCount === 1 ? "member" : "members"} ·{" "}
+                  {group.filmCount} {group.filmCount === 1 ? "film" : "films"}
                 </span>
               </span>
               <span className="choice-check" aria-hidden="true">
@@ -86,7 +125,7 @@ export function StartNightDialog({
             </button>
           );
         })}
-        {groups.length === 0 ? (
+        {!groups.length ? (
           <p className="field-help">No groups yet — open the door and start with a link.</p>
         ) : null}
       </div>
@@ -112,6 +151,12 @@ export function StartNightDialog({
           {mode === "open" ? <Check size={15} strokeWidth={2.6} /> : null}
         </span>
       </button>
+
+      {error ? (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <div className="dialog-note">
         <Info size={15} aria-hidden="true" />

@@ -25,8 +25,6 @@ import { JoinPage } from "./pages/JoinPage";
 import { SearchPage } from "./pages/SearchPage";
 import { LobbyPage } from "./pages/lobby/LobbyPage";
 import { queryClient } from "./lib/query";
-import { GroupsProvider } from "./state/Groups";
-import { LobbyProvider } from "./state/Lobby";
 import { SessionProvider } from "./state/Session";
 import { ToastProvider } from "./state/Toast";
 import "./mobile.css";
@@ -73,53 +71,49 @@ export function App() {
       <BrowserRouter>
         <ToastProvider>
           <SessionProvider>
-            <GroupsProvider>
-              <LobbyProvider>
-                <OfflineBanner />
-                <ScrollToTop />
-                <Routes>
-                  <Route path="/auth" element={<AuthPage />} />
-                  <Route path="/login" element={<Navigate to="/auth" replace />} />
-                  <Route
-                    element={
-                      <RequireMember>
-                        <ShellLayout />
-                      </RequireMember>
-                    }
-                  >
-                    <Route path="/" element={<HubPage />} />
-                    <Route path="/groups" element={<GroupsPage />} />
-                    <Route path="/groups/:id" element={<GroupPage />} />
-                    <Route path="/search" element={<SearchPage />} />
-                  </Route>
-                  <Route
-                    path="/lobby/:id"
-                    element={
-                      <RequireMember>
-                        <LobbyPage />
-                      </RequireMember>
-                    }
-                  />
-                  <Route
-                    path="/join/group/:groupId"
-                    element={
-                      <RequireMember>
-                        <GroupJoinPage />
-                      </RequireMember>
-                    }
-                  />
-                  <Route
-                    path="/join/:code"
-                    element={
-                      <RequireMember>
-                        <JoinPage />
-                      </RequireMember>
-                    }
-                  />
-                  <Route path="*" element={<NotFoundPage />} />
-                </Routes>
-              </LobbyProvider>
-            </GroupsProvider>
+            <OfflineBanner />
+            <ScrollToTop />
+            <Routes>
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/login" element={<Navigate to="/auth" replace />} />
+              <Route
+                element={
+                  <RequireMember>
+                    <ShellLayout />
+                  </RequireMember>
+                }
+              >
+                <Route path="/" element={<HubPage />} />
+                <Route path="/groups" element={<GroupsPage />} />
+                <Route path="/groups/:id" element={<GroupPage />} />
+                <Route path="/search" element={<SearchPage />} />
+              </Route>
+              <Route
+                path="/lobby/:id"
+                element={
+                  <RequireMember>
+                    <LobbyPage />
+                  </RequireMember>
+                }
+              />
+              <Route
+                path="/join/group/:groupId"
+                element={
+                  <RequireMember>
+                    <GroupJoinPage />
+                  </RequireMember>
+                }
+              />
+              <Route
+                path="/join/:lobbyId"
+                element={
+                  <RequireMember>
+                    <JoinPage />
+                  </RequireMember>
+                }
+              />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
           </SessionProvider>
         </ToastProvider>
       </BrowserRouter>

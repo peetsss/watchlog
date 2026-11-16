@@ -2,18 +2,22 @@ import { useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
+  Clapperboard,
   Film,
+  Link2,
   Loader2,
-  Search,
   Star,
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarStack } from "../components/Avatar";
+import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
+import { JoinDialog } from "../components/JoinDialog";
 import { MoviePoster } from "../components/MoviePoster";
 import { NightDialog } from "../components/NightDialog";
 import { PosterStack } from "../components/PosterStack";
+import { StartNightDialog } from "../components/StartNightDialog";
 import {
   formatDate,
   type HomeActiveLobbyView,
@@ -77,6 +81,8 @@ export function HubPage() {
   usePageTitle("Home");
   const homeQuery = useHome();
   const [nightDetail, setNightDetail] = useState<HomeLogEntryView | null>(null);
+  const [startOpen, setStartOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
 
   const home = homeQuery.data;
   const featured = home?.featuredGroup ?? null;
@@ -136,12 +142,12 @@ export function HubPage() {
             twenty-message group chat required.
           </p>
           <div className="hub-board-actions">
-            <Link to="/groups" className="btn btn-primary btn-lg">
-              <Users size={17} /> Open your groups
-            </Link>
-            <Link to="/search" className="btn btn-secondary btn-lg">
-              <Search size={17} /> Find a film
-            </Link>
+            <Button size="lg" onClick={() => setStartOpen(true)}>
+              <Clapperboard size={18} /> Start a movie night
+            </Button>
+            <Button size="lg" variant="secondary" onClick={() => setJoinOpen(true)}>
+              <Link2 size={17} /> Join with a link
+            </Button>
           </div>
         </div>
 
@@ -439,6 +445,13 @@ export function HubPage() {
           if (!open) setNightDetail(null);
         }}
       />
+
+      <StartNightDialog
+        open={startOpen}
+        onOpenChange={setStartOpen}
+        initialGroupId={featured?.id}
+      />
+      <JoinDialog open={joinOpen} onOpenChange={setJoinOpen} />
     </div>
   );
 }
