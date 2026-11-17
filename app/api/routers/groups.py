@@ -1,10 +1,12 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Request, status
+from fastapi import APIRouter, Depends, Path, Request, status
 
-from app.api.deps import CurrentUser, GroupContextDep, LobbySessionDep, TMDBDep, VerifiedUser
+from app.api.deps import CurrentUser, GroupContextDep, LobbySessionDep, SettingsDep, TMDBDep, VerifiedUser
 from app.core.db import SessionDep
+from app.core.errors import AppError
+from app.core.rate_limit import rate_limit
 from app.schemas.groups import (
     AddFilmRequest,
     CreateGroupRequest,
@@ -21,6 +23,7 @@ from app.schemas.groups import (
 )
 from app.schemas.lobby import LobbyStateEnvelope
 from app.services import groups as group_service
+from app.services import invites as invite_service
 from app.services import lobby as lobby_service
 from app.services.identity import Viewer
 
@@ -111,18 +114,49 @@ async def get_group_stats(context: GroupContextDep, db: SessionDep) -> GroupStat
     return await group_service.get_group_stats(db, context.group)
 
 
-@router.get("/{group_id}/invite", response_model=InviteLinkResponse)
+@router.get(
+    "/{group_id}/invite",
+    response_model=InviteLinkResponse,
+    dependencies=[Depends(rate_limit("groups.invite", 10, 3600, scope="viewer"))],
+)
 async def get_invite_link(
     request: Request,
     context: GroupContextDep,
     _user: VerifiedUser,
+    db: SessionDep,
+    settings: SettingsDep,
 ) -> InviteLinkResponse:
-    base_url = str(request.base_url).rstrip("/")
-    return InviteLinkResponse(invite_link=f"{base_url}/join/group/{context.group.id}")
+    raw_token = await invite_service.create_invite(db, context.group, context.user)
+    base_url = (settings.public_url or str(request.base_url)).rstrip("/")
+    return InviteLinkResponse(invite_link=f"{base_url}/join/group/{raw_token}")
 
 
-@router.post("/{group_id}/members", response_model=GroupDetail)
-async def join_group(group_id: UUID, user: CurrentUser, db: SessionDep) -> GroupDetail:
+@router.delete(
+    "/{group_id}/invite",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limit("groups.invite_revoke", 10, 3600, scope="viewer"))],
+)
+async def revoke_invite_link(context: GroupContextDep, db: SessionDep) -> None:
+    await invite_service.revoke_invites(db, context.group)
+
+
+@router.post(
+    "/{group_id}/members",
+    response_model=GroupDetail,
+    dependencies=[Depends(rate_limit("groups.legacy_join", 20, 3600, scope="viewer"))],
+)
+async def join_group(
+    group_id: UUID,
+    user: CurrentUser,
+    db: SessionDep,
+    settings: SettingsDep,
+) -> GroupDetail:
+    if not settings.legacy_group_join_enabled:
+        raise AppError(
+            "Group invites must use a current invite link.",
+            code="legacy_join_disabled",
+            status_code=403,
+        )
     return await group_service.join_group(db, user, group_id)
 
 

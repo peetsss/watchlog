@@ -2,11 +2,12 @@ import json
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from app.api.deps import LobbySessionDep, LobbyViewer, OptionalLobbyViewer, SessionStoreDep, SettingsDep
 from app.core.db import SessionDep
+from app.core.rate_limit import rate_limit
 from app.core.sessions import set_csrf_cookie, set_session_cookie
 from app.domain.lobby.exceptions import InvalidActionError, LobbyNotFoundError, NotAMemberError
 from app.models.group import Group
@@ -85,13 +86,22 @@ async def csrf(
     return CSRFResponse(csrf_token=data.csrf)
 
 
-@router.get("/active/", response_model=ActiveEnvelope)
+@router.get(
+    "/active/",
+    response_model=ActiveEnvelope,
+    dependencies=[Depends(rate_limit("lobby.active", 60, 60, scope="viewer"))],
+)
 async def active(viewer: LobbyViewer, db: SessionDep) -> ActiveEnvelope:
     summary = await lobby_service.get_active_lobby_for_viewer(db, viewer)
     return ActiveEnvelope(active=summary)
 
 
-@router.post("/", response_model=LobbyStateEnvelope, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=LobbyStateEnvelope,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("lobby.create", 20, 3600, scope="viewer"))],
+)
 async def create(
     viewer: LobbyViewer,
     db: LobbySessionDep,
@@ -113,7 +123,11 @@ async def create(
     return _state_response(state, status_code=status.HTTP_201_CREATED)
 
 
-@router.get("/{lobby_uuid}/preview/", response_model=JoinPreviewEnvelope)
+@router.get(
+    "/{lobby_uuid}/preview/",
+    response_model=JoinPreviewEnvelope,
+    dependencies=[Depends(rate_limit("lobby.preview", 60, 60, scope="ip"))],
+)
 async def preview(lobby_uuid: UUID, viewer: OptionalLobbyViewer, db: SessionDep) -> JoinPreviewEnvelope:
     preview_data = await lobby_service.get_join_preview(db, lobby_uuid, viewer)
     if not preview_data.is_participant and preview_data.type == "group":
@@ -121,14 +135,22 @@ async def preview(lobby_uuid: UUID, viewer: OptionalLobbyViewer, db: SessionDep)
     return JoinPreviewEnvelope(preview=preview_data)
 
 
-@router.post("/{lobby_uuid}/join/", response_model=LobbyStateEnvelope)
+@router.post(
+    "/{lobby_uuid}/join/",
+    response_model=LobbyStateEnvelope,
+    dependencies=[Depends(rate_limit("lobby.join", 20, 3600, scope="viewer"))],
+)
 async def join(lobby_uuid: UUID, viewer: LobbyViewer, db: LobbySessionDep) -> Response:
     await lobby_service.join_lobby(db, lobby_uuid, viewer)
     state = await lobby_service.get_state(db, lobby_uuid, viewer)
     return _state_response(state)
 
 
-@router.get("/{lobby_uuid}/", response_model=LobbyStateEnvelope)
+@router.get(
+    "/{lobby_uuid}/",
+    response_model=LobbyStateEnvelope,
+    dependencies=[Depends(rate_limit("lobby.state", 120, 60, scope="viewer"))],
+)
 async def state(lobby_uuid: UUID, request: Request, viewer: LobbyViewer, db: SessionDep) -> Response:
     current = await lobby_service.get_state(db, lobby_uuid, viewer)
     etag = f'"v{current.version}"'
@@ -137,7 +159,11 @@ async def state(lobby_uuid: UUID, request: Request, viewer: LobbyViewer, db: Ses
     return _state_response(current)
 
 
-@router.post("/{lobby_uuid}/{action}/", response_model=LobbyStateEnvelope)
+@router.post(
+    "/{lobby_uuid}/{action}/",
+    response_model=LobbyStateEnvelope,
+    dependencies=[Depends(rate_limit("lobby.action", 120, 60, scope="viewer"))],
+)
 async def action(
     lobby_uuid: UUID,
     action: str,

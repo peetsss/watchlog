@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     sentry_dsn: SecretStr = SecretStr("")
     rate_limit_enabled: bool = True
     require_verified_email: bool = True
+    legacy_group_join_enabled: bool = False
 
     frontend_dir: str | None = None
 

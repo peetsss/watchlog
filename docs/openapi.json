@@ -29,6 +29,10 @@
             ],
             "title": "Pending Email"
           },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
           "username": {
             "title": "Username",
             "type": "string"
@@ -38,7 +42,8 @@
           "username",
           "email",
           "email_verified",
-          "pending_email"
+          "pending_email",
+          "region"
         ],
         "title": "AccountEnvelope",
         "type": "object"
@@ -2825,6 +2830,25 @@
         ]
       }
     },
+    "/api/account/export": {
+      "get": {
+        "operationId": "export_account_api_account_export_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Export Account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/auth/change-email": {
       "post": {
         "operationId": "change_email_api_auth_change_email_post",
@@ -3223,6 +3247,90 @@
         ]
       }
     },
+    "/api/group-invites/{token}": {
+      "get": {
+        "operationId": "preview_invite_api_group_invites__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Invite",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/group-invites/{token}/join": {
+      "post": {
+        "operationId": "join_invite_api_group_invites__token__join_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Invite",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
     "/api/groups": {
       "get": {
         "operationId": "list_groups_api_groups_get",
@@ -3559,6 +3667,40 @@
       }
     },
     "/api/groups/{group_id}/invite": {
+      "delete": {
+        "operationId": "revoke_invite_link_api_groups__group_id__invite_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Invite Link",
+        "tags": [
+          "groups"
+        ]
+      },
       "get": {
         "operationId": "get_invite_link_api_groups__group_id__invite_get",
         "parameters": [

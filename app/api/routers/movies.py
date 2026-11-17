@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from app.api.deps import CurrentUser, LobbyViewer, SettingsDep, TMDBDep
 from app.core.db import SessionDep
 from app.core.errors import AppError
+from app.core.rate_limit import rate_limit
 from app.models.movie import Movie
 from app.schemas.movies import MovieDetail, MovieSearchEnvelope
 from app.services.movies import attach_local_ids
@@ -13,7 +14,11 @@ from app.services.watch_providers import get_watch_availability
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
 
-@router.get("/search", response_model=MovieSearchEnvelope)
+@router.get(
+    "/search",
+    response_model=MovieSearchEnvelope,
+    dependencies=[Depends(rate_limit("movies.search", 60, 60, scope="viewer"))],
+)
 async def search_movies(
     q: Annotated[str, Query(min_length=1, max_length=200)],
     _user: CurrentUser,
@@ -26,7 +31,11 @@ async def search_movies(
     return MovieSearchEnvelope(movies=await attach_local_ids(db, results))
 
 
-@router.get("/{movie_id}", response_model=MovieDetail)
+@router.get(
+    "/{movie_id}",
+    response_model=MovieDetail,
+    dependencies=[Depends(rate_limit("movies.detail", 60, 60, scope="viewer"))],
+)
 async def get_movie(
     movie_id: Annotated[int, Path(ge=1)],
     viewer: LobbyViewer,

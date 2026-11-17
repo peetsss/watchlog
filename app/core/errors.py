@@ -46,11 +46,32 @@ class AppError(Exception):
             self.status_code = status_code
 
 
+class RateLimitExceeded(AppError):
+    code = "rate_limited"
+    status_code = 429
+
+    def __init__(self, retry_after: int) -> None:
+        super().__init__(
+            "Too many requests. Try again shortly.",
+            code=self.code,
+            status_code=self.status_code,
+        )
+        self.retry_after = max(retry_after, 1)
+
+
 def error_payload(code: str, message: str) -> dict[str, Any]:
     return {"error": {"code": code, "message": message}}
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(RateLimitExceeded)
+    async def _rate_limit_error(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+        return JSONResponse(
+            error_payload(exc.code, exc.message),
+            status_code=exc.status_code,
+            headers={"Retry-After": str(exc.retry_after)},
+        )
+
     @app.exception_handler(AppError)
     async def _app_error(request: Request, exc: AppError) -> JSONResponse:
         return JSONResponse(error_payload(exc.code, exc.message), status_code=exc.status_code)

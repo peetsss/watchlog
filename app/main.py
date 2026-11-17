@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app import __version__
-from app.api.routers import account, auth, groups, health, home, lobby, me, movies, root
+from app.api.routers import account, auth, group_invites, groups, health, home, lobby, me, movies, root
 from app.core.config import Settings, get_settings
 from app.core.csrf import CSRFMiddleware
 from app.core.db import create_engine, create_sessionmaker
@@ -16,6 +16,7 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.core.observability import init_sentry
+from app.core.rate_limit import MemoryRateLimiter, RedisRateLimiter
 from app.core.redis import create_redis
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.session_middleware import SessionMiddleware
@@ -40,6 +41,9 @@ def create_app(
         app.state.sessionmaker = create_sessionmaker(app.state.engine)
         app.state.redis = create_redis(resolved_settings)
         app.state.session_store = session_store or RedisSessionStore(app.state.redis)
+        app.state.rate_limiter = (
+            MemoryRateLimiter() if resolved_settings.env == "test" else RedisRateLimiter(app.state.redis)
+        )
         app.state.hub = hub or RedisLobbyHub(app.state.redis)
         await app.state.hub.start()
         try:
@@ -72,6 +76,7 @@ def create_app(
     app.include_router(me.router)
     app.include_router(movies.router)
     app.include_router(groups.router)
+    app.include_router(group_invites.router)
     app.include_router(home.router)
     app.include_router(lobby.router)
     app.include_router(lobby_ws_router)

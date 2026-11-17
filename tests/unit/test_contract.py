@@ -46,6 +46,7 @@ from app.schemas.movies import MovieDetail, MovieSearchEnvelope, MovieSearchResu
 EXPECTED_PATHS = {
     "/",
     "/api/account",
+    "/api/account/export",
     "/api/auth/change-email",
     "/api/auth/change-password",
     "/api/auth/csrf",
@@ -71,6 +72,8 @@ EXPECTED_PATHS = {
     "/api/groups/{group_id}/preview",
     "/api/groups/{group_id}/stats",
     "/api/groups/{group_id}/watchlist",
+    "/api/group-invites/{token}",
+    "/api/group-invites/{token}/join",
     "/api/home",
     "/api/lobby/",
     "/api/lobby/active/",

@@ -2,13 +2,14 @@ import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, SessionDataDep, SessionStoreDep, SettingsDep
 from app.core.db import SessionDep
 from app.core.errors import AppError
+from app.core.rate_limit import rate_limit
 from app.core.sessions import (
     clear_auth_cookies,
     new_session,
@@ -123,7 +124,12 @@ async def session(data: SessionDataDep, db: SessionDep) -> SessionEnvelope:
     return SessionEnvelope(mode="anonymous", viewer=None, stats=None, email=None)
 
 
-@router.post("/guest", response_model=SessionEnvelope, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/guest",
+    response_model=SessionEnvelope,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("auth.guest", 10, 3600, scope="ip"))],
+)
 async def guest(
     payload: GuestCreateRequest,
     request: Request,
@@ -158,7 +164,12 @@ async def guest(
     return _guest_session(created)
 
 
-@router.post("/register", response_model=ViewerEnvelope, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=ViewerEnvelope,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("auth.register", 5, 3600, scope="ip"))],
+)
 async def register(
     payload: RegisterRequest,
     request: Request,
@@ -180,7 +191,11 @@ async def register(
     return ViewerEnvelope(viewer=viewer_for(user))
 
 
-@router.post("/login", response_model=ViewerEnvelope)
+@router.post(
+    "/login",
+    response_model=ViewerEnvelope,
+    dependencies=[Depends(rate_limit("auth.login", 10, 900, scope="ip"))],
+)
 async def login(
     payload: LoginRequest,
     request: Request,
@@ -216,13 +231,21 @@ async def logout(
     clear_auth_cookies(response, settings)
 
 
-@router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/verify-email",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limit("auth.verify_email", 20, 3600, scope="ip"))],
+)
 async def verify_email(payload: VerifyEmailRequest, db: SessionDep) -> Response:
     await account_service.verify_email(db, payload.token)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/resend-verification", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/resend-verification",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(rate_limit("auth.resend", 3, 3600, scope="ip"))],
+)
 async def resend_verification(
     payload: EmailRequest,
     db: SessionDep,
@@ -232,7 +255,11 @@ async def resend_verification(
     return Response(status_code=status.HTTP_202_ACCEPTED)
 
 
-@router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/forgot-password",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(rate_limit("auth.forgot", 3, 3600, scope="ip"))],
+)
 async def forgot_password(
     payload: EmailRequest,
     db: SessionDep,
@@ -242,7 +269,11 @@ async def forgot_password(
     return Response(status_code=status.HTTP_202_ACCEPTED)
 
 
-@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limit("auth.reset", 10, 3600, scope="ip"))],
+)
 async def reset_password(
     payload: ResetPasswordRequest,
     db: SessionDep,
@@ -253,7 +284,11 @@ async def reset_password(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/change-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limit("auth.change_password", 5, 3600, scope="viewer"))],
+)
 async def change_password(
     payload: ChangePasswordRequest,
     user: CurrentUser,
@@ -265,7 +300,11 @@ async def change_password(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/change-email", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/change-email",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(rate_limit("auth.change_email", 5, 3600, scope="viewer"))],
+)
 async def change_email(
     payload: ChangeEmailRequest,
     user: CurrentUser,

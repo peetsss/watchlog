@@ -2,6 +2,7 @@ from app.models.base import Base
 from app.models.email import EmailOutbox, EmailToken
 from app.models.group import Group, GroupMembership, GroupMovie, Review
 from app.models.guest import Guest
+from app.models.invite import GroupInvite
 from app.models.lobby import Lobby, LobbyParticipant, LobbyPick, LobbyVote
 from app.models.movie import Movie
 from app.models.user import User
@@ -12,6 +13,7 @@ __all__ = [
     "EmailOutbox",
     "EmailToken",
     "Group",
+    "GroupInvite",
     "GroupMembership",
     "GroupMovie",
     "Guest",

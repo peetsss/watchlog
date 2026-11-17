@@ -81,6 +81,10 @@ openapi:
 backup:
     bash scripts/backup_db.sh
 
+# operational commands (user, group, email)
+admin *args:
+    uv run python scripts/admin.py {{args}}
+
 # run the API tests
 test *args:
     uv run pytest {{args}}

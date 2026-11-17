@@ -33,6 +33,37 @@ async def test_empty_group_list(client: AsyncClient) -> None:
     assert response.json() == {"groups": []}
 
 
+async def test_group_invite_token_preview_join_and_revoke(client: AsyncClient, app: FastAPI) -> None:
+    await register_member(client)
+    group = await create_group(client, "Friday Film Club")
+
+    invite = await client.get(f"/api/groups/{group['id']}/invite")
+    assert invite.status_code == 200
+    token = invite.json()["invite_link"].rsplit("/", 1)[-1]
+
+    async with new_client(app) as bob:
+        await register_member(bob, "bob")
+        preview = await bob.get(f"/api/group-invites/{token}")
+        assert preview.status_code == 200
+        assert preview.json()["is_member"] is False
+        joined = await bob.post(
+            f"/api/group-invites/{token}/join",
+            headers=csrf_headers(current_csrf(bob)),
+        )
+        assert joined.status_code == 200
+        assert joined.json()["member_count"] == 2
+
+    revoked = await client.delete(
+        f"/api/groups/{group['id']}/invite",
+        headers=csrf_headers(current_csrf(client)),
+    )
+    assert revoked.status_code == 204
+
+    async with new_client(app) as carol:
+        await register_member(carol, "carol")
+        assert (await carol.get(f"/api/group-invites/{token}")).status_code == 404
+
+
 async def test_create_and_list_group(client: AsyncClient) -> None:
     viewer = await register_member(client)
 
@@ -337,7 +368,10 @@ async def test_invite_link(client: AsyncClient) -> None:
     response = await client.get(f"/api/groups/{group['id']}/invite")
 
     assert response.status_code == 200
-    assert response.json()["invite_link"] == f"http://testserver/join/group/{group['id']}"
+    link = response.json()["invite_link"]
+    assert link.startswith("http://testserver/join/group/")
+    assert len(link.rsplit("/", 1)[-1]) > 20
+    assert group["id"] not in link
 
 
 async def test_group_stats_when_empty(client: AsyncClient) -> None:

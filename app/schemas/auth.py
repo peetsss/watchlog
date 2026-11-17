@@ -143,6 +143,7 @@ class AccountEnvelope(BaseModel):
     email: str | None
     email_verified: bool
     pending_email: str | None
+    region: str
 
 
 class CSRFResponse(BaseModel):

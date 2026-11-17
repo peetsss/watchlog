@@ -152,6 +152,35 @@ async def test_duplicate_username_is_rejected(client: AsyncClient) -> None:
     assert response.json()["error"]["code"] == "username_taken"
 
 
+async def test_registration_is_rate_limited(client: AsyncClient) -> None:
+    await csrf_token(client)
+    for index in range(5):
+        response = await client.post(
+            "/api/auth/register",
+            json={
+                "username": f"rate_user_{index}",
+                "email": f"rate_user_{index}@example.com",
+                "password": "correct horse",
+            },
+            headers=csrf_headers(current_csrf(client)),
+        )
+        assert response.status_code == 201
+
+    blocked = await client.post(
+        "/api/auth/register",
+        json={
+            "username": "rate_user_blocked",
+            "email": "rate_user_blocked@example.com",
+            "password": "correct horse",
+        },
+        headers=csrf_headers(current_csrf(client)),
+    )
+
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "rate_limited"
+    assert blocked.headers["Retry-After"]
+
+
 async def test_duplicate_email_is_rejected(client: AsyncClient) -> None:
     token = await csrf_token(client)
     await register(client, token)
@@ -391,6 +420,21 @@ async def test_change_password_revokes_sessions_and_requires_the_new_password(
             headers=csrf_headers(token),
         )
     ).status_code == 200
+
+
+async def test_account_export_returns_profile_and_attachment(client: AsyncClient) -> None:
+    token = await csrf_token(client)
+    await register(client, token)
+
+    response = await client.get("/api/account/export")
+
+    assert response.status_code == 200
+    assert response.headers["content-disposition"] == 'attachment; filename="watchlog-export.json"'
+    payload = response.json()
+    assert payload["profile"]["username"] == "alice"
+    assert payload["profile"]["email"] == "alice@example.com"
+    assert payload["groups"] == []
+    assert payload["film_scores"] == []
 
 
 async def test_session_endpoint_describes_a_member(client: AsyncClient) -> None:

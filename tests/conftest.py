@@ -76,6 +76,7 @@ def test_settings() -> Settings:
         docs_enabled=True,
         public_url="http://testserver",
         require_verified_email=False,
+        legacy_group_join_enabled=True,
         postgres_db=TEST_DATABASE,
         database_url=None,
     )

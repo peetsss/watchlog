@@ -136,6 +136,9 @@ Run `just backup` to write a compressed database dump to `./backups/`. Set
 `WATCHLOG_BACKUP_REMOTE` to an rclone remote to upload it, and
 `WATCHLOG_BACKUP_RETENTION_DAYS` to change the local retention window.
 
+Deployment, rollback, restore and admin steps live in
+[`docs/production-runbook.md`](docs/production-runbook.md).
+
 ## Tests
 
 ```bash

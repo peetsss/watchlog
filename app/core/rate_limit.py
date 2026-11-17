@@ -1,11 +1,14 @@
 import hashlib
 import math
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Final, Protocol, cast
+from typing import Final, Literal, Protocol, cast
 
 from redis.asyncio import Redis
+from starlette.requests import Request
+
+from app.core.errors import RateLimitExceeded
 
 RATE_LIMIT_PREFIX: Final[str] = "watchlog:rate:"
 _IDENTITY_HASH_LENGTH: Final[int] = 32
@@ -71,3 +74,46 @@ class MemoryRateLimiter:
         self._entries[key] = (count, expires_at)
         ttl = math.ceil(expires_at - now)
         return _result(count, ttl, limit)
+
+
+def client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        candidate = forwarded.split(",", 1)[0].strip()
+        if candidate:
+            return candidate
+    return request.client.host if request.client is not None else "unknown"
+
+
+def request_identity(request: Request, scope: Literal["ip", "viewer"]) -> str:
+    if scope == "ip":
+        return f"ip:{client_ip(request)}"
+    session = getattr(request.state, "session", None)
+    if session is not None and session.kind == "member" and session.user_id is not None:
+        return f"user:{session.user_id}"
+    if session is not None and session.kind == "guest" and session.guest_id is not None:
+        return f"guest:{session.guest_id}"
+    return f"ip:{client_ip(request)}"
+
+
+def rate_limit(
+    bucket: str,
+    limit: int,
+    window_seconds: int,
+    *,
+    scope: Literal["ip", "viewer"] = "viewer",
+) -> Callable[[Request], Awaitable[None]]:
+    async def dependency(request: Request) -> None:
+        settings = request.app.state.settings
+        if not settings.rate_limit_enabled:
+            return
+        limiter: RateLimiter = request.app.state.rate_limiter
+        result = await limiter.hit(
+            rate_limit_key(bucket, request_identity(request, scope)),
+            limit,
+            window_seconds,
+        )
+        if not result.allowed:
+            raise RateLimitExceeded(result.retry_after)
+
+    return dependency
