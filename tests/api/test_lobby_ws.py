@@ -29,7 +29,7 @@ def register(client: TestClient, username: str) -> str:
     token = csrf_token(client)
     response = client.post(
         "/api/auth/register",
-        json={"username": username, "password": "correct horse"},
+        json={"username": username, "email": f"{username}@example.com", "password": "correct horse"},
         headers={"X-CSRF-Token": token},
     )
     assert response.status_code == 201

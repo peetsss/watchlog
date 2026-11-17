@@ -27,3 +27,4 @@ def test_viewer_for_user() -> None:
     assert viewer.username == "alice"
     assert viewer.initials == "AL"
     assert viewer.color.startswith("#")
+    assert viewer.email_verified is False

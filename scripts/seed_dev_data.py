@@ -1,4 +1,5 @@
 import sys
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -15,7 +16,12 @@ from app.models.user import User  # noqa: E402
 
 PASSWORD = "correct horse"
 GROUP_NAME = "Friday Film Club"
-USERNAMES = ("alice", "bob", "carol")
+USER_EMAILS = {
+    "alice": "alice@example.com",
+    "bob": "bob@example.com",
+    "carol": "carol@example.com",
+}
+USERNAMES = tuple(USER_EMAILS)
 TMDB_IDS = (27205, 155, 157336)
 SCORES = {
     27205: {"alice": 8.5, "bob": 7.0, "carol": 9.0},
@@ -23,11 +29,19 @@ SCORES = {
 }
 
 
-def _get_or_create_user(session: Session, username: str, password_hash: PasswordHash) -> User:
+def _get_or_create_user(session: Session, username: str, email: str, password_hash: PasswordHash) -> User:
     user = session.scalar(select(User).where(User.username == username))
     if user is not None:
+        if user.email is None:
+            user.email = email
+            user.email_verified_at = datetime.now(UTC)
         return user
-    user = User(username=username, password_hash=password_hash.hash(PASSWORD))
+    user = User(
+        username=username,
+        email=email,
+        email_verified_at=datetime.now(UTC),
+        password_hash=password_hash.hash(PASSWORD),
+    )
     session.add(user)
     session.flush()
     return user
@@ -112,7 +126,7 @@ def main() -> None:
     password_hash = PasswordHash.recommended()
 
     with Session(engine) as session:
-        users = [_get_or_create_user(session, username, password_hash) for username in USERNAMES]
+        users = [_get_or_create_user(session, username, USER_EMAILS[username], password_hash) for username in USERNAMES]
         group = _get_or_create_group(session)
         _ensure_membership(session, group, users[0], "admin")
         for user in users[1:]:

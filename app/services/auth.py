@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
@@ -10,20 +10,45 @@ from app.models.user import User
 from app.services.passwords import hash_password, verify_dummy_password, verify_password
 
 
-async def create_user(db: AsyncSession, username: str, password: str) -> User:
-    user = User(username=username, password_hash=await hash_password(password))
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+async def create_user(db: AsyncSession, username: str, email: str, password: str) -> User:
+    normalized_email = _normalize_email(email)
+    if await db.scalar(select(User.id).where(User.username == username)) is not None:
+        raise AppError("That username is already taken.", code="username_taken", status_code=409)
+    if await db.scalar(select(User.id).where(User.email == normalized_email)) is not None:
+        raise AppError("That email is already in use.", code="email_taken", status_code=409)
+
+    user = User(
+        username=username,
+        email=normalized_email,
+        password_hash=await hash_password(password),
+    )
     db.add(user)
     try:
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        raise AppError("That username is already taken.", code="username_taken", status_code=409) from exc
+        if await db.scalar(select(User.id).where(User.username == username)) is not None:
+            raise AppError("That username is already taken.", code="username_taken", status_code=409) from exc
+        if await db.scalar(select(User.id).where(User.email == normalized_email)) is not None:
+            raise AppError("That email is already in use.", code="email_taken", status_code=409) from exc
+        raise
     await db.refresh(user)
     return user
 
 
-async def authenticate(db: AsyncSession, username: str, password: str) -> User | None:
-    user = await db.scalar(select(User).where(User.username == username))
+async def authenticate(db: AsyncSession, identifier: str, password: str) -> User | None:
+    user = await db.scalar(
+        select(User).where(
+            or_(
+                User.username == identifier,
+                func.lower(User.email) == identifier.lower(),
+            )
+        )
+    )
     if user is None:
         await verify_dummy_password(password)
         return None
@@ -32,6 +57,11 @@ async def authenticate(db: AsyncSession, username: str, password: str) -> User |
     if not await verify_password(password, user.password_hash):
         return None
     return user
+
+
+async def set_password(db: AsyncSession, user: User, password: str) -> None:
+    user.password_hash = await hash_password(password)
+    await db.flush()
 
 
 async def start_member_session(

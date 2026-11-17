@@ -67,6 +67,7 @@ class Settings(BaseSettings):
 
     sentry_dsn: SecretStr = SecretStr("")
     rate_limit_enabled: bool = True
+    require_verified_email: bool = True
 
     frontend_dir: str | None = None
 

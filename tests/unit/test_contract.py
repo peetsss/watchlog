@@ -45,10 +45,17 @@ from app.schemas.movies import MovieDetail, MovieSearchEnvelope, MovieSearchResu
 
 EXPECTED_PATHS = {
     "/",
+    "/api/account",
+    "/api/auth/change-email",
+    "/api/auth/change-password",
     "/api/auth/csrf",
+    "/api/auth/forgot-password",
     "/api/auth/login",
     "/api/auth/logout",
     "/api/auth/register",
+    "/api/auth/resend-verification",
+    "/api/auth/reset-password",
+    "/api/auth/verify-email",
     "/api/groups",
     "/api/groups/{group_id}",
     "/api/groups/{group_id}/films",
@@ -86,14 +93,14 @@ def test_documented_paths_are_frozen() -> None:
 
 
 def test_auth_contract_fields() -> None:
-    assert _fields(Viewer) == {"mode", "id", "username", "initials", "color"}
+    assert _fields(Viewer) == {"mode", "id", "username", "initials", "color", "email_verified"}
     assert _fields(ViewerStats) == {"titles_watched", "average_score"}
     assert _fields(ViewerEnvelope) == {"viewer"}
-    assert _fields(MeEnvelope) == {"viewer", "stats"}
+    assert _fields(MeEnvelope) == {"viewer", "stats", "email"}
     assert _fields(CSRFResponse) == {"csrf_token"}
     assert CSRFResponse.model_fields["csrf_token"].serialization_alias == "csrfToken"
-    assert _fields(RegisterRequest) == {"username", "password"}
-    assert _fields(LoginRequest) == {"username", "password"}
+    assert _fields(RegisterRequest) == {"username", "email", "password"}
+    assert _fields(LoginRequest) == {"identifier", "password"}
 
 
 def test_group_contract_fields() -> None:

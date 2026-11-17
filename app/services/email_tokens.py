@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Final, Literal
 
@@ -50,12 +51,17 @@ async def issue_email_token(
     return raw_token
 
 
-async def consume_email_token(db: AsyncSession, raw_token: str, purpose: EmailPurpose) -> EmailToken:
+async def consume_email_token(
+    db: AsyncSession,
+    raw_token: str,
+    purpose: EmailPurpose | Sequence[EmailPurpose],
+) -> EmailToken:
+    purposes = [purpose] if isinstance(purpose, str) else list(purpose)
     token = await db.scalar(
         select(EmailToken)
         .where(
             EmailToken.token_hash == hash_email_token(raw_token),
-            EmailToken.purpose == purpose,
+            EmailToken.purpose.in_(purposes),
         )
         .with_for_update()
     )

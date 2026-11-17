@@ -74,6 +74,8 @@ def test_settings() -> Settings:
     settings = Settings(
         env="test",
         docs_enabled=True,
+        public_url="http://testserver",
+        require_verified_email=False,
         postgres_db=TEST_DATABASE,
         database_url=None,
     )

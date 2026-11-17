@@ -1,10 +1,16 @@
 from datetime import UTC, datetime, timedelta
 
+import psycopg
 import pytest
 import time_machine
+from fastapi import FastAPI
 from httpx import AsyncClient
 
-REGISTER = {"username": "alice", "password": "correct horse"}
+from app.core.config import Settings
+from tests.conftest import _database_url
+
+REGISTER = {"username": "alice", "email": "alice@example.com", "password": "correct horse"}
+LOGIN = {"identifier": "alice", "password": "correct horse"}
 
 
 async def csrf_token(client: AsyncClient) -> str:
@@ -15,6 +21,22 @@ async def csrf_token(client: AsyncClient) -> str:
 
 def csrf_headers(token: str) -> dict[str, str]:
     return {"X-CSRF-Token": token}
+
+
+def current_csrf(client: AsyncClient) -> str:
+    token = client.cookies.get("wl_csrf")
+    assert token
+    return token
+
+
+def latest_outbox(settings: Settings, template: str) -> dict:
+    with psycopg.connect(_database_url(settings)) as connection:
+        row = connection.execute(
+            "SELECT payload FROM email_outbox WHERE template = %s ORDER BY id DESC LIMIT 1",
+            (template,),
+        ).fetchone()
+    assert row is not None
+    return row[0]
 
 
 async def register(client: AsyncClient, token: str) -> dict:
@@ -40,6 +62,7 @@ async def test_register_me_logout_and_login(client: AsyncClient) -> None:
     assert viewer["username"] == "alice"
     assert viewer["initials"] == "AL"
     assert viewer["color"].startswith("#")
+    assert viewer["email_verified"] is False
 
     member_session = client.cookies.get("wl_session")
     member_token = client.cookies.get("wl_csrf")
@@ -51,6 +74,7 @@ async def test_register_me_logout_and_login(client: AsyncClient) -> None:
     assert me.status_code == 200
     assert me.json()["viewer"] == viewer
     assert me.json()["stats"] == {"titles_watched": 0, "average_score": None}
+    assert me.json()["email"] == "alice@example.com"
 
     logout = await client.post("/api/auth/logout", headers=csrf_headers(member_token))
     assert logout.status_code == 204
@@ -58,7 +82,7 @@ async def test_register_me_logout_and_login(client: AsyncClient) -> None:
     assert (await client.get("/api/me")).status_code == 401
 
     token = await csrf_token(client)
-    login = await client.post("/api/auth/login", json=REGISTER, headers=csrf_headers(token))
+    login = await client.post("/api/auth/login", json=LOGIN, headers=csrf_headers(token))
 
     assert login.status_code == 200
     assert login.json()["viewer"]["username"] == "alice"
@@ -132,7 +156,7 @@ async def test_invalid_credentials_are_rejected(client: AsyncClient) -> None:
     token = await csrf_token(client)
     response = await client.post(
         "/api/auth/login",
-        json={"username": "nobody", "password": "wrong password"},
+        json={"identifier": "nobody", "password": "wrong password"},
         headers=csrf_headers(token),
     )
 
@@ -143,11 +167,13 @@ async def test_invalid_credentials_are_rejected(client: AsyncClient) -> None:
 @pytest.mark.parametrize(
     "payload",
     [
-        {"username": "ab", "password": "long enough"},
-        {"username": "bad name", "password": "long enough"},
-        {"username": "alice", "password": "short"},
-        {"username": "alice", "password": "12345678"},
-        {"username": "alice", "password": "alice"},
+        {"username": "ab", "email": "alice@example.com", "password": "long enough"},
+        {"username": "bad name", "email": "alice@example.com", "password": "long enough"},
+        {"username": "alice", "password": "long enough"},
+        {"username": "alice", "email": "not-an-email", "password": "long enough"},
+        {"username": "alice", "email": "alice@example.com", "password": "short"},
+        {"username": "alice", "email": "alice@example.com", "password": "12345678"},
+        {"username": "alice", "email": "alice@example.com", "password": "alice"},
     ],
 )
 async def test_invalid_registration_payloads(client: AsyncClient, payload: dict[str, str]) -> None:
@@ -186,3 +212,150 @@ async def test_expired_session_is_rejected(client: AsyncClient) -> None:
         response = await client.get("/api/me")
 
     assert response.status_code == 401
+
+
+async def test_email_verification_marks_the_account_verified(
+    client: AsyncClient,
+    test_settings: Settings,
+) -> None:
+    token = await csrf_token(client)
+    await register(client, token)
+    assert (await client.get("/api/me")).json()["viewer"]["email_verified"] is False
+    verification = latest_outbox(test_settings, "verify_email")
+
+    response = await client.post(
+        "/api/auth/verify-email",
+        json={"token": verification["token"]},
+        headers=csrf_headers(current_csrf(client)),
+    )
+
+    assert response.status_code == 204
+    me = await client.get("/api/me")
+    assert me.json()["viewer"]["email_verified"] is True
+    assert me.json()["email"] == "alice@example.com"
+
+
+async def test_resend_invalidates_the_previous_verification_token(
+    client: AsyncClient,
+    test_settings: Settings,
+) -> None:
+    token = await csrf_token(client)
+    await register(client, token)
+    initial = latest_outbox(test_settings, "verify_email")["token"]
+
+    response = await client.post(
+        "/api/auth/resend-verification",
+        json={"email": "alice@example.com"},
+        headers=csrf_headers(current_csrf(client)),
+    )
+
+    assert response.status_code == 202
+    replacement = latest_outbox(test_settings, "verify_email")["token"]
+    assert (
+        await client.post(
+            "/api/auth/verify-email",
+            json={"token": initial},
+            headers=csrf_headers(current_csrf(client)),
+        )
+    ).status_code == 400
+    assert (
+        await client.post(
+            "/api/auth/verify-email",
+            json={"token": replacement},
+            headers=csrf_headers(current_csrf(client)),
+        )
+    ).status_code == 204
+
+
+async def test_password_reset_changes_the_password_and_revokes_sessions(
+    client: AsyncClient,
+    test_settings: Settings,
+) -> None:
+    token = await csrf_token(client)
+    await register(client, token)
+    verification = latest_outbox(test_settings, "verify_email")
+    await client.post(
+        "/api/auth/verify-email",
+        json={"token": verification["token"]},
+        headers=csrf_headers(current_csrf(client)),
+    )
+    member_token = current_csrf(client)
+
+    response = await client.post(
+        "/api/auth/forgot-password",
+        json={"email": "alice@example.com"},
+        headers=csrf_headers(member_token),
+    )
+    assert response.status_code == 202
+    reset = latest_outbox(test_settings, "reset_password")
+
+    reset_response = await client.post(
+        "/api/auth/reset-password",
+        json={"token": reset["token"], "new_password": "new correct horse"},
+        headers=csrf_headers(member_token),
+    )
+    assert reset_response.status_code == 204
+    assert (await client.get("/api/me")).status_code == 401
+
+    token = await csrf_token(client)
+    login = await client.post(
+        "/api/auth/login",
+        json={"identifier": "alice@example.com", "password": "new correct horse"},
+        headers=csrf_headers(token),
+    )
+    assert login.status_code == 200
+
+
+async def test_change_email_requires_confirmation_at_the_new_address(
+    client: AsyncClient,
+    test_settings: Settings,
+) -> None:
+    token = await csrf_token(client)
+    await register(client, token)
+    verification = latest_outbox(test_settings, "verify_email")
+    await client.post(
+        "/api/auth/verify-email",
+        json={"token": verification["token"]},
+        headers=csrf_headers(current_csrf(client)),
+    )
+
+    response = await client.post(
+        "/api/auth/change-email",
+        json={"new_email": "new@example.com", "password": "correct horse"},
+        headers=csrf_headers(current_csrf(client)),
+    )
+    assert response.status_code == 202
+    confirmation = latest_outbox(test_settings, "verify_email")
+    assert confirmation["token"]
+
+    await client.post(
+        "/api/auth/verify-email",
+        json={"token": confirmation["token"]},
+        headers=csrf_headers(current_csrf(client)),
+    )
+
+    account = await client.get("/api/account")
+    assert account.json()["email"] == "new@example.com"
+    assert account.json()["email_verified"] is True
+    assert latest_outbox(test_settings, "email_changed")["email"] == "new@example.com"
+
+
+async def test_unverified_accounts_cannot_create_groups(
+    client: AsyncClient,
+    app: FastAPI,
+) -> None:
+    token = await csrf_token(client)
+    await register(client, token)
+    original = app.state.settings.require_verified_email
+    app.state.settings.require_verified_email = True
+    try:
+        response = await client.post(
+            "/api/groups",
+            json={"name": "The club"},
+            headers=csrf_headers(current_csrf(client)),
+        )
+    finally:
+        app.state.settings.require_verified_email = original
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "email_unverified"

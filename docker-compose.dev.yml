@@ -22,6 +22,7 @@ x-dev-environment: &dev-environment
   WATCHLOG_RESEND_API_KEY: ""
   WATCHLOG_SENTRY_DSN: ""
   WATCHLOG_RATE_LIMIT_ENABLED: "true"
+  WATCHLOG_REQUIRE_VERIFIED_EMAIL: "true"
 
 services:
   migrate:

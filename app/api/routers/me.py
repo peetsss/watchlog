@@ -22,4 +22,5 @@ async def me(user: CurrentUser, db: SessionDep) -> MeEnvelope:
             titles_watched=int(count or 0),
             average_score=round_score(average),
         ),
+        email=user.email,
     )

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Path, Request, status
 
-from app.api.deps import CurrentUser, GroupContextDep, LobbySessionDep, TMDBDep
+from app.api.deps import CurrentUser, GroupContextDep, LobbySessionDep, TMDBDep, VerifiedUser
 from app.core.db import SessionDep
 from app.schemas.groups import (
     AddFilmRequest,
@@ -32,7 +32,7 @@ async def list_groups(user: CurrentUser, db: SessionDep) -> GroupList:
 
 
 @router.post("", response_model=GroupDetail, status_code=status.HTTP_201_CREATED)
-async def create_group(payload: CreateGroupRequest, user: CurrentUser, db: SessionDep) -> GroupDetail:
+async def create_group(payload: CreateGroupRequest, user: VerifiedUser, db: SessionDep) -> GroupDetail:
     return await group_service.create_group(db, user, payload.name, payload.description)
 
 
@@ -110,7 +110,11 @@ async def get_group_stats(context: GroupContextDep, db: SessionDep) -> GroupStat
 
 
 @router.get("/{group_id}/invite", response_model=InviteLinkResponse)
-async def get_invite_link(request: Request, context: GroupContextDep) -> InviteLinkResponse:
+async def get_invite_link(
+    request: Request,
+    context: GroupContextDep,
+    _user: VerifiedUser,
+) -> InviteLinkResponse:
     base_url = str(request.base_url).rstrip("/")
     return InviteLinkResponse(invite_link=f"{base_url}/join/group/{context.group.id}")
 

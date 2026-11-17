@@ -31,4 +31,5 @@ def viewer_for(user: User) -> Viewer:
         username=user.username,
         initials=initials_for(user.username),
         color=color_for(user.id),
+        email_verified=user.email_verified_at is not None,
     )

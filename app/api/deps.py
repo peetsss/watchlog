@@ -82,6 +82,19 @@ async def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+async def get_verified_user(user: CurrentUser, settings: SettingsDep) -> User:
+    if settings.require_verified_email and user.email_verified_at is None:
+        raise AppError(
+            "Verify your email before creating or sharing a group.",
+            code="email_unverified",
+            status_code=403,
+        )
+    return user
+
+
+VerifiedUser = Annotated[User, Depends(get_verified_user)]
+
+
 @dataclass(frozen=True)
 class GroupContext:
     group: Group

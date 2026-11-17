@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app import __version__
-from app.api.routers import auth, groups, health, home, lobby, me, movies, root
+from app.api.routers import account, auth, groups, health, home, lobby, me, movies, root
 from app.core.config import Settings, get_settings
 from app.core.csrf import CSRFMiddleware
 from app.core.db import create_engine, create_sessionmaker
@@ -68,6 +68,7 @@ def create_app(
     register_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(account.router)
     app.include_router(me.router)
     app.include_router(movies.router)
     app.include_router(groups.router)

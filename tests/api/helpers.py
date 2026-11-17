@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-REGISTER = {"username": "alice", "password": "correct horse"}
+REGISTER = {"username": "alice", "email": "alice@example.com", "password": "correct horse"}
 
 
 async def csrf_token(client: AsyncClient) -> str:
@@ -27,11 +27,16 @@ async def register_member(
     client: AsyncClient,
     username: str = "alice",
     password: str = "correct horse",
+    email: str | None = None,
 ) -> dict:
     token = await csrf_token(client)
     response = await client.post(
         "/api/auth/register",
-        json={"username": username, "password": password},
+        json={
+            "username": username,
+            "email": email or f"{username}@example.com",
+            "password": password,
+        },
         headers=csrf_headers(token),
     )
     assert response.status_code == 201
