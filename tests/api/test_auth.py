@@ -152,6 +152,23 @@ async def test_duplicate_username_is_rejected(client: AsyncClient) -> None:
     assert response.json()["error"]["code"] == "username_taken"
 
 
+async def test_duplicate_email_is_rejected(client: AsyncClient) -> None:
+    token = await csrf_token(client)
+    await register(client, token)
+    member_token = client.cookies.get("wl_csrf")
+    await client.post("/api/auth/logout", headers=csrf_headers(member_token))
+
+    token = await csrf_token(client)
+    response = await client.post(
+        "/api/auth/register",
+        json={"username": "bob", "email": "alice@example.com", "password": "correct horse"},
+        headers=csrf_headers(token),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "email_taken"
+
+
 async def test_invalid_credentials_are_rejected(client: AsyncClient) -> None:
     token = await csrf_token(client)
     response = await client.post(
@@ -338,6 +355,42 @@ async def test_change_email_requires_confirmation_at_the_new_address(
     assert account.json()["email"] == "new@example.com"
     assert account.json()["email_verified"] is True
     assert latest_outbox(test_settings, "email_changed")["email"] == "new@example.com"
+
+
+async def test_change_password_revokes_sessions_and_requires_the_new_password(
+    client: AsyncClient,
+    test_settings: Settings,
+) -> None:
+    token = await csrf_token(client)
+    await register(client, token)
+    member_token = current_csrf(client)
+
+    response = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": "correct horse", "new_password": "new correct horse"},
+        headers=csrf_headers(member_token),
+    )
+
+    assert response.status_code == 204
+    assert (await client.get("/api/me")).status_code == 401
+    assert latest_outbox(test_settings, "password_changed")["username"] == "alice"
+
+    token = await csrf_token(client)
+    assert (
+        await client.post(
+            "/api/auth/login",
+            json={"identifier": "alice", "password": "correct horse"},
+            headers=csrf_headers(token),
+        )
+    ).status_code == 401
+    token = await csrf_token(client)
+    assert (
+        await client.post(
+            "/api/auth/login",
+            json={"identifier": "alice", "password": "new correct horse"},
+            headers=csrf_headers(token),
+        )
+    ).status_code == 200
 
 
 async def test_unverified_accounts_cannot_create_groups(
