@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, String, Text, func, true
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, String, Text, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -8,12 +8,14 @@ from app.models.base import Base
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (CheckConstraint("region ~ '^[A-Z]{2}$'", name="region"),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     username: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
     email: Mapped[str | None] = mapped_column(String(320), unique=True, index=True)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     pending_email: Mapped[str | None] = mapped_column(String(320))
+    region: Mapped[str] = mapped_column(String(2), default="PL", server_default="PL", nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=true(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
