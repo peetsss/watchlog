@@ -1,4 +1,5 @@
 import json
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Response, status
@@ -22,6 +23,7 @@ from app.services import lobby_actions
 from app.services.auth import ensure_session
 
 router = APIRouter(prefix="/api/lobby", tags=["lobby"])
+logger = logging.getLogger(__name__)
 
 _ACTION_ALIASES = {
     "ready": "ready",
@@ -142,6 +144,7 @@ async def action(
     request: Request,
     viewer: LobbyViewer,
     db: LobbySessionDep,
+    settings: SettingsDep,
 ) -> Response:
     action_name = _ACTION_ALIASES.get(action)
     if action_name is None:
@@ -150,6 +153,13 @@ async def action(
     lobby = await lobby_actions.perform_action(db, lobby_uuid, viewer, action_name, payload)
     if action_name == "leave":
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+    if settings.env != "test" and lobby.status in {"final_round", "finished"}:
+        try:
+            from app.tasks.watch_providers import prefetch_finalist_watch_providers
+
+            prefetch_finalist_watch_providers.delay(str(lobby.id))
+        except Exception:
+            logger.exception("Failed to enqueue finalist watch-provider prefetch")
     current = await lobby_service.get_state(db, lobby.id, viewer)
     extra = {"previous_uuid": str(lobby_uuid)} if action_name == "restart" else {}
     return _state_response(

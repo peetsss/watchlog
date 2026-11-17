@@ -65,6 +65,10 @@ ingest *args:
 embed *args:
     uv run python scripts/embed_movies.py {{args}}
 
+# backfill TMDB/JustWatch watch availability
+watch-providers *args:
+    uv run python scripts/backfill_watch_providers.py {{args}}
+
 # copy the bundled movie dataset into the app database
 copy-movies *args:
     uv run python scripts/copy_movies.py {{args}}

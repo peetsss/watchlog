@@ -7,7 +7,7 @@ from app.core.logging import configure_logging
 from app.core.observability import init_sentry
 from app.workers.runtime import dispose_worker_runtime, init_worker_runtime
 
-TASK_MODULES = ("app.tasks.health", "app.tasks.email", "app.tasks.guests")
+TASK_MODULES = ("app.tasks.health", "app.tasks.email", "app.tasks.guests", "app.tasks.watch_providers")
 
 
 def create_celery_app(settings: Settings | None = None) -> Celery:
@@ -49,6 +49,14 @@ def create_celery_app(settings: Settings | None = None) -> Celery:
             "cleanup-abandoned-lobbies": {
                 "task": "watchlog.guests.cleanup_lobbies",
                 "schedule": 900.0,
+            },
+            "refresh-stale-watch-providers": {
+                "task": "watchlog.watch.refresh_stale",
+                "schedule": crontab(hour=4, minute=0),
+            },
+            "prefetch-active-finalists": {
+                "task": "watchlog.watch.prefetch_active_finalists",
+                "schedule": 120.0,
             },
         },
     )

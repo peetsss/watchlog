@@ -31,6 +31,7 @@ The app is built around a simple rhythm — **one room, one shortlist, one pick*
 - **Guest nights** — open or join an open room with just a display name, then claim the account later without losing your votes or host seat.
 - **Club scores** — every member scores out of ten. The club average is derived from the people actually in the group, never from an invented crowd.
 - **Film detail on demand** — synopsis, credits, runtime and genres are loaded from the local catalogue when a sheet opens, not stuffed into every list response.
+- **Where to watch** — TMDB/JustWatch availability for the finalists and the winner, cached in Postgres for the viewer's region.
 - **A real movie-night lobby** — ready up, vote on each film, reveal the ballot together, shortlist unanimous picks, then run a final round of one-pick-each.
 - **Live state over WebSocket** — every player sees the same room within a moment. The REST endpoint remains a complete fallback when the socket drops.
 - **A home read model** — active room, featured crew, up-next films and a watched log in one request.
@@ -170,13 +171,19 @@ logo/                   brand assets
 just copy-movies --truncate
 just ingest --dry-run
 just embed --verify
+just watch-providers --scope watchlists --limit 500
 just seed
 ```
+
+Watch availability is a Postgres snapshot. The worker refreshes watchlist
+providers daily and active finalist rooms when they reach the final round; the
+detail sheet refreshes on demand.
 
 TMDB search and film import need `TMDB_API_KEY`. Without it, Search shows a clear offline state instead of a broken catalogue.
 
 ## Notes and roadmap
 
-- Member-only today. Guest hosting/join, guest-to-account claim and keep-the-crew are deferred until the guest backend exists.
+- Guest open-room hosting, joining and account claim are live. Turning a guest room into a saved group (“keep the crew”) is still deferred.
 - The lobby pool is 100 random catalogue films by default; there is no scheduling, notifications or admin UI yet.
 - Film metadata and imagery come from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.
+- Watch availability data comes from JustWatch via TMDB. Availability varies by country and can change.
