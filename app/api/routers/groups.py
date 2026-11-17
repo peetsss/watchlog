@@ -22,6 +22,7 @@ from app.schemas.groups import (
 from app.schemas.lobby import LobbyStateEnvelope
 from app.services import groups as group_service
 from app.services import lobby as lobby_service
+from app.services.identity import Viewer
 
 router = APIRouter(prefix="/api/groups", tags=["groups"])
 
@@ -48,8 +49,9 @@ async def get_group(group_id: UUID, context: GroupContextDep, db: SessionDep) ->
 
 @router.post("/{group_id}/lobbies", response_model=LobbyStateEnvelope, status_code=status.HTTP_201_CREATED)
 async def create_group_lobby(context: GroupContextDep, db: LobbySessionDep) -> LobbyStateEnvelope:
-    lobby = await lobby_service.create_lobby(db, context.user, group=context.group)
-    state = await lobby_service.get_state(db, lobby.id, context.user)
+    viewer = Viewer.for_user(context.user)
+    lobby = await lobby_service.create_lobby(db, viewer, group=context.group)
+    state = await lobby_service.get_state(db, lobby.id, viewer)
     return LobbyStateEnvelope(lobby=state)
 
 

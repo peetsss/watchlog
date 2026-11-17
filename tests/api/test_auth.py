@@ -393,6 +393,41 @@ async def test_change_password_revokes_sessions_and_requires_the_new_password(
     ).status_code == 200
 
 
+async def test_session_endpoint_describes_a_member(client: AsyncClient) -> None:
+    token = await csrf_token(client)
+    await register(client, token)
+
+    response = await client.get("/api/auth/session")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "member"
+    assert payload["viewer"]["name"] == "alice"
+    assert payload["viewer"]["email_verified"] is False
+    assert payload["email"] == "alice@example.com"
+    assert payload["stats"] == {"titles_watched": 0, "average_score": None}
+
+
+async def test_session_endpoint_describes_a_guest(client: AsyncClient) -> None:
+    token = await csrf_token(client)
+    response = await client.post(
+        "/api/auth/guest",
+        json={"display_name": "Riley"},
+        headers=csrf_headers(token),
+    )
+    assert response.status_code == 201
+
+    session = await client.get("/api/auth/session")
+
+    assert session.status_code == 200
+    payload = session.json()
+    assert payload["mode"] == "guest"
+    assert payload["viewer"]["name"] == "Riley"
+    assert payload["viewer"]["is_guest"] is True
+    assert payload["stats"] is None
+    assert payload["email"] is None
+
+
 async def test_unverified_accounts_cannot_create_groups(
     client: AsyncClient,
     app: FastAPI,

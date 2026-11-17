@@ -43,6 +43,17 @@ async def register_member(
     return response.json()["viewer"]
 
 
+async def create_guest(client: AsyncClient, display_name: str = "Riley") -> dict:
+    token = await csrf_token(client)
+    response = await client.post(
+        "/api/auth/guest",
+        json={"display_name": display_name},
+        headers=csrf_headers(token),
+    )
+    assert response.status_code == 201
+    return response.json()["viewer"]
+
+
 async def create_group(client: AsyncClient, name: str, description: str | None = None) -> dict:
     payload: dict[str, object] = {"name": name}
     if description is not None:

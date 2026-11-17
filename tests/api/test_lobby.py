@@ -8,6 +8,7 @@ from httpx import AsyncClient
 from tests.api.helpers import (
     create_group,
     create_group_lobby,
+    create_guest,
     create_lobby,
     csrf_headers,
     current_csrf,
@@ -32,6 +33,54 @@ async def test_active_is_null(client: AsyncClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"active": None}
+
+
+async def test_guest_can_host_play_and_claim_an_open_lobby(
+    client: AsyncClient,
+    movie_factory: Callable[..., int],
+) -> None:
+    insert_movies(movie_factory, 3)
+    guest = await create_guest(client, "Riley")
+    assert guest["is_guest"] is True
+    assert (await client.get("/api/me")).status_code == 401
+
+    lobby = await create_lobby(client)
+    assert lobby["players"][0]["is_guest"] is True
+    assert lobby["players"][0]["name"] == "Riley"
+
+    ready = await lobby_action(client, lobby["uuid"], "ready")
+    assert ready["status"] == "ready"
+    playing = await lobby_action(client, lobby["uuid"], "start")
+    assert playing["status"] == "playing"
+
+    await register_member(client)
+    claimed = await lobby_state(client, lobby["uuid"])
+
+    assert claimed["viewer_id"] == lobby["viewer_id"]
+    assert claimed["players"][0]["name"] == "alice"
+    assert claimed["players"][0]["is_guest"] is False
+    assert claimed["players"][0]["is_host"] is True
+
+
+async def test_guest_can_join_an_open_lobby(
+    client: AsyncClient,
+    app: FastAPI,
+    movie_factory: Callable[..., int],
+) -> None:
+    insert_movies(movie_factory, 2)
+    await register_member(client)
+    lobby = await create_lobby(client)
+
+    async with new_client(app) as guest_client:
+        await create_guest(guest_client, "Riley")
+        preview = await guest_client.get(f"/api/lobby/{lobby['uuid']}/preview/")
+        assert preview.status_code == 200
+        assert preview.json()["preview"]["is_participant"] is False
+        assert preview.json()["preview"]["can_join"] is True
+
+        joined = await join_open_lobby(guest_client, lobby["uuid"])
+        assert joined["player_count"] == 2
+        assert any(player["is_guest"] for player in joined["players"])
 
 
 async def test_create_state_and_etag(client: AsyncClient, movie_factory: Callable[..., int]) -> None:
@@ -137,7 +186,7 @@ async def test_join_preview_and_join(client: AsyncClient, app: FastAPI, movie_fa
         preview = await bob_client.get(f"/api/lobby/{lobby['uuid']}/preview/")
         assert preview.status_code == 200
         assert preview.json()["preview"]["can_join"] is True
-        assert preview.json()["preview"]["is_member"] is False
+        assert preview.json()["preview"]["is_participant"] is False
 
         joined = await join_open_lobby(bob_client, lobby["uuid"])
         assert joined["player_count"] == 2
@@ -146,7 +195,7 @@ async def test_join_preview_and_join(client: AsyncClient, app: FastAPI, movie_fa
         assert again["player_count"] == 2
 
         member_preview = await bob_client.get(f"/api/lobby/{lobby['uuid']}/preview/")
-        assert member_preview.json()["preview"]["is_member"] is True
+        assert member_preview.json()["preview"]["is_participant"] is True
         assert member_preview.json()["preview"]["can_join"] is False
 
 

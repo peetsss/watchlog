@@ -107,7 +107,7 @@ class JoinPreview(BaseModel):
     host_username: str | None
     player_count: int
     can_join: bool
-    is_member: bool
+    is_participant: bool
 
 
 class JoinPreviewEnvelope(BaseModel):

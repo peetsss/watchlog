@@ -44,6 +44,26 @@ class LoginRequest(BaseModel):
         return value
 
 
+class GuestCreateRequest(BaseModel):
+    display_name: str = Field(min_length=2, max_length=50)
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def strip_display_name(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("display_name")
+    @classmethod
+    def validate_display_name(cls, value: str) -> str:
+        if any(ord(character) < 32 for character in value):
+            raise ValueError("Display name must not contain control characters")
+        if "://" in value:
+            raise ValueError("Display name must not contain a URL")
+        return value
+
+
 class VerifyEmailRequest(BaseModel):
     token: str = Field(min_length=1, max_length=200)
 
@@ -93,6 +113,23 @@ class ViewerEnvelope(BaseModel):
 class ViewerStats(BaseModel):
     titles_watched: int
     average_score: float | None
+
+
+class SessionViewer(BaseModel):
+    mode: Literal["member", "guest"]
+    id: str
+    name: str
+    initials: str
+    color: str
+    is_guest: bool
+    email_verified: bool = False
+
+
+class SessionEnvelope(BaseModel):
+    mode: Literal["member", "guest", "anonymous"]
+    viewer: SessionViewer | None
+    stats: ViewerStats | None
+    email: str | None
 
 
 class MeEnvelope(BaseModel):

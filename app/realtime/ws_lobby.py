@@ -4,14 +4,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.api.deps import _resolve_lobby_viewer
 from app.core.config import Settings
 from app.domain.lobby.errors import error_details
 from app.domain.lobby.exceptions import LobbyError, LobbyNotFoundError, NotAMemberError
-from app.models.user import User
 from app.realtime.events import LobbyEvent, LobbyRestarted
 from app.schemas.lobby import LobbyState
 from app.services import lobby as lobby_service
 from app.services import lobby_actions
+from app.services.identity import Viewer
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ def _cookie_value(websocket: WebSocket, name: str) -> str | None:
     return morsel.value if morsel is not None else None
 
 
-async def _authenticate(websocket: WebSocket) -> User | None:
+async def _authenticate(websocket: WebSocket) -> Viewer | None:
     settings: Settings = websocket.app.state.settings
     session_id = _cookie_value(websocket, settings.session_cookie_name)
     if session_id is None:
@@ -62,23 +63,20 @@ async def _authenticate(websocket: WebSocket) -> User | None:
     except Exception:
         logger.exception("Failed to load the websocket session")
         return None
-    if data is None or data.kind != "member" or data.user_id is None:
+    if data is None:
         return None
     async with websocket.app.state.sessionmaker() as session:
-        user = await session.get(User, data.user_id)
-    if user is None or not user.is_active:
-        return None
-    return user
+        return await _resolve_lobby_viewer(data, session, settings)
 
 
 async def _load_state(
     websocket: WebSocket,
     lobby_id: UUID,
-    user: User,
+    viewer: Viewer,
 ) -> tuple[LobbyState | None, str | None]:
     async with websocket.app.state.sessionmaker() as session:
         try:
-            return await lobby_service.get_state(session, lobby_id, user), None
+            return await lobby_service.get_state(session, lobby_id, viewer), None
         except LobbyNotFoundError:
             return None, "not_found"
         except NotAMemberError:
@@ -121,12 +119,12 @@ async def lobby_socket(websocket: WebSocket, lobby_uuid: UUID) -> None:
         await _safe_close(websocket, CLOSE_FORBIDDEN)
         return
 
-    user = await _authenticate(websocket)
-    if user is None:
+    viewer = await _authenticate(websocket)
+    if viewer is None:
         await _safe_close(websocket, CLOSE_UNAUTHORIZED)
         return
 
-    state, error = await _load_state(websocket, lobby_uuid, user)
+    state, error = await _load_state(websocket, lobby_uuid, viewer)
     if state is None:
         await _safe_close(websocket, CLOSE_NOT_FOUND if error == "not_found" else CLOSE_FORBIDDEN)
         return
@@ -157,7 +155,7 @@ async def lobby_socket(websocket: WebSocket, lobby_uuid: UUID) -> None:
         last_version = int(holder["last_version"])
         if event.version <= last_version:
             return
-        current, reason = await _load_state(websocket, lobby_uuid, user)
+        current, reason = await _load_state(websocket, lobby_uuid, viewer)
         if current is None:
             holder["closing"] = True
             await _safe_send(websocket, {"type": "lobby.removed", "reason": reason or "not_member"})
@@ -183,7 +181,7 @@ async def lobby_socket(websocket: WebSocket, lobby_uuid: UUID) -> None:
                 continue
 
             if action == "state.get":
-                current, reason = await _load_state(websocket, lobby_uuid, user)
+                current, reason = await _load_state(websocket, lobby_uuid, viewer)
                 if current is None:
                     await _send_error(websocket, reason or "not_found", "The room is no longer available.")
                     continue
@@ -201,7 +199,7 @@ async def lobby_socket(websocket: WebSocket, lobby_uuid: UUID) -> None:
                 try:
                     async with websocket.app.state.sessionmaker() as session:
                         session.info["lobby_publisher"] = hub.publish
-                        await lobby_actions.perform_action(session, lobby_uuid, user, "leave", message)
+                        await lobby_actions.perform_action(session, lobby_uuid, viewer, "leave", message)
                 except LobbyError as exc:
                     holder["closing"] = False
                     _, code = error_details(exc)
@@ -219,7 +217,7 @@ async def lobby_socket(websocket: WebSocket, lobby_uuid: UUID) -> None:
             try:
                 async with websocket.app.state.sessionmaker() as session:
                     session.info["lobby_publisher"] = hub.publish
-                    lobby = await lobby_actions.perform_action(session, lobby_uuid, user, action_name, message)
+                    lobby = await lobby_actions.perform_action(session, lobby_uuid, viewer, action_name, message)
             except LobbyError as exc:
                 _, code = error_details(exc)
                 await _send_error(websocket, code, str(exc))
@@ -244,7 +242,7 @@ async def lobby_socket(websocket: WebSocket, lobby_uuid: UUID) -> None:
                     await _safe_close(websocket, CLOSE_RESTARTED)
                 break
 
-            current, reason = await _load_state(websocket, lobby_uuid, user)
+            current, reason = await _load_state(websocket, lobby_uuid, viewer)
             if current is None:
                 holder["closing"] = True
                 await _safe_send(websocket, {"type": "lobby.removed", "reason": reason or "not_member"})

@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
 
-from app.api.deps import CurrentUser, LobbySessionDep, SessionStoreDep, SettingsDep
+from app.api.deps import LobbySessionDep, LobbyViewer, OptionalLobbyViewer, SessionStoreDep, SettingsDep
 from app.core.db import SessionDep
 from app.core.sessions import set_csrf_cookie, set_session_cookie
 from app.domain.lobby.exceptions import InvalidActionError, LobbyNotFoundError, NotAMemberError
@@ -84,14 +84,14 @@ async def csrf(
 
 
 @router.get("/active/", response_model=ActiveEnvelope)
-async def active(user: CurrentUser, db: SessionDep) -> ActiveEnvelope:
-    summary = await lobby_service.get_active_lobby_for_user(db, user)
+async def active(viewer: LobbyViewer, db: SessionDep) -> ActiveEnvelope:
+    summary = await lobby_service.get_active_lobby_for_viewer(db, viewer)
     return ActiveEnvelope(active=summary)
 
 
 @router.post("/", response_model=LobbyStateEnvelope, status_code=status.HTTP_201_CREATED)
 async def create(
-    user: CurrentUser,
+    viewer: LobbyViewer,
     db: LobbySessionDep,
     payload: CreateLobbyRequest | None = None,
 ) -> Response:
@@ -106,29 +106,29 @@ async def create(
         group = await db.get(Group, group_uuid)
         if group is None:
             raise LobbyNotFoundError(f"Group {group_uuid} not found.")
-    lobby = await lobby_service.create_lobby(db, user, group=group)
-    state = await lobby_service.get_state(db, lobby.id, user)
+    lobby = await lobby_service.create_lobby(db, viewer, group=group)
+    state = await lobby_service.get_state(db, lobby.id, viewer)
     return _state_response(state, status_code=status.HTTP_201_CREATED)
 
 
 @router.get("/{lobby_uuid}/preview/", response_model=JoinPreviewEnvelope)
-async def preview(lobby_uuid: UUID, user: CurrentUser, db: SessionDep) -> JoinPreviewEnvelope:
-    preview_data = await lobby_service.get_join_preview(db, lobby_uuid, user)
-    if not preview_data.is_member and preview_data.type == "group":
+async def preview(lobby_uuid: UUID, viewer: OptionalLobbyViewer, db: SessionDep) -> JoinPreviewEnvelope:
+    preview_data = await lobby_service.get_join_preview(db, lobby_uuid, viewer)
+    if not preview_data.is_participant and preview_data.type == "group":
         raise NotAMemberError("This room is private to its group.")
     return JoinPreviewEnvelope(preview=preview_data)
 
 
 @router.post("/{lobby_uuid}/join/", response_model=LobbyStateEnvelope)
-async def join(lobby_uuid: UUID, user: CurrentUser, db: LobbySessionDep) -> Response:
-    await lobby_service.join_lobby(db, lobby_uuid, user)
-    state = await lobby_service.get_state(db, lobby_uuid, user)
+async def join(lobby_uuid: UUID, viewer: LobbyViewer, db: LobbySessionDep) -> Response:
+    await lobby_service.join_lobby(db, lobby_uuid, viewer)
+    state = await lobby_service.get_state(db, lobby_uuid, viewer)
     return _state_response(state)
 
 
 @router.get("/{lobby_uuid}/", response_model=LobbyStateEnvelope)
-async def state(lobby_uuid: UUID, request: Request, user: CurrentUser, db: SessionDep) -> Response:
-    current = await lobby_service.get_state(db, lobby_uuid, user)
+async def state(lobby_uuid: UUID, request: Request, viewer: LobbyViewer, db: SessionDep) -> Response:
+    current = await lobby_service.get_state(db, lobby_uuid, viewer)
     etag = f'"v{current.version}"'
     if request.headers.get("if-none-match") == etag:
         return _not_modified(current.version)
@@ -140,17 +140,17 @@ async def action(
     lobby_uuid: UUID,
     action: str,
     request: Request,
-    user: CurrentUser,
+    viewer: LobbyViewer,
     db: LobbySessionDep,
 ) -> Response:
     action_name = _ACTION_ALIASES.get(action)
     if action_name is None:
         raise InvalidActionError(f"Unknown lobby action: {action!r}")
     payload = await _json_body(request)
-    lobby = await lobby_actions.perform_action(db, lobby_uuid, user, action_name, payload)
+    lobby = await lobby_actions.perform_action(db, lobby_uuid, viewer, action_name, payload)
     if action_name == "leave":
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    current = await lobby_service.get_state(db, lobby.id, user)
+    current = await lobby_service.get_state(db, lobby.id, viewer)
     extra = {"previous_uuid": str(lobby_uuid)} if action_name == "restart" else {}
     return _state_response(
         current,

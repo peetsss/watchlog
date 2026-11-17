@@ -50,11 +50,13 @@ EXPECTED_PATHS = {
     "/api/auth/change-password",
     "/api/auth/csrf",
     "/api/auth/forgot-password",
+    "/api/auth/guest",
     "/api/auth/login",
     "/api/auth/logout",
     "/api/auth/register",
     "/api/auth/resend-verification",
     "/api/auth/reset-password",
+    "/api/auth/session",
     "/api/auth/verify-email",
     "/api/groups",
     "/api/groups/{group_id}",
@@ -264,7 +266,7 @@ def test_lobby_contract_fields() -> None:
         "host_username",
         "player_count",
         "can_join",
-        "is_member",
+        "is_participant",
     }
     assert _fields(JoinPreviewEnvelope) == {"preview"}
     assert _fields(LobbySummary) == {

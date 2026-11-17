@@ -87,6 +87,30 @@ def insert_movies(movie_factory: Callable[..., int], count: int) -> None:
         movie_factory(tmdb_id=200000 + index, title=f"WebSocket Movie {index}")
 
 
+def test_guest_can_connect_to_an_open_lobby(
+    ws_client: TestClient,
+    movie_factory: Callable[..., int],
+) -> None:
+    insert_movies(movie_factory, 2)
+    token = csrf_token(ws_client)
+    guest = ws_client.post(
+        "/api/auth/guest",
+        json={"display_name": "Riley"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert guest.status_code == 201
+    lobby = create_lobby(ws_client)
+    session_id = ws_client.cookies.get("wl_session")
+    assert session_id
+
+    with websocket_for(ws_client, lobby["uuid"], session_id) as websocket:
+        state = websocket.receive_json()
+
+    assert state["type"] == "lobby.state"
+    assert state["lobby"]["players"][0]["is_guest"] is True
+    assert state["lobby"]["viewer_is_host"] is True
+
+
 def test_two_connections_receive_state(
     ws_client: TestClient,
     app: FastAPI,

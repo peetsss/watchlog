@@ -10,6 +10,7 @@ from app.schemas.groups import MovieSummary
 from app.schemas.home import HomeCrews, HomeFeaturedGroup, HomeLogEntry, HomeResponse
 from app.services import groups as group_service
 from app.services import lobby as lobby_service
+from app.services.identity import Viewer
 from app.services.scores import round_score
 from app.services.viewer import viewer_for
 
@@ -103,7 +104,7 @@ async def get_home(db: AsyncSession, user: User) -> HomeResponse:
         )
 
     log = await _log_entries(db, group_ids, limit=8)
-    active = await lobby_service.get_active_lobby_for_user(db, user)
+    active = await lobby_service.get_active_lobby_for_viewer(db, Viewer.for_user(user))
 
     return HomeResponse(
         viewer=viewer_for(user),

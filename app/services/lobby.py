@@ -17,6 +17,7 @@ from app.domain.lobby.exceptions import (
     NotJoinableError,
 )
 from app.models.group import Group, GroupMembership, GroupMovie
+from app.models.guest import Guest
 from app.models.lobby import Lobby, LobbyParticipant, LobbyPick, LobbyVote
 from app.models.movie import Movie
 from app.models.user import User
@@ -32,6 +33,7 @@ from app.schemas.lobby import (
     PlayerRef,
     VoteTally,
 )
+from app.services.identity import Viewer
 from app.services.lobby_pool import resolve_pool
 from app.services.viewer import color_for, initials_for
 
@@ -64,11 +66,20 @@ async def _participants(db: AsyncSession, lobby_id: UUID) -> list[LobbyParticipa
     )
 
 
-def _participant_for_user(participants: list[LobbyParticipant], user: User) -> LobbyParticipant:
+def _find_participant(participants: list[LobbyParticipant], viewer: Viewer) -> LobbyParticipant | None:
     for participant in participants:
-        if participant.user_id == user.id:
+        if viewer.user_id is not None and participant.user_id == viewer.user_id:
             return participant
-    raise NotAMemberError(f"User {user.id} is not a member of this lobby")
+        if viewer.guest_id is not None and participant.guest_id == viewer.guest_id:
+            return participant
+    return None
+
+
+def _participant_for_viewer(participants: list[LobbyParticipant], viewer: Viewer) -> LobbyParticipant:
+    participant = _find_participant(participants, viewer)
+    if participant is None:
+        raise NotAMemberError(f"{viewer.identity_key} is not a member of this lobby")
+    return participant
 
 
 def _host_participant(participants: list[LobbyParticipant], lobby: Lobby) -> LobbyParticipant | None:
@@ -78,10 +89,11 @@ def _host_participant(participants: list[LobbyParticipant], lobby: Lobby) -> Lob
     return None
 
 
-def _require_host(participants: list[LobbyParticipant], lobby: Lobby, user: User) -> LobbyParticipant:
+def _require_host(participants: list[LobbyParticipant], lobby: Lobby, viewer: Viewer) -> LobbyParticipant:
     host = _host_participant(participants, lobby)
-    if host is None or host.user_id != user.id:
-        raise NotHostError(f"User {user.id} is not the host of lobby {lobby.id}")
+    participant = _participant_for_viewer(participants, viewer)
+    if host is None or host.id != participant.id:
+        raise NotHostError(f"{viewer.identity_key} is not the host of lobby {lobby.id}")
     return host
 
 
@@ -227,21 +239,26 @@ async def _publish(db: AsyncSession, event: LobbyChanged | LobbyRestarted) -> No
 
 async def create_lobby(
     db: AsyncSession,
-    host: User,
+    host: Viewer,
     group: Group | None = None,
     members: tuple[User, ...] = (),
+    extra_viewers: tuple[Viewer, ...] = (),
+    participants_override: tuple[Viewer, ...] | None = None,
     pool_size: int = rules.POOL_SIZE,
     pool: list[int] | None = None,
 ) -> Lobby:
+    host_user = host.user
     if group is not None:
+        if host_user is None:
+            raise NotAMemberError("Guests cannot create group lobbies")
         membership = await db.scalar(
             select(GroupMembership).where(
                 GroupMembership.group_id == group.id,
-                GroupMembership.user_id == host.id,
+                GroupMembership.user_id == host_user.id,
             )
         )
         if membership is None:
-            raise NotAMemberError(f"User {host.id} is not a member of group {group.id}")
+            raise NotAMemberError(f"User {host_user.id} is not a member of group {group.id}")
         active = await db.scalar(
             select(Lobby.id).where(
                 Lobby.group_id == group.id,
@@ -273,7 +290,9 @@ async def create_lobby(
             raise AlreadyActiveLobbyError(f"Group {group.id} already has an active lobby") from exc
         raise
 
-    if group is not None:
+    if participants_override is not None:
+        candidate_viewers = list(participants_override)
+    elif group is not None:
         users = list(
             await db.scalars(
                 select(User)
@@ -282,46 +301,71 @@ async def create_lobby(
                 .order_by(User.username)
             )
         )
+        candidate_viewers = [Viewer.for_user(user) for user in users]
     else:
-        candidates = (host, *members)
-        users = []
-        seen: set[int] = set()
-        for user in candidates:
-            if user.id not in seen:
-                users.append(user)
-                seen.add(user.id)
+        candidate_viewers = [
+            host,
+            *(Viewer.for_user(member) for member in members),
+            *extra_viewers,
+        ]
+
+    users: list[Viewer] = []
+    seen: set[str] = set()
+    for viewer in candidate_viewers:
+        if viewer.identity_key in seen:
+            continue
+        users.append(viewer)
+        seen.add(viewer.identity_key)
 
     participants: list[LobbyParticipant] = []
-    for user in users:
+    for viewer in users:
         participant = LobbyParticipant(
             lobby_id=lobby.id,
-            user_id=user.id,
-            display_name=user.username,
+            user_id=viewer.user_id,
+            guest_id=viewer.guest_id,
+            display_name=viewer.display_name,
         )
         db.add(participant)
         participants.append(participant)
     await db.flush()
 
-    host_participant = next((participant for participant in participants if participant.user_id == host.id), None)
+    host_participant = next(
+        (
+            participant
+            for participant in participants
+            if (host.user_id is not None and participant.user_id == host.user_id)
+            or (host.guest_id is not None and participant.guest_id == host.guest_id)
+        ),
+        None,
+    )
     if host_participant is None:
-        raise NotAMemberError(f"User {host.id} is not a participant of lobby {lobby.id}")
+        raise NotAMemberError(f"{host.identity_key} is not a participant of lobby {lobby.id}")
     lobby.host_participant_id = host_participant.id
     await db.commit()
     await db.refresh(lobby)
     return lobby
 
 
-async def join_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
+async def join_lobby(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    if any(participant.user_id == user.id for participant in participants):
+    if _find_participant(participants, viewer) is not None:
         return lobby
     if lobby.type != rules.OPEN_LOBBY:
         raise NotJoinableError("Only open lobbies can be joined")
     if lobby.status != rules.READY:
         raise NotJoinableError("The lobby is not accepting new members")
+    if any(participant.display_name.casefold() == viewer.display_name.casefold() for participant in participants):
+        raise NotJoinableError("That display name is taken in this room")
 
-    db.add(LobbyParticipant(lobby_id=lobby.id, user_id=user.id, display_name=user.username))
+    db.add(
+        LobbyParticipant(
+            lobby_id=lobby.id,
+            user_id=viewer.user_id,
+            guest_id=viewer.guest_id,
+            display_name=viewer.display_name,
+        )
+    )
     lobby.version += 1
     await db.commit()
     await db.refresh(lobby)
@@ -329,10 +373,10 @@ async def join_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     return lobby
 
 
-async def leave_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
+async def leave_lobby(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    participant = _participant_for_user(participants, user)
+    participant = _participant_for_viewer(participants, viewer)
     if participant.id == lobby.host_participant_id:
         raise NotAMemberError("The host cannot leave the lobby")
     _require_status(lobby, rules.READY, rules.PLAYING, rules.FINAL_ROUND)
@@ -345,30 +389,30 @@ async def leave_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     return await _commit(db, lobby, participants, before, after, reason="leave")
 
 
-async def mark_ready(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
+async def mark_ready(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    participant = _participant_for_user(participants, user)
+    participant = _participant_for_viewer(participants, viewer)
     _require_status(lobby, rules.READY)
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.mark_ready(before, str(participant.id))
     return await _commit(db, lobby, participants, before, after, reason="ready")
 
 
-async def unready(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
+async def unready(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    participant = _participant_for_user(participants, user)
+    participant = _participant_for_viewer(participants, viewer)
     _require_status(lobby, rules.READY)
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.unready(before, str(participant.id))
     return await _commit(db, lobby, participants, before, after, reason="unready")
 
 
-async def start_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
+async def start_lobby(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    host = _require_host(participants, lobby, user)
+    host = _require_host(participants, lobby, viewer)
     _require_status(lobby, rules.READY)
     before = await _game_from_lobby(db, lobby, participants)
     participating = before.ready | {str(host.id)}
@@ -382,10 +426,10 @@ async def start_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     return await _commit(db, lobby, participants, before, after, reason="start")
 
 
-async def vote(db: AsyncSession, lobby_id: UUID, user: User, movie_id: int, choice: str) -> Lobby:
+async def vote(db: AsyncSession, lobby_id: UUID, viewer: Viewer, movie_id: int, choice: str) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    participant = _participant_for_user(participants, user)
+    participant = _participant_for_viewer(participants, viewer)
     if choice not in rules.VOTE_CHOICES:
         raise InvalidChoiceError(f"Unknown vote choice: {choice!r}")
     _require_status(lobby, rules.PLAYING)
@@ -402,10 +446,10 @@ async def vote(db: AsyncSession, lobby_id: UUID, user: User, movie_id: int, choi
     return await _commit(db, lobby, participants, before, after, reason="vote")
 
 
-async def next_round(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
+async def next_round(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    _participant_for_user(participants, user)
+    _participant_for_viewer(participants, viewer)
     _require_status(lobby, rules.PLAYING)
     if not lobby.revealed:
         raise InvalidStateError(f"Lobby {lobby.id} has not revealed the current film")
@@ -414,10 +458,10 @@ async def next_round(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     return await _commit(db, lobby, participants, before, after, reason="next_round")
 
 
-async def pick(db: AsyncSession, lobby_id: UUID, user: User, movie_id: int) -> Lobby:
+async def pick(db: AsyncSession, lobby_id: UUID, viewer: Viewer, movie_id: int) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    participant = _participant_for_user(participants, user)
+    participant = _participant_for_viewer(participants, viewer)
     _require_status(lobby, rules.FINAL_ROUND)
     if lobby.picks_revealed:
         raise InvalidStateError(f"Lobby {lobby.id} already revealed the final picks")
@@ -428,10 +472,10 @@ async def pick(db: AsyncSession, lobby_id: UUID, user: User, movie_id: int) -> L
     return await _commit(db, lobby, participants, before, after, reason="pick")
 
 
-async def advance(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
+async def advance(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    _require_host(participants, lobby, user)
+    _require_host(participants, lobby, viewer)
     _require_status(lobby, rules.PLAYING)
     if lobby.revealed:
         raise InvalidStateError(f"Lobby {lobby.id} is revealed; use next_round")
@@ -440,22 +484,22 @@ async def advance(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     return await _commit(db, lobby, participants, before, after, reason="advance")
 
 
-async def finalize_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
+async def finalize_lobby(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    participant = _participant_for_user(participants, user)
+    participant = _participant_for_viewer(participants, viewer)
     _require_status(lobby, rules.FINAL_ROUND)
     if not lobby.picks_revealed and participant.id != lobby.host_participant_id:
-        raise NotHostError(f"User {user.id} may not finalize lobby {lobby.id} before every pick is in")
+        raise NotHostError(f"{viewer.identity_key} may not finalize lobby {lobby.id} before every pick is in")
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.finalize(before)
     return await _commit(db, lobby, participants, before, after, reason="finalize")
 
 
-async def end_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
+async def end_lobby(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    _require_host(participants, lobby, user)
+    _require_host(participants, lobby, viewer)
     if lobby.status == rules.FINISHED:
         return lobby
     _require_status(lobby, rules.READY, rules.PLAYING, rules.FINAL_ROUND)
@@ -464,34 +508,43 @@ async def end_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
     return await _commit(db, lobby, participants, before, after, reason="end")
 
 
-async def restart_lobby(db: AsyncSession, lobby_id: UUID, user: User) -> Lobby:
+async def restart_lobby(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     lobby = await _get_lobby(db, lobby_id, lock=True)
     participants = await _participants(db, lobby.id)
-    _require_host(participants, lobby, user)
+    _require_host(participants, lobby, viewer)
     _require_status(lobby, rules.FINISHED)
     if lobby.group_id is not None:
         group = await db.get(Group, lobby.group_id)
         if group is None:
             raise LobbyNotFoundError(f"Group {lobby.group_id} not found")
-        new_lobby = await create_lobby(db, user, group=group)
+        new_lobby = await create_lobby(db, viewer, group=group)
     else:
-        member_ids = [participant.user_id for participant in participants if participant.user_id is not None]
-        members = tuple(
-            user_model
-            for user_model in await db.scalars(select(User).where(User.id.in_(member_ids)))
-            if user_model.id != user.id
-        )
-        new_lobby = await create_lobby(db, user, members=members)
+        viewers: list[Viewer] = []
+        for participant in participants:
+            if participant.user_id is not None:
+                user_model = await db.get(User, participant.user_id)
+                if user_model is not None:
+                    viewers.append(Viewer.for_user(user_model))
+            elif participant.guest_id is not None:
+                guest = await db.get(Guest, participant.guest_id)
+                if guest is not None:
+                    viewers.append(Viewer.for_guest(guest))
+        new_lobby = await create_lobby(db, viewer, participants_override=tuple(viewers))
     await _publish(db, LobbyRestarted(lobby.id, new_lobby.id))
     return new_lobby
 
 
-async def get_active_lobby_for_user(db: AsyncSession, user: User) -> LobbySummary | None:
+async def get_active_lobby_for_viewer(db: AsyncSession, viewer: Viewer) -> LobbySummary | None:
+    participant_identity = (
+        LobbyParticipant.user_id == viewer.user_id
+        if viewer.user_id is not None
+        else LobbyParticipant.guest_id == viewer.guest_id
+    )
     lobby = await db.scalar(
         select(Lobby)
         .join(LobbyParticipant, LobbyParticipant.lobby_id == Lobby.id)
         .where(
-            LobbyParticipant.user_id == user.id,
+            participant_identity,
             Lobby.status.in_(list(rules.ACTIVE_STATUSES)),
         )
         .order_by(Lobby.created_at.desc(), Lobby.id.desc())
@@ -523,10 +576,10 @@ async def _summary(db: AsyncSession, lobby: Lobby) -> LobbySummary:
     )
 
 
-async def get_join_preview(db: AsyncSession, lobby_id: UUID, user: User) -> JoinPreview:
+async def get_join_preview(db: AsyncSession, lobby_id: UUID, viewer: Viewer | None) -> JoinPreview:
     lobby = await _get_lobby(db, lobby_id)
     participants = await _participants(db, lobby.id)
-    is_member = any(participant.user_id == user.id for participant in participants)
+    is_participant = viewer is not None and _find_participant(participants, viewer) is not None
     host = _host_participant(participants, lobby)
     group = await db.get(Group, lobby.group_id) if lobby.group_id is not None else None
     return JoinPreview(
@@ -537,8 +590,8 @@ async def get_join_preview(db: AsyncSession, lobby_id: UUID, user: User) -> Join
         group_name=group.name if group is not None else None,
         host_username=host.display_name if host is not None else None,
         player_count=len(participants),
-        can_join=lobby.type == rules.OPEN_LOBBY and lobby.status == rules.READY and not is_member,
-        is_member=is_member,
+        can_join=lobby.type == rules.OPEN_LOBBY and lobby.status == rules.READY and not is_participant,
+        is_participant=is_participant,
     )
 
 
@@ -576,10 +629,10 @@ def _round_progress(lobby: Lobby) -> tuple[int, int]:
     return 0, 0
 
 
-async def get_state(db: AsyncSession, lobby_id: UUID, viewer: User) -> LobbyState:
+async def get_state(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> LobbyState:
     lobby = await _get_lobby(db, lobby_id)
     participants = await _participants(db, lobby.id)
-    viewer_participant = _participant_for_user(participants, viewer)
+    viewer_participant = _participant_for_viewer(participants, viewer)
     group = await db.get(Group, lobby.group_id) if lobby.group_id is not None else None
     participant_ids = {participant.id for participant in participants}
 
