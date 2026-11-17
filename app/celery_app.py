@@ -7,7 +7,7 @@ from app.core.logging import configure_logging
 from app.core.observability import init_sentry
 from app.workers.runtime import dispose_worker_runtime, init_worker_runtime
 
-TASK_MODULES = ("app.tasks.health", "app.tasks.email")
+TASK_MODULES = ("app.tasks.health", "app.tasks.email", "app.tasks.guests")
 
 
 def create_celery_app(settings: Settings | None = None) -> Celery:
@@ -41,6 +41,14 @@ def create_celery_app(settings: Settings | None = None) -> Celery:
             "cleanup-email-outbox": {
                 "task": "watchlog.email.cleanup_outbox",
                 "schedule": crontab(hour=3, minute=30),
+            },
+            "cleanup-expired-guests": {
+                "task": "watchlog.guests.cleanup_expired",
+                "schedule": 300.0,
+            },
+            "cleanup-abandoned-lobbies": {
+                "task": "watchlog.guests.cleanup_lobbies",
+                "schedule": 900.0,
             },
         },
     )
