@@ -120,6 +120,10 @@ configured domain. Migrations run once in a dedicated service before the API,
 worker and beat start. The API exposes `/health` for liveness and `/ready` for
 database/Redis readiness; use `/ready` for external checks.
 
+Run `just backup` to write a compressed database dump to `./backups/`. Set
+`WATCHLOG_BACKUP_REMOTE` to an rclone remote to upload it, and
+`WATCHLOG_BACKUP_RETENTION_DAYS` to change the local retention window.
+
 ## Tests
 
 ```bash

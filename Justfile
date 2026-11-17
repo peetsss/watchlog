@@ -73,6 +73,10 @@ copy-movies *args:
 openapi:
     uv run python scripts/export_openapi.py
 
+# dump the database to ./backups (set WATCHLOG_BACKUP_REMOTE for rclone upload)
+backup:
+    bash scripts/backup_db.sh
+
 # run the API tests
 test *args:
     uv run pytest {{args}}
