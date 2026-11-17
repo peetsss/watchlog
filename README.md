@@ -34,6 +34,7 @@ The app is built around a simple rhythm — **one room, one shortlist, one pick*
 - **Live state over WebSocket** — every player sees the same room within a moment. The REST endpoint remains a complete fallback when the socket drops.
 - **A home read model** — active room, featured crew, up-next films and a watched log in one request.
 - **Secure sessions** — HttpOnly cookie sessions stored in Redis, CSRF double-submit tokens, Origin checks and Argon2 password hashing.
+- **Account email** — verification links, password resets, email changes and session revocation after security changes.
 - **A typed frontend contract** — OpenAPI types generated from the committed schema, TanStack Query for server state, `openapi-fetch` for requests.
 - **One production image** — the SPA is built with Vite and served by FastAPI, alongside the API and WebSocket routes.
 
@@ -107,6 +108,10 @@ just frontend     # Vite on http://localhost:5173
 
 Vite proxies `/api`, `/health` and `/ws` to the API, so cookies and WebSockets work from one origin.
 
+In development the default mail backend prints verification and reset emails to
+the Celery worker logs. Set `WATCHLOG_MAIL_BACKEND=resend` and the Resend values
+to send real mail.
+
 ### Production
 
 ```bash
@@ -119,6 +124,11 @@ Caddy terminates TLS and serves the SPA through the FastAPI process on your
 configured domain. Migrations run once in a dedicated service before the API,
 worker and beat start. The API exposes `/health` for liveness and `/ready` for
 database/Redis readiness; use `/ready` for external checks.
+
+For real account email, verify a sending domain in Resend and set
+`WATCHLOG_MAIL_BACKEND=resend`, `WATCHLOG_MAIL_FROM` and
+`WATCHLOG_RESEND_API_KEY`. Transactional mail is sent by the Celery worker from
+the `email_outbox` table.
 
 Run `just backup` to write a compressed database dump to `./backups/`. Set
 `WATCHLOG_BACKUP_REMOTE` to an rclone remote to upload it, and
