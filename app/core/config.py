@@ -26,11 +26,14 @@ class Settings(BaseSettings):
     env: Literal["dev", "test", "prod"] = "dev"
     debug: bool = False
     log_level: str = "INFO"
+    log_format: Literal["text", "json"] = "text"
     docs_enabled: bool = True
+    public_url: str | None = None
 
     secret_key: SecretStr = SecretStr(DEFAULT_SECRET)
     allowed_hosts: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(DEFAULT_ALLOWED_HOSTS))
     trusted_origins: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(DEFAULT_TRUSTED_ORIGINS))
+    trusted_proxy_ips: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     database_url: SecretStr | None = None
     postgres_db: str = Field("watchlog_v2", validation_alias=AliasChoices("WATCHLOG_DB", "WATCHLOG_POSTGRES_DB"))
@@ -43,10 +46,28 @@ class Settings(BaseSettings):
         "redis://127.0.0.1:6379/0",
         validation_alias=AliasChoices("WATCHLOG_REDIS_URL", "REDIS_URL"),
     )
+    celery_broker_url: str = Field(
+        "redis://127.0.0.1:6379/1",
+        validation_alias=AliasChoices("WATCHLOG_CELERY_BROKER_URL", "CELERY_BROKER_URL"),
+    )
     tmdb_api_key: SecretStr = Field(
         SecretStr(""),
         validation_alias=AliasChoices("WATCHLOG_TMDB_API_KEY", "TMDB_API_KEY"),
     )
+    tmdb_language: str = "en-US"
+    default_region: str = "PL"
+    supported_regions: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["PL"])
+    watch_provider_ttl_seconds: int = Field(24 * 60 * 60, gt=0)
+    provider_refresh_limit: int = Field(500, ge=1)
+
+    mail_backend: Literal["console", "resend"] = "console"
+    mail_from: str = ""
+    mail_reply_to: str = ""
+    resend_api_key: SecretStr = SecretStr("")
+
+    sentry_dsn: SecretStr = SecretStr("")
+    rate_limit_enabled: bool = True
+
     frontend_dir: str | None = None
 
     session_ttl_seconds: int = Field(14 * 24 * 60 * 60, gt=0)
@@ -54,21 +75,46 @@ class Settings(BaseSettings):
     anonymous_session_ttl_seconds: int = Field(60 * 60, gt=0)
     session_touch_interval_seconds: int = Field(60, gt=0)
 
-    @field_validator("allowed_hosts", "trusted_origins", mode="before")
+    @field_validator("allowed_hosts", "trusted_origins", "trusted_proxy_ips", "supported_regions", mode="before")
     @classmethod
     def split_csv(cls, value: object) -> object:
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
+    @field_validator("public_url")
+    @classmethod
+    def normalize_public_url(cls, value: str | None) -> str | None:
+        return value.rstrip("/") if value else value
+
+    @field_validator("default_region", "supported_regions")
+    @classmethod
+    def validate_region_codes(cls, value: str | list[str]) -> str | list[str]:
+        regions = [value] if isinstance(value, str) else value
+        if not regions:
+            raise ValueError("At least one supported region is required")
+        for region in regions:
+            if len(region) != 2 or not region.isalpha() or region.upper() != region:
+                raise ValueError("Region codes must be two uppercase letters")
+        return value
+
     @model_validator(mode="after")
     def validate_production_configuration(self) -> Settings:
+        if self.default_region not in self.supported_regions:
+            raise ValueError("WATCHLOG_DEFAULT_REGION must be in WATCHLOG_SUPPORTED_REGIONS")
         if self.env != "prod":
             return self
         if self.secret_key.get_secret_value() == DEFAULT_SECRET:
             raise ValueError("WATCHLOG_SECRET_KEY must be set in production")
         if self.database_url is None and not self.postgres_password.get_secret_value():
             raise ValueError("WATCHLOG_DATABASE_URL or POSTGRES_PASSWORD must be set in production")
+        if not self.public_url:
+            raise ValueError("WATCHLOG_PUBLIC_URL must be set in production")
+        if self.mail_backend == "resend":
+            if not self.mail_from:
+                raise ValueError("WATCHLOG_MAIL_FROM must be set when WATCHLOG_MAIL_BACKEND=resend")
+            if not self.resend_api_key.get_secret_value():
+                raise ValueError("WATCHLOG_RESEND_API_KEY must be set when WATCHLOG_MAIL_BACKEND=resend")
         return self
 
     @property

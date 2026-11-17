@@ -9,6 +9,10 @@ def test_defaults_target_the_new_database() -> None:
 
     assert settings.postgres_db == "watchlog_v2"
     assert settings.sqlalchemy_url == "postgresql+psycopg://watchlog@127.0.0.1:5432/watchlog_v2"
+    assert settings.tmdb_language == "en-US"
+    assert settings.default_region == "PL"
+    assert settings.supported_regions == ["PL"]
+    assert settings.celery_broker_url == "redis://127.0.0.1:6379/1"
 
 
 def test_database_url_override_wins() -> None:
@@ -61,12 +65,47 @@ def test_production_rejects_the_default_secret_even_with_a_database() -> None:
         )
 
 
+def test_production_requires_a_public_url() -> None:
+    with pytest.raises(ValidationError, match="WATCHLOG_PUBLIC_URL"):
+        Settings(
+            _env_file=None,
+            env="prod",
+            secret_key="a" * 32,
+            database_url="postgresql+psycopg://user:secret@db.example:5432/watchlog",
+        )
+
+
+def test_production_requires_resend_configuration_when_using_resend() -> None:
+    with pytest.raises(ValidationError, match="WATCHLOG_MAIL_FROM"):
+        Settings(
+            _env_file=None,
+            env="prod",
+            secret_key="a" * 32,
+            public_url="https://watchlog.example",
+            database_url="postgresql+psycopg://user:secret@db.example:5432/watchlog",
+            mail_backend="resend",
+        )
+
+
 def test_production_accepts_explicit_configuration() -> None:
     settings = Settings(
         _env_file=None,
         env="prod",
         secret_key="a" * 32,
+        public_url="https://watchlog.example/",
         database_url="postgresql+psycopg://user:secret@db.example:5432/watchlog",
     )
 
     assert settings.is_production
+    assert settings.public_url == "https://watchlog.example"
+
+
+def test_region_configuration_is_validated() -> None:
+    with pytest.raises(ValidationError, match="two uppercase letters"):
+        Settings(_env_file=None, default_region="pl")
+
+    with pytest.raises(ValidationError, match="WATCHLOG_DEFAULT_REGION"):
+        Settings(_env_file=None, default_region="US", supported_regions="PL")
+
+    settings = Settings(_env_file=None, supported_regions="PL,DE", default_region="PL")
+    assert settings.supported_regions == ["PL", "DE"]
