@@ -148,6 +148,22 @@ export function setLobbyPool(lobbyId, movieIds) {
   );
 }
 
+export function seedWatchProviders(movieId, region = "PL") {
+  const tmdbLink = "https://www.themoviedb.org/movie/1/watch?locale=PL";
+  databaseSql(
+    `DELETE FROM movie_watch_providers WHERE movie_id=${movieId} AND region='${region}'`,
+  );
+  databaseSql(
+    `DELETE FROM movie_watch_regions WHERE movie_id=${movieId} AND region='${region}'`,
+  );
+  databaseSql(
+    `INSERT INTO movie_watch_regions (movie_id, region, tmdb_link, fetched_at, offer_count) VALUES (${movieId}, '${region}', '${tmdbLink}', now(), 1)`,
+  );
+  databaseSql(
+    `INSERT INTO movie_watch_providers (movie_id, region, offer_type, provider_id, provider_name, logo_path, display_priority) VALUES (${movieId}, '${region}', 'flatrate', 8, 'Netflix', '/netflix.jpg', 1)`,
+  );
+}
+
 export function deleteLobbies(lobbyIds) {
   const ids = lobbyIds.filter(Boolean);
   if (!ids.length) return;

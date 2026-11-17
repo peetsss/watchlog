@@ -3,6 +3,7 @@ import { ArrowRight, Check, Film, Info, Loader2, Sparkles } from "lucide-react";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { RoomBackdrop } from "../../components/RoomBackdrop";
+import { WhereToWatch } from "../../components/WhereToWatch";
 import type { LobbyView } from "../../lib/adapters";
 import type { LobbyAction } from "../../lib/api-lobby";
 import { cx } from "../../lib/cx";
@@ -125,6 +126,7 @@ export function FinalRoom({
                     ) : null}
                   </span>
                 </button>
+                <WhereToWatch watch={finalist.watch} compact />
                 <button
                   type="button"
                   className="premiere-about"

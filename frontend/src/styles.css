@@ -5016,6 +5016,142 @@ button {
   line-height: 1.45;
 }
 
+.watch-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.watch-region {
+  color: var(--muted-2);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.watch-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.watch-group {
+  display: grid;
+  gap: 6px;
+}
+
+.watch-group-label {
+  color: var(--muted-2);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.watch-providers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.watch-provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 9px 4px 5px;
+  border: 1px solid rgba(244, 239, 230, 0.14);
+  border-radius: 8px;
+  background: #f4efe6;
+  color: #1a1b1e;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.watch-provider img {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  object-fit: contain;
+}
+
+.watch-provider-fallback {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 5px;
+  background: #e7b45a;
+  color: #1a1305;
+  font-size: 10px;
+}
+
+.watch-attribution {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted-2);
+  font-size: 9.5px;
+}
+
+.watch-attribution a,
+.watch-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--amber);
+  text-decoration: none;
+}
+
+.watch-attribution a:hover,
+.watch-source-link:hover {
+  text-decoration: underline;
+}
+
+.watch-disclaimer {
+  margin: 8px 0 0;
+  color: var(--muted-2);
+  font-size: 9.5px;
+}
+
+.watch-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  color: var(--muted-2);
+  font-size: 8.5px;
+}
+
+.watch-compact-label {
+  width: 100%;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.watch-compact-providers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.watch-compact .watch-provider {
+  min-height: 22px;
+  padding: 3px 6px 3px 4px;
+  font-size: 8.5px;
+}
+
+.watch-compact .watch-provider img,
+.watch-compact .watch-provider-fallback {
+  width: 16px;
+  height: 16px;
+}
+
 .detail-club {
   padding: 13px 14px;
   border: 1px solid var(--border);

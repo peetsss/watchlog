@@ -306,6 +306,16 @@
           "viewer_picked": {
             "title": "Viewer Picked",
             "type": "boolean"
+          },
+          "watch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WatchAvailability"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1208,6 +1218,16 @@
                 "type": "null"
               }
             ]
+          },
+          "winner_watch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WatchAvailability"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1859,6 +1879,16 @@
               }
             ],
             "title": "Vote Count"
+          },
+          "watch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WatchAvailability"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "writers": {
             "anyOf": [
@@ -2620,6 +2650,129 @@
           "total"
         ],
         "title": "VoteTally",
+        "type": "object"
+      },
+      "WatchAvailability": {
+        "properties": {
+          "fetched_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "offers": {
+            "$ref": "#/components/schemas/WatchOffers"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "region",
+          "link",
+          "fetched_at",
+          "stale",
+          "offers"
+        ],
+        "title": "WatchAvailability",
+        "type": "object"
+      },
+      "WatchOffers": {
+        "properties": {
+          "ads": {
+            "items": {
+              "$ref": "#/components/schemas/WatchProviderRef"
+            },
+            "title": "Ads",
+            "type": "array"
+          },
+          "buy": {
+            "items": {
+              "$ref": "#/components/schemas/WatchProviderRef"
+            },
+            "title": "Buy",
+            "type": "array"
+          },
+          "flatrate": {
+            "items": {
+              "$ref": "#/components/schemas/WatchProviderRef"
+            },
+            "title": "Flatrate",
+            "type": "array"
+          },
+          "free": {
+            "items": {
+              "$ref": "#/components/schemas/WatchProviderRef"
+            },
+            "title": "Free",
+            "type": "array"
+          },
+          "rent": {
+            "items": {
+              "$ref": "#/components/schemas/WatchProviderRef"
+            },
+            "title": "Rent",
+            "type": "array"
+          }
+        },
+        "title": "WatchOffers",
+        "type": "object"
+      },
+      "WatchProviderRef": {
+        "properties": {
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provider_id",
+          "name",
+          "logo_url",
+          "priority"
+        ],
+        "title": "WatchProviderRef",
         "type": "object"
       }
     }

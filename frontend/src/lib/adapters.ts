@@ -16,6 +16,8 @@ type ApiLobbyState = components["schemas"]["LobbyState"];
 type ApiLobbySummary = components["schemas"]["LobbySummary"];
 type ApiLobbyPreview = components["schemas"]["JoinPreview"];
 type ApiMovieRef = components["schemas"]["MovieRef"];
+type ApiWatchAvailability = components["schemas"]["WatchAvailability"];
+type WatchOfferType = "flatrate" | "free" | "ads" | "rent" | "buy";
 
 export type GroupMemberView = Person & {
   role: "admin" | "member";
@@ -53,11 +55,27 @@ export type MovieSummaryView = {
   backdrop: string | null;
 };
 
+export type WatchProviderView = {
+  id: number;
+  name: string;
+  logoUrl: string | null;
+  priority: number;
+};
+
+export type WatchAvailabilityView = {
+  region: string;
+  link: string | null;
+  fetchedAt: string | null;
+  stale: boolean;
+  offers: Record<WatchOfferType, WatchProviderView[]>;
+};
+
 export type MovieDetailView = MovieSummaryView & {
   tagline: string | null;
   writers: string[];
   cast: string[];
   language: string | null;
+  watch: WatchAvailabilityView | null;
 };
 
 export type GroupFilmView = {
@@ -150,6 +168,7 @@ export type LobbyFinalistView = {
   movie: MovieSummaryView;
   pickCount: number | null;
   viewerPicked: boolean;
+  watch: WatchAvailabilityView | null;
 };
 
 export type LobbyCapabilitiesView = {
@@ -197,6 +216,7 @@ export type LobbyView = {
   picksRevealed: boolean;
   viewerPick: number | null;
   winner: MovieSummaryView | null;
+  winnerWatch: WatchAvailabilityView | null;
   shortlisted: boolean;
   tie: boolean;
   capabilities: LobbyCapabilitiesView;
@@ -342,6 +362,26 @@ export function movieSummaryToView(movie: ApiMovieSummary): MovieSummaryView {
 }
 
 
+export function watchToView(watch: ApiWatchAvailability | null | undefined): WatchAvailabilityView | null {
+  if (!watch) return null;
+  const offers = {} as Record<WatchOfferType, WatchProviderView[]>;
+  for (const type of ["flatrate", "free", "ads", "rent", "buy"] as const) {
+    offers[type] = (watch.offers[type] ?? []).map((provider) => ({
+      id: provider.provider_id,
+      name: provider.name,
+      logoUrl: provider.logo_url,
+      priority: provider.priority,
+    }));
+  }
+  return {
+    region: watch.region,
+    link: watch.link,
+    fetchedAt: watch.fetched_at,
+    stale: watch.stale,
+    offers,
+  };
+}
+
 export function movieDetailToView(movie: ApiMovieDetail): MovieDetailView {
   return {
     ...movieSummaryToView(movie),
@@ -349,6 +389,7 @@ export function movieDetailToView(movie: ApiMovieDetail): MovieDetailView {
     writers: splitList(movie.writers),
     cast: splitList(movie.actors),
     language: movie.spoken_languages ?? movie.original_language,
+    watch: watchToView(movie.watch),
   };
 }
 
@@ -477,6 +518,7 @@ export function lobbyToView(state: ApiLobbyState): LobbyView {
     movie: movieRefToView(finalist.movie),
     pickCount: finalist.pick_count,
     viewerPicked: finalist.viewer_picked,
+    watch: watchToView(finalist.watch),
   }));
   const ballot: LobbyBallotEntryView[] = state.ballot.map((entry) => {
     const player = playerById.get(entry.participant_id);
@@ -542,6 +584,7 @@ export function lobbyToView(state: ApiLobbyState): LobbyView {
     picksRevealed: state.picks_revealed,
     viewerPick: state.viewer_pick,
     winner: state.winner ? movieRefToView(state.winner) : null,
+    winnerWatch: watchToView(state.winner_watch),
     shortlisted,
     tie,
     capabilities: {

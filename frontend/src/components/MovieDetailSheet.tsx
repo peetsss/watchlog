@@ -3,6 +3,7 @@ import { Film, Info, Loader2, Star, X } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "./Button";
 import { MoviePoster } from "./MoviePoster";
+import { WhereToWatch } from "./WhereToWatch";
 import type { LobbyView, MovieSummaryView } from "../lib/adapters";
 import { useMovieDetail } from "../lib/api-movies";
 import { useSheetSwipe } from "../lib/useSheetSwipe";
@@ -160,6 +161,8 @@ export function MovieDetailSheet({
               <h3>The story</h3>
               <p>{movie.description || "No synopsis yet."}</p>
             </section>
+
+            {detailQuery.data ? <WhereToWatch watch={detailQuery.data.watch} /> : null}
 
             <section className="detail-section">
               <h3>The credits</h3>

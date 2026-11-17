@@ -6,6 +6,7 @@ import {
   login,
   outputDir,
   resetLobbies,
+  seedWatchProviders,
   setLobbyPool,
   settle,
   startGroupNight,
@@ -31,6 +32,7 @@ try {
   await page.locator(".room-actions .text-button", { hasText: "I'm in" }).click();
   await page.getByRole("button", { name: /Start with 1 ready/i }).click();
   await page.getByRole("heading", { name: "The reel." }).waitFor({ timeout: 10_000 });
+  seedWatchProviders(1);
 
   const trigger = page.locator(".reel-info");
   await trigger.click();
@@ -41,6 +43,14 @@ try {
   check("detail shows the current film", await dialog.getByRole("heading", { name: "Inception" }).isVisible());
   check("detail shows the story", await dialog.getByRole("heading", { name: "The story" }).isVisible());
   check("detail shows credits", await dialog.getByRole("heading", { name: "The credits" }).isVisible());
+  check(
+    "detail shows where to watch",
+    await dialog.getByRole("heading", { name: "Where to watch" }).isVisible(),
+  );
+  check(
+    "detail carries JustWatch attribution",
+    await dialog.getByRole("link", { name: /Watch options by JustWatch/i }).isVisible(),
+  );
   check("detail shows the room context", await dialog.getByText("You haven't voted on this one yet.").isVisible());
   check("detail URL carries the catalog id", page.url().includes("film=1"), page.url());
   await page.screenshot({ path: `${out}/01-detail-desktop.png`, fullPage: true });

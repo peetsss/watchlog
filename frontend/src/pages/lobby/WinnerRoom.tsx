@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { RoomBackdrop } from "../../components/RoomBackdrop";
+import { WhereToWatch } from "../../components/WhereToWatch";
 import type { LobbyView } from "../../lib/adapters";
 import { cx } from "../../lib/cx";
 import "./premiere.css";
@@ -86,6 +87,8 @@ export function WinnerRoom({
               .join(" · ")}
           </p>
           <p className="premiere-synopsis">{winner.description}</p>
+
+          <WhereToWatch watch={lobby.winnerWatch} compact />
 
           <button
             type="button"

@@ -121,12 +121,25 @@
   font-size: 10.5px;
 }
 
+.legal-links-nav {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .legal-links a {
   color: inherit;
 }
 
 .legal-links a:hover {
   color: var(--amber);
+}
+
+.legal-data-note {
+  flex-basis: 100%;
+  color: var(--muted-2);
+  font-size: 9.5px;
 }
 
 .sidebar-foot .legal-links {

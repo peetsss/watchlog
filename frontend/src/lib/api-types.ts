@@ -749,6 +749,7 @@ export interface components {
             pick_count: number | null;
             /** Viewer Picked */
             viewer_picked: boolean;
+            watch?: components["schemas"]["WatchAvailability"] | null;
         };
         /** GroupDetail */
         GroupDetail: {
@@ -1056,6 +1057,7 @@ export interface components {
             viewer_vote: string | null;
             vote_tally: components["schemas"]["VoteTally"] | null;
             winner: components["schemas"]["MovieRef"] | null;
+            winner_watch?: components["schemas"]["WatchAvailability"] | null;
         };
         /** LobbyStateEnvelope */
         LobbyStateEnvelope: {
@@ -1218,6 +1220,7 @@ export interface components {
             updated_at: string;
             /** Vote Count */
             vote_count: number | null;
+            watch?: components["schemas"]["WatchAvailability"] | null;
             /** Writers */
             writers: string | null;
         };
@@ -1432,6 +1435,42 @@ export interface components {
             total: number;
             /** Watched */
             watched: number;
+        };
+        /** WatchAvailability */
+        WatchAvailability: {
+            /** Fetched At */
+            fetched_at: string | null;
+            /** Link */
+            link: string | null;
+            offers: components["schemas"]["WatchOffers"];
+            /** Region */
+            region: string;
+            /** Stale */
+            stale: boolean;
+        };
+        /** WatchOffers */
+        WatchOffers: {
+            /** Ads */
+            ads?: components["schemas"]["WatchProviderRef"][];
+            /** Buy */
+            buy?: components["schemas"]["WatchProviderRef"][];
+            /** Flatrate */
+            flatrate?: components["schemas"]["WatchProviderRef"][];
+            /** Free */
+            free?: components["schemas"]["WatchProviderRef"][];
+            /** Rent */
+            rent?: components["schemas"]["WatchProviderRef"][];
+        };
+        /** WatchProviderRef */
+        WatchProviderRef: {
+            /** Logo Url */
+            logo_url: string | null;
+            /** Name */
+            name: string;
+            /** Priority */
+            priority: number;
+            /** Provider Id */
+            provider_id: number;
         };
     };
     responses: never;
