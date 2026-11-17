@@ -11,6 +11,9 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     username: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
+    email: Mapped[str | None] = mapped_column(String(320), unique=True, index=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    pending_email: Mapped[str | None] = mapped_column(String(320))
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=true(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
