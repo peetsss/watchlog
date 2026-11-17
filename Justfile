@@ -3,9 +3,9 @@ DC := "docker compose -f docker-compose.dev.yml"
 default:
     @just --list
 
-# start the dev stack (API, Postgres, Redis); run `just frontend` separately
+# start the dev stack (API, Postgres, Redis, Celery); run `just frontend` separately
 dev:
-    {{DC}} up -d --build database redis api
+    {{DC}} up -d --build
     @echo "API: http://localhost:8001  ·  SPA: run 'just frontend'"
 
 # start only the development database and Redis
@@ -19,6 +19,14 @@ api:
 # follow API logs
 api-logs:
     {{DC}} logs -f api
+
+# follow worker logs
+worker-logs:
+    {{DC}} logs -f worker
+
+# follow beat logs
+beat-logs:
+    {{DC}} logs -f beat
 
 # follow every container's logs
 logs:

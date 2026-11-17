@@ -94,8 +94,7 @@ cp .env.template .env
 # add a TMDB_API_KEY if you want live film search
 
 uv sync
-just dev          # API + Postgres + Redis
-just migrate
+just dev          # API + Postgres + Redis + Celery worker/beat
 just seed         # alice / bob / carol, password: correct horse
 
 just frontend     # Vite on http://localhost:5173
@@ -111,11 +110,15 @@ Vite proxies `/api`, `/health` and `/ws` to the API, so cookies and WebSockets w
 ### Production
 
 ```bash
-# set WATCHLOG_SECRET_KEY, POSTGRES_PASSWORD and your host/origin values
+# set WATCHLOG_SECRET_KEY, WATCHLOG_PUBLIC_URL, WATCHLOG_SITE_ADDRESS,
+# POSTGRES_PASSWORD and your host/origin values in .env
 docker compose up -d --build
 ```
 
-Open http://localhost:8000. The image builds the SPA, runs migrations on startup and serves everything from one FastAPI process. The container exposes `/health` for readiness checks.
+Caddy terminates TLS and serves the SPA through the FastAPI process on your
+configured domain. Migrations run once in a dedicated service before the API,
+worker and beat start. The API exposes `/health` for liveness and `/ready` for
+database/Redis readiness; use `/ready` for external checks.
 
 ## Tests
 

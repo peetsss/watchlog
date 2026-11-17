@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
 import socket
-import subprocess
 import time
 from urllib.parse import urlparse
 
@@ -34,7 +33,6 @@ def main() -> None:
     redis = urlparse(settings.redis_url)
     wait_for_tcp(redis.hostname or "127.0.0.1", redis.port or 6379)
 
-    subprocess.run(["alembic", "upgrade", "head"], check=True)
     os.execvp(
         "uvicorn",
         [
