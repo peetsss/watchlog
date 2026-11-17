@@ -49,9 +49,9 @@ async function fetchGroupStats(groupId: string): Promise<GroupStatsView> {
   return groupStatsToView(payload);
 }
 
-async function fetchGroupPreview(groupId: string): Promise<GroupPreviewView> {
+async function fetchGroupInvitePreview(token: string): Promise<GroupPreviewView> {
   const payload = await unwrap<components["schemas"]["GroupPreview"]>(
-    api.GET("/api/groups/{group_id}/preview", { params: { path: { group_id: groupId } } }),
+    api.GET("/api/group-invites/{token}", { params: { path: { token } } }),
   );
   return groupPreviewToView(payload);
 }
@@ -110,11 +110,11 @@ export function useGroupStats(groupId: string | undefined) {
   });
 }
 
-export function useGroupPreview(groupId: string | undefined) {
+export function useGroupInvitePreview(token: string | undefined) {
   return useQuery({
-    queryKey: groupKeys.preview(groupId ?? ""),
-    queryFn: () => fetchGroupPreview(groupId as string),
-    enabled: Boolean(groupId),
+    queryKey: groupKeys.preview(token ?? ""),
+    queryFn: () => fetchGroupInvitePreview(token as string),
+    enabled: Boolean(token),
     staleTime: 30_000,
     retry: retryUnlessDenied,
   });
@@ -215,13 +215,13 @@ export function useSetFilmStatus() {
   });
 }
 
-export function useJoinGroup() {
+export function useJoinGroupInvite() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (groupId: string) => {
+    mutationFn: async (token: string) => {
       const payload = await unwrap<GroupDetail>(
-        api.POST("/api/groups/{group_id}/members", {
-          params: { path: { group_id: groupId } },
+        api.POST("/api/group-invites/{token}/join", {
+          params: { path: { token } },
         }),
       );
       return groupSummaryToView(payload);
@@ -229,7 +229,6 @@ export function useJoinGroup() {
     onSuccess: (group) => {
       queryClient.setQueryData(groupKeys.detail(group.id), group);
       void queryClient.invalidateQueries({ queryKey: groupKeys.list() });
-      void queryClient.invalidateQueries({ queryKey: groupKeys.preview(group.id) });
       void queryClient.invalidateQueries({ queryKey: homeKeys.all });
     },
   });

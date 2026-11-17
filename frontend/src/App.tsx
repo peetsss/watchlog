@@ -109,7 +109,7 @@ export function App() {
                 }
               />
               <Route
-                path="/join/group/:groupId"
+                path="/join/group/:token"
                 element={
                   <RequireMember>
                     <GroupJoinPage />

@@ -1,10 +1,16 @@
-import { CheckCircle2, Loader2, MailWarning } from "lucide-react";
+import { CheckCircle2, Download, Loader2, MailWarning } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { ApiError } from "../lib/api";
-import { useAccount, changeEmail, changePassword, resendVerification } from "../lib/api-account";
+import {
+  changeEmail,
+  changePassword,
+  downloadAccountExport,
+  resendVerification,
+  useAccount,
+} from "../lib/api-account";
 import { usePageTitle } from "../lib/usePageTitle";
 import { useSession } from "../state/Session";
 import { useToast } from "../state/Toast";
@@ -18,6 +24,7 @@ export function AccountPage() {
   const navigate = useNavigate();
 
   const [resendBusy, setResendBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
@@ -62,6 +69,18 @@ export function AccountPage() {
       showToast(error instanceof ApiError ? error.message : "Couldn't resend the email.");
     } finally {
       setResendBusy(false);
+    }
+  };
+
+  const handleExport = async () => {
+    if (exportBusy) return;
+    setExportBusy(true);
+    try {
+      await downloadAccountExport();
+    } catch (error) {
+      showToast(error instanceof ApiError ? error.message : "Couldn't prepare your export.");
+    } finally {
+      setExportBusy(false);
     }
   };
 
@@ -156,6 +175,14 @@ export function AccountPage() {
               </Button>
             </div>
           ) : null}
+
+          <div className="account-export-row">
+            <span>Download a copy of your profile, groups and scores.</span>
+            <Button variant="secondary" onClick={handleExport} disabled={exportBusy}>
+              {exportBusy ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
+              Download my data
+            </Button>
+          </div>
         </section>
 
         <section className="account-card" aria-labelledby="account-email">

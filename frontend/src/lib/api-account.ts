@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, unwrap } from "./api";
+import { api, ApiError, unwrap } from "./api";
 import type { components } from "./api-types";
 
 export const ACCOUNT_QUERY_KEY = ["account"] as const;
@@ -32,6 +32,21 @@ export async function changePassword(currentPassword: string, newPassword: strin
       body: { current_password: currentPassword, new_password: newPassword },
     }),
   );
+}
+
+export async function downloadAccountExport(): Promise<void> {
+  const base = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+  const response = await fetch(`${base}/api/account/export`, { credentials: "include" });
+  if (!response.ok) {
+    throw new ApiError("Could not prepare your export.", "export_failed", response.status);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "watchlog-export.json";
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export async function changeEmail(newEmail: string, password: string): Promise<void> {

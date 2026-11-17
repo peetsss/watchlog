@@ -6,15 +6,15 @@ import { EmptyState } from "../components/EmptyState";
 import { LegalLinks } from "../components/LegalLinks";
 import { Wordmark } from "../components/Wordmark";
 import { movies } from "../data";
-import { useGroupPreview, useJoinGroup } from "../lib/api-groups";
+import { useGroupInvitePreview, useJoinGroupInvite } from "../lib/api-groups";
 import { ApiError } from "../lib/api";
 import { usePageTitle } from "../lib/usePageTitle";
 
 export function GroupJoinPage() {
   usePageTitle("You're invited");
-  const { groupId } = useParams<{ groupId: string }>();
-  const preview = useGroupPreview(groupId);
-  const joinGroup = useJoinGroup();
+  const { token } = useParams<{ token: string }>();
+  const preview = useGroupInvitePreview(token);
+  const joinGroup = useJoinGroupInvite();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 
@@ -75,7 +75,7 @@ export function GroupJoinPage() {
   const handleJoin = async () => {
     setError(null);
     try {
-      await joinGroup.mutateAsync(group.id);
+      await joinGroup.mutateAsync(token as string);
       navigate(`/groups/${group.id}`, { replace: true });
     } catch (joinError) {
       setError(
