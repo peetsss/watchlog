@@ -115,15 +115,14 @@ services:
       - app.celery_app
       - beat
       - --loglevel=INFO
-      - --schedule=/data/celerybeat-schedule
+      - --schedule=/tmp/celerybeat-schedule
+      - --pidfile=/tmp/celerybeat.pid
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
     environment: *app-environment
-    volumes:
-      - celerybeat_data:/data
     networks:
       - watchlog
     restart: unless-stopped
@@ -167,6 +166,5 @@ networks:
 volumes:
   caddy_config:
   caddy_data:
-  celerybeat_data:
   postgres_data:
   redis_data:
