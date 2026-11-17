@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowRight, Clock, Link2, Loader2, Lock, Users } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { LegalLinks } from "../components/LegalLinks";
@@ -8,7 +9,9 @@ import { Wordmark } from "../components/Wordmark";
 import { movies } from "../data";
 import { joinLobby, useLobbyPreview } from "../lib/api-lobby";
 import { ApiError } from "../lib/api";
+import { createGuest } from "../lib/api-session";
 import { usePageTitle } from "../lib/usePageTitle";
+import { SESSION_QUERY_KEY, useSession } from "../state/Session";
 
 function statusLabel(status: string): string {
   if (status === "ready") return "Waiting to start";
@@ -22,7 +25,10 @@ export function JoinPage() {
   const { lobbyId } = useParams<{ lobbyId: string }>();
   const preview = useLobbyPreview(lobbyId);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { status, person } = useSession();
   const [joining, setJoining] = useState(false);
+  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const room = preview.data ?? null;
@@ -89,9 +95,18 @@ export function JoinPage() {
 
   const handleJoin = async () => {
     setError(null);
+    if (status === "anonymous" && displayName.trim().length < 2) {
+      setError("Add a display name of at least 2 characters.");
+      return;
+    }
     setJoining(true);
     try {
-      if (!room.isMember) await joinLobby(room.uuid);
+      if (status === "anonymous") {
+        await createGuest(displayName.trim());
+        await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
+        await queryClient.refetchQueries({ queryKey: SESSION_QUERY_KEY });
+      }
+      if (!room.isParticipant) await joinLobby(room.uuid);
       navigate(`/lobby/${room.uuid}`, { replace: true });
     } catch (joinError) {
       setError(
@@ -102,7 +117,7 @@ export function JoinPage() {
     }
   };
 
-  const canEnter = room.isMember || room.canJoin;
+  const canEnter = room.isParticipant || room.canJoin;
   const host = room.hostUsername
     ? `${room.hostUsername.charAt(0).toUpperCase()}${room.hostUsername.slice(1)}`
     : null;
@@ -158,6 +173,30 @@ export function JoinPage() {
             </div>
           </div>
 
+          {status === "anonymous" ? (
+            <div className="join-guest">
+              <label className="field-label" htmlFor="join-display-name">
+                Your display name
+              </label>
+              <input
+                id="join-display-name"
+                className="text-input"
+                type="text"
+                autoComplete="nickname"
+                value={displayName}
+                onChange={(event) => {
+                  setDisplayName(event.target.value);
+                  if (error) setError(null);
+                }}
+              />
+              <p className="field-help">No account needed. You can save the night later.</p>
+            </div>
+          ) : status === "guest" ? (
+            <div className="join-guest-note">
+              Playing as <strong>{person?.name ?? "Guest"}</strong>
+            </div>
+          ) : null}
+
           {error ? (
             <p className="field-error" role="alert">
               {error}
@@ -173,7 +212,11 @@ export function JoinPage() {
                   </>
                 ) : (
                   <>
-                    {room.isMember ? "Rejoin the room" : "Join the room"}{" "}
+                    {room.isParticipant
+                      ? "Rejoin the room"
+                      : status === "anonymous" || status === "guest"
+                        ? `Join as ${person?.name ?? "guest"}`
+                        : "Join the room"}{" "}
                     <ArrowRight size={17} />
                   </>
                 )}

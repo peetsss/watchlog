@@ -13,7 +13,7 @@ import {
 import { AppShell } from "./components/AppShell";
 import { EmptyState } from "./components/EmptyState";
 import { OfflineBanner } from "./components/OfflineBanner";
-import { RequireMember } from "./components/RequireMember";
+import { RequireMember, RequirePlayer } from "./components/RequireMember";
 import { Wordmark } from "./components/Wordmark";
 import { buttonClass } from "./components/Button";
 import { AccountPage } from "./pages/AccountPage";
@@ -22,6 +22,7 @@ import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "./pages/
 import { GroupPage } from "./pages/group/GroupPage";
 import { GroupJoinPage } from "./pages/GroupJoinPage";
 import { GroupsPage } from "./pages/GroupsPage";
+import { GuestStartPage } from "./pages/GuestStartPage";
 import { HubPage } from "./pages/HubPage";
 import { JoinPage } from "./pages/JoinPage";
 import { AboutPage, PrivacyPage, TermsPage } from "./pages/LegalPage";
@@ -85,6 +86,7 @@ export function App() {
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/start" element={<GuestStartPage />} />
               <Route
                 element={
                   <RequireMember>
@@ -101,9 +103,9 @@ export function App() {
               <Route
                 path="/lobby/:id"
                 element={
-                  <RequireMember>
+                  <RequirePlayer>
                     <LobbyPage />
-                  </RequireMember>
+                  </RequirePlayer>
                 }
               />
               <Route
@@ -114,14 +116,7 @@ export function App() {
                   </RequireMember>
                 }
               />
-              <Route
-                path="/join/:lobbyId"
-                element={
-                  <RequireMember>
-                    <JoinPage />
-                  </RequireMember>
-                }
-              />
+              <Route path="/join/:lobbyId" element={<JoinPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </SessionProvider>

@@ -2173,6 +2173,10 @@ button {
   .verify-banner-action {
     margin-left: 25px;
   }
+
+  .room-guest-bar {
+    margin-top: calc(68px + env(safe-area-inset-top));
+  }
 }
 
 /* ------------------------------------------------------------------
@@ -2256,6 +2260,31 @@ button {
   background: rgba(244, 239, 230, 0.08);
   color: var(--text);
 }
+}
+
+.room-guest-bar {
+  position: relative;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: calc(78px + env(safe-area-inset-top)) auto 0;
+  padding: 6px 12px;
+  border: 1px solid rgba(231, 180, 90, 0.24);
+  border-radius: 999px;
+  background: rgba(15, 16, 18, 0.55);
+  color: var(--muted);
+  font-size: 10.5px;
+  backdrop-filter: blur(8px);
+}
+
+.room-guest-bar a {
+  color: var(--amber);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .room-scene {
@@ -3517,6 +3546,29 @@ button {
 .join-signin {
   margin-top: 12px;
   color: var(--amber);
+}
+
+.join-guest {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.join-guest-note {
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.join-guest-note strong {
+  color: var(--text-soft);
 }
 
 .join-actions {

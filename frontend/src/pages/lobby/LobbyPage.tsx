@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Film, Loader2, X } from "lucide-react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { EmptyState } from "../../components/EmptyState";
 import { Button } from "../../components/Button";
 import { MovieDetailSheet } from "../../components/MovieDetailSheet";
@@ -11,6 +11,7 @@ import { ApiError } from "../../lib/api";
 import { useLobbyRoom } from "../../lib/useLobbyRoom";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { cx } from "../../lib/cx";
+import { useSession } from "../../state/Session";
 import { useToast } from "../../state/Toast";
 import { FinalRoom } from "./FinalRoom";
 import { PlayingRoom } from "./PlayingRoom";
@@ -48,6 +49,7 @@ export function LobbyPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { status, person } = useSession();
   const { showToast } = useToast();
   const lastTrigger = useRef<HTMLElement | null>(null);
   const room = useLobbyRoom(id);
@@ -242,6 +244,15 @@ export function LobbyPage() {
           </span>
         </button>
       </header>
+
+      {status === "guest" ? (
+        <div className="room-guest-bar">
+          <span>Playing as {person?.name ?? "Guest"}</span>
+          <Link to={`/auth?next=${encodeURIComponent(`/lobby/${lobby.uuid}`)}`}>
+            Save this night
+          </Link>
+        </div>
+      ) : null}
 
       <div className="room-scene" key={lobby.stage}>
         {lobby.stage === "waiting" ? (

@@ -214,6 +214,7 @@ export function WaitingRoom({
                       <span className="player-name">
                         {player.name}
                         {player.id === lobby.viewerId ? <span className="tag">You</span> : null}
+                        {player.isGuest ? <span className="tag">Guest</span> : null}
                         {player.isHost ? <span className="tag tag-amber">Host</span> : null}
                       </span>
                       <span className="player-state">{ready ? "Ready" : "Still deciding"}</span>

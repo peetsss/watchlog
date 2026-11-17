@@ -7,60 +7,80 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Person } from "../data";
-import { api, ApiError, unwrap } from "../lib/api";
+import { api, unwrap } from "../lib/api";
 import type { components } from "../lib/api-types";
 
 type Viewer = components["schemas"]["Viewer"];
 type ViewerStats = components["schemas"]["ViewerStats"];
-type MeEnvelope = components["schemas"]["MeEnvelope"];
+type SessionViewer = components["schemas"]["SessionViewer"];
+type SessionEnvelope = components["schemas"]["SessionEnvelope"];
 
 export const SESSION_QUERY_KEY = ["session", "me"] as const;
 
-export type SessionStatus = "loading" | "member" | "anonymous" | "error";
+export type SessionStatus = "loading" | "member" | "guest" | "anonymous" | "error";
+
+const ANONYMOUS_SESSION: SessionEnvelope = {
+  mode: "anonymous",
+  viewer: null,
+  stats: null,
+  email: null,
+};
+
+const EMPTY_STATS = { titles_watched: 0, average_score: null };
 
 type SessionContextValue = {
   status: SessionStatus;
-  viewer: Viewer | null;
+  viewer: SessionViewer | null;
   stats: ViewerStats | null;
   email: string | null;
   emailVerified: boolean;
   /** Viewer shaped for the existing Avatar and member components. */
   person: Person | null;
-  error: ApiError | null;
-  signIn: (identifier: string, password: string) => Promise<Viewer>;
-  register: (username: string, email: string, password: string) => Promise<Viewer>;
+  error: Error | null;
+  signIn: (identifier: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   retry: () => void;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-const EMPTY_STATS: ViewerStats = { titles_watched: 0, average_score: null };
-
-async function loadMe(): Promise<MeEnvelope | null> {
-  try {
-    return await unwrap<MeEnvelope>(api.GET("/api/me"));
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 401) return null;
-    throw error;
-  }
+async function loadSession(): Promise<SessionEnvelope> {
+  return unwrap<SessionEnvelope>(api.GET("/api/auth/session"));
 }
 
-function toPerson(viewer: Viewer | null): Person | null {
+function toPerson(viewer: SessionViewer | null): Person | null {
   if (!viewer) return null;
   return {
-    id: String(viewer.id),
-    name: viewer.username,
+    id: viewer.id,
+    name: viewer.name,
     short: viewer.initials,
     color: viewer.color,
   };
 }
 
+function memberSession(viewer: Viewer, email: string | null): SessionEnvelope {
+  return {
+    mode: "member",
+    viewer: {
+      mode: "member",
+      id: String(viewer.id),
+      name: viewer.username,
+      initials: viewer.initials,
+      color: viewer.color,
+      is_guest: false,
+      email_verified: viewer.email_verified,
+    },
+    stats: EMPTY_STATS,
+    email,
+  };
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const me = useQuery({
+  const session = useQuery({
     queryKey: SESSION_QUERY_KEY,
-    queryFn: loadMe,
+    queryFn: loadSession,
     retry: false,
     staleTime: 60_000,
   });
@@ -70,13 +90,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const payload = await unwrap<components["schemas"]["ViewerEnvelope"]>(
         api.POST("/api/auth/login", { body: { identifier, password } }),
       );
-      queryClient.setQueryData(SESSION_QUERY_KEY, {
-        viewer: payload.viewer,
-        stats: EMPTY_STATS,
-        email: null,
-      } satisfies MeEnvelope);
+      queryClient.setQueryData(SESSION_QUERY_KEY, memberSession(payload.viewer, null));
       void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
-      return payload.viewer;
     },
     [queryClient],
   );
@@ -86,13 +101,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const payload = await unwrap<components["schemas"]["ViewerEnvelope"]>(
         api.POST("/api/auth/register", { body: { username, email, password } }),
       );
-      queryClient.setQueryData(SESSION_QUERY_KEY, {
-        viewer: payload.viewer,
-        stats: EMPTY_STATS,
-        email,
-      } satisfies MeEnvelope);
+      queryClient.setQueryData(SESSION_QUERY_KEY, memberSession(payload.viewer, email));
       void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
-      return payload.viewer;
     },
     [queryClient],
   );
@@ -104,41 +114,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       queryClient.removeQueries({
         predicate: (query) => query.queryKey[0] !== "session",
       });
-      queryClient.setQueryData(SESSION_QUERY_KEY, null);
+      queryClient.setQueryData(SESSION_QUERY_KEY, ANONYMOUS_SESSION);
     }
   }, [queryClient]);
 
   const retry = useCallback(() => {
-    void me.refetch();
-  }, [me]);
+    void session.refetch();
+  }, [session]);
 
   const value = useMemo<SessionContextValue>(() => {
     let status: SessionStatus;
-    if (me.isPending) status = "loading";
-    else if (me.isError) status = "error";
-    else status = me.data ? "member" : "anonymous";
-
-    const error =
-      me.error instanceof ApiError
-        ? me.error
-        : me.error
-          ? new ApiError("Could not reach watchlog.", "network_error", 0)
-          : null;
+    if (session.isPending) status = "loading";
+    else if (session.isError) status = "error";
+    else status = session.data?.mode ?? "anonymous";
 
     return {
       status,
-      viewer: me.data?.viewer ?? null,
-      stats: me.data?.stats ?? null,
-      email: me.data?.email ?? null,
-      emailVerified: me.data?.viewer.email_verified ?? false,
-      person: toPerson(me.data?.viewer ?? null),
-      error,
+      viewer: session.data?.viewer ?? null,
+      stats: session.data?.stats ?? null,
+      email: session.data?.email ?? null,
+      emailVerified: session.data?.viewer?.email_verified ?? false,
+      person: toPerson(session.data?.viewer ?? null),
+      error: session.error instanceof Error ? session.error : null,
       signIn,
       register,
       signOut,
       retry,
     };
-  }, [me.isPending, me.isError, me.data, me.error, signIn, register, signOut, retry]);
+  }, [session.isPending, session.isError, session.data, session.error, signIn, register, signOut, retry]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

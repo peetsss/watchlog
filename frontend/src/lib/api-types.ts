@@ -106,6 +106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/guest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Guest */
+        post: operations["guest_api_auth_guest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -185,6 +202,23 @@ export interface paths {
         put?: never;
         /** Reset Password */
         post: operations["reset_password_api_auth_reset_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Session */
+        get: operations["session_api_auth_session_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -847,6 +881,11 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** GuestCreateRequest */
+        GuestCreateRequest: {
+            /** Display Name */
+            display_name: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -930,8 +969,8 @@ export interface components {
             group_uuid: string | null;
             /** Host Username */
             host_username: string | null;
-            /** Is Member */
-            is_member: boolean;
+            /** Is Participant */
+            is_participant: boolean;
             /** Player Count */
             player_count: number;
             /** Status */
@@ -1301,6 +1340,41 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** SessionEnvelope */
+        SessionEnvelope: {
+            /** Email */
+            email: string | null;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "member" | "guest" | "anonymous";
+            stats: components["schemas"]["ViewerStats"] | null;
+            viewer: components["schemas"]["SessionViewer"] | null;
+        };
+        /** SessionViewer */
+        SessionViewer: {
+            /** Color */
+            color: string;
+            /**
+             * Email Verified
+             * @default false
+             */
+            email_verified: boolean;
+            /** Id */
+            id: string;
+            /** Initials */
+            initials: string;
+            /** Is Guest */
+            is_guest: boolean;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "member" | "guest";
+            /** Name */
+            name: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -1525,6 +1599,39 @@ export interface operations {
             };
         };
     };
+    guest_api_auth_guest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_api_auth_login_post: {
         parameters: {
             query?: never;
@@ -1669,6 +1776,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    session_api_auth_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionEnvelope"];
                 };
             };
         };

@@ -221,7 +221,7 @@ export type LobbyPreviewView = {
   hostUsername: string | null;
   playerCount: number;
   canJoin: boolean;
-  isMember: boolean;
+  isParticipant: boolean;
 };
 
 const VOTE_FROM_API: Record<string, LobbyVote> = {
@@ -456,7 +456,7 @@ export function lobbyPreviewToView(preview: ApiLobbyPreview): LobbyPreviewView {
     hostUsername: preview.host_username,
     playerCount: preview.player_count,
     canJoin: preview.can_join,
-    isMember: preview.is_member,
+    isParticipant: preview.is_participant,
   };
 }
 

@@ -316,6 +316,14 @@ export function AuthPage() {
               {isRegister ? "Sign in instead" : "Create an account"}
             </button>
           </p>
+
+          <p className="auth-guest-note">
+            Just here for tonight?{" "}
+            <Link to="/start" className="text-link">
+              Start a movie night as a guest
+            </Link>
+            .
+          </p>
         </section>
 
         <aside className="auth-visual" aria-hidden="true">

@@ -30,10 +30,9 @@ try {
 
   await login(alice, "alice");
   await alice.getByText("Friday Film Club").first().waitFor();
-  check(
-    "home shows the seed club",
-    await alice.getByText(/The Dark Knight|Interstellar/).first().isVisible(),
-  );
+  const seedFilm = alice.getByText(/The Dark Knight|Interstellar/).first();
+  await seedFilm.waitFor({ timeout: 10_000 });
+  check("home shows the seed club", await seedFilm.isVisible());
   await settle(alice);
   await alice.screenshot({ path: `${out}/01-home.png`, fullPage: true });
 

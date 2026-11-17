@@ -69,10 +69,11 @@ export function useLobbyState(lobbyId: string | undefined) {
   });
 }
 
-export function useActiveLobby() {
+export function useActiveLobby(enabled = true) {
   return useQuery({
     queryKey: lobbyKeys.active(),
     queryFn: fetchActiveLobby,
+    enabled,
     staleTime: 15_000,
     retry: retryUnlessDenied,
   });

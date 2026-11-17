@@ -677,6 +677,21 @@
         "title": "GroupSummary",
         "type": "object"
       },
+      "GuestCreateRequest": {
+        "properties": {
+          "display_name": {
+            "maxLength": 50,
+            "minLength": 2,
+            "title": "Display Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "display_name"
+        ],
+        "title": "GuestCreateRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -936,8 +951,8 @@
             ],
             "title": "Host Username"
           },
-          "is_member": {
-            "title": "Is Member",
+          "is_participant": {
+            "title": "Is Participant",
             "type": "boolean"
           },
           "player_count": {
@@ -971,7 +986,7 @@
           "host_username",
           "player_count",
           "can_join",
-          "is_member"
+          "is_participant"
         ],
         "title": "JoinPreview",
         "type": "object"
@@ -2349,6 +2364,105 @@
         "title": "ServiceInfo",
         "type": "object"
       },
+      "SessionEnvelope": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "mode": {
+            "enum": [
+              "member",
+              "guest",
+              "anonymous"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ViewerStats"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "viewer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionViewer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mode",
+          "viewer",
+          "stats",
+          "email"
+        ],
+        "title": "SessionEnvelope",
+        "type": "object"
+      },
+      "SessionViewer": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "email_verified": {
+            "default": false,
+            "title": "Email Verified",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "initials": {
+            "title": "Initials",
+            "type": "string"
+          },
+          "is_guest": {
+            "title": "Is Guest",
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "member",
+              "guest"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "id",
+          "name",
+          "initials",
+          "color",
+          "is_guest"
+        ],
+        "title": "SessionViewer",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -2691,6 +2805,47 @@
         ]
       }
     },
+    "/api/auth/guest": {
+      "post": {
+        "operationId": "guest_api_auth_guest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Guest",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/auth/login": {
       "post": {
         "operationId": "login_api_auth_login_post",
@@ -2855,6 +3010,27 @@
           }
         },
         "summary": "Reset Password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "operationId": "session_api_auth_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Session",
         "tags": [
           "auth"
         ]

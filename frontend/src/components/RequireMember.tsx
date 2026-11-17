@@ -55,12 +55,26 @@ export function RequireMember({ children }: { children: ReactNode }) {
 
   if (status === "loading") return <SessionLoading />;
   if (status === "error") return <SessionError />;
+  if (status === "guest") return <Navigate to="/start" replace />;
   if (status === "anonymous") {
     const next =
       location.pathname === "/"
         ? ""
         : `?next=${encodeURIComponent(`${location.pathname}${location.search}`)}`;
     return <Navigate to={`/auth${next}`} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+export function RequirePlayer({ children }: { children: ReactNode }) {
+  const { status } = useSession();
+  const location = useLocation();
+
+  if (status === "loading") return <SessionLoading />;
+  if (status === "error") return <SessionError />;
+  if (status === "anonymous") {
+    return <Navigate to={`/auth?next=${encodeURIComponent(`${location.pathname}${location.search}`)}`} replace />;
   }
 
   return <>{children}</>;
