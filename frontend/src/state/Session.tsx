@@ -22,11 +22,13 @@ type SessionContextValue = {
   status: SessionStatus;
   viewer: Viewer | null;
   stats: ViewerStats | null;
+  email: string | null;
+  emailVerified: boolean;
   /** Viewer shaped for the existing Avatar and member components. */
   person: Person | null;
   error: ApiError | null;
-  signIn: (username: string, password: string) => Promise<Viewer>;
-  register: (username: string, password: string) => Promise<Viewer>;
+  signIn: (identifier: string, password: string) => Promise<Viewer>;
+  register: (username: string, email: string, password: string) => Promise<Viewer>;
   signOut: () => Promise<void>;
   retry: () => void;
 };
@@ -64,13 +66,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   });
 
   const signIn = useCallback(
-    async (username: string, password: string) => {
+    async (identifier: string, password: string) => {
       const payload = await unwrap<components["schemas"]["ViewerEnvelope"]>(
-        api.POST("/api/auth/login", { body: { username, password } }),
+        api.POST("/api/auth/login", { body: { identifier, password } }),
       );
       queryClient.setQueryData(SESSION_QUERY_KEY, {
         viewer: payload.viewer,
         stats: EMPTY_STATS,
+        email: null,
       } satisfies MeEnvelope);
       void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
       return payload.viewer;
@@ -79,13 +82,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (username: string, password: string) => {
+    async (username: string, email: string, password: string) => {
       const payload = await unwrap<components["schemas"]["ViewerEnvelope"]>(
-        api.POST("/api/auth/register", { body: { username, password } }),
+        api.POST("/api/auth/register", { body: { username, email, password } }),
       );
       queryClient.setQueryData(SESSION_QUERY_KEY, {
         viewer: payload.viewer,
         stats: EMPTY_STATS,
+        email,
       } satisfies MeEnvelope);
       void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
       return payload.viewer;
@@ -125,6 +129,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       status,
       viewer: me.data?.viewer ?? null,
       stats: me.data?.stats ?? null,
+      email: me.data?.email ?? null,
+      emailVerified: me.data?.viewer.email_verified ?? false,
       person: toPerson(me.data?.viewer ?? null),
       error,
       signIn,

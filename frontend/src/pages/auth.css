@@ -62,9 +62,86 @@
   font-style: italic;
 }
 
+.auth-utility {
+  width: 100%;
+  max-width: 540px;
+  margin: 24px auto 0;
+}
+
+.auth-utility .auth-title {
+  max-width: none;
+}
+
+.auth-utility .auth-form {
+  margin-top: 24px;
+}
+
+.utility-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.utility-message.is-success {
+  border-color: rgba(155, 179, 154, 0.3);
+}
+
+.utility-message.is-error {
+  border-color: rgba(208, 154, 131, 0.35);
+}
+
+.utility-message-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--sage);
+}
+
+.utility-message.is-error .utility-message-icon {
+  color: var(--rose);
+}
+
+.utility-message strong {
+  font-size: 15px;
+}
+
+.utility-message p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.utility-message .btn {
+  margin-top: 8px;
+}
+
 .auth-lede {
   max-width: 46ch;
   font-size: 14.5px;
+}
+
+.auth-forgot {
+  margin: 8px 0 0;
+  text-align: right;
+  font-size: 11px;
+}
+
+.auth-forgot .text-link {
+  color: var(--muted);
+}
+
+.auth-forgot .text-link:hover {
+  color: var(--amber);
 }
 
 .auth-tabs {

@@ -1,10 +1,11 @@
-import { Home, LogOut, Search, UserRound, Users } from "lucide-react";
+import { Home, LogOut, Search, Settings, UserRound, Users } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useGroupList } from "../lib/api-groups";
 import { useActiveLobby } from "../lib/api-lobby";
 import { cx } from "../lib/cx";
 import { useSession } from "../state/Session";
 import { Avatar } from "./Avatar";
+import { EmailVerificationBanner } from "./EmailVerificationBanner";
 import { LegalLinks } from "./LegalLinks";
 import { Wordmark } from "./Wordmark";
 
@@ -12,6 +13,7 @@ const navItems = [
   { to: "/", label: "Home", icon: Home, end: true },
   { to: "/groups", label: "Groups", icon: Users, end: false },
   { to: "/search", label: "Search", icon: Search, end: false },
+  { to: "/account", label: "Account", icon: Settings, end: false },
 ];
 
 const groupTones = ["#e7b45a", "#9bb39a", "#8fa6bf", "#d09a83"];
@@ -141,6 +143,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
+
+        <EmailVerificationBanner />
 
         <main id="main" className="page">
           {children}

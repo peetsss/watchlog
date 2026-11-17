@@ -1,0 +1,152 @@
+.account-page {
+  max-width: 980px;
+}
+
+.account-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.account-card {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.account-card:first-child {
+  grid-column: 1 / -1;
+}
+
+.account-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.account-card-head h2 {
+  margin: 4px 0 0;
+  font-size: 34px;
+}
+
+.account-card .section-kicker {
+  margin-bottom: 4px;
+}
+
+.account-card h2 {
+  margin: 6px 0 10px;
+  font-size: 30px;
+}
+
+.account-card-copy {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.account-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.tag-sage {
+  border-color: rgba(155, 179, 154, 0.3);
+  background: rgba(155, 179, 154, 0.1);
+  color: var(--sage);
+}
+
+.account-details {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+
+.account-details div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.account-details div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.account-details dt {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-details dd {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.account-inline-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.account-inline-action p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.account-form .btn {
+  align-self: flex-start;
+  margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+  .account-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .account-card:first-child {
+    grid-column: auto;
+  }
+
+  .account-inline-action {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .account-details div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .account-details dd {
+    text-align: left;
+  }
+}

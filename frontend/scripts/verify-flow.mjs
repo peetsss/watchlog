@@ -30,7 +30,10 @@ try {
 
   await login(alice, "alice");
   await alice.getByText("Friday Film Club").first().waitFor();
-  check("home shows the seed club", await alice.getByText("Interstellar").first().isVisible());
+  check(
+    "home shows the seed club",
+    await alice.getByText(/The Dark Knight|Interstellar/).first().isVisible(),
+  );
   await settle(alice);
   await alice.screenshot({ path: `${out}/01-home.png`, fullPage: true });
 

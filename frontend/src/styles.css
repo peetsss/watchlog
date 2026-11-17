@@ -2108,6 +2108,73 @@ button {
   text-align: center;
 }
 
+.verify-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 32px;
+  padding: 10px 14px;
+  border: 1px solid rgba(231, 180, 90, 0.25);
+  border-radius: 10px;
+  background: rgba(231, 180, 90, 0.07);
+  color: #f0d6a8;
+  font-size: 11.5px;
+}
+
+.verify-banner-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  color: var(--amber);
+}
+
+.verify-banner-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.verify-banner-copy strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.verify-banner-copy a {
+  color: var(--amber);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.verify-banner-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border: 1px solid rgba(231, 180, 90, 0.3);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--amber);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.verify-banner-action:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+@media (max-width: 760px) {
+  .verify-banner {
+    flex-wrap: wrap;
+    margin: 0 18px;
+  }
+
+  .verify-banner-action {
+    margin-left: 25px;
+  }
+}
+
 /* ------------------------------------------------------------------
    Lobby chrome
    ------------------------------------------------------------------ */

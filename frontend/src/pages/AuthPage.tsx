@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/Button";
 import { LegalLinks } from "../components/LegalLinks";
 import { SessionError, SessionLoading } from "../components/RequireMember";
@@ -10,6 +10,7 @@ import { ApiError } from "../lib/api";
 import { cx } from "../lib/cx";
 import { usePageTitle } from "../lib/usePageTitle";
 import { useSession } from "../state/Session";
+import { useToast } from "../state/Toast";
 import "./auth.css";
 
 type Mode = "signin" | "register";
@@ -23,9 +24,13 @@ function authMessage(error: unknown): string {
   if (error instanceof ApiError) {
     switch (error.code) {
       case "invalid_credentials":
-        return "That username and password don't match.";
+        return "That login and password don't match.";
       case "username_taken":
         return "That username is taken. Try another.";
+      case "email_taken":
+        return "That email is already in use.";
+      case "email_unverified":
+        return "Verify your email before creating a group.";
       case "invalid_request":
         return "Check the details and try again.";
       case "csrf_failed":
@@ -40,12 +45,14 @@ function authMessage(error: unknown): string {
 export function AuthPage() {
   usePageTitle("Sign in");
   const { status, signIn, register } = useSession();
+  const { showToast } = useToast();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const next = readNext(params.get("next"));
 
   const [mode, setMode] = useState<Mode>("signin");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -67,13 +74,17 @@ export function AuthPage() {
 
   const validate = (): string | null => {
     const cleanUsername = username.trim();
-    if (!cleanUsername) return "Add your username.";
+    const cleanEmail = email.trim();
+    if (!cleanUsername) return mode === "register" ? "Add your username." : "Add your username or email.";
     if (!password) return "Add your password.";
 
     if (mode === "register") {
       if (cleanUsername.length < 3) return "Use at least 3 characters for your username.";
       if (!/^[A-Za-z0-9_.-]+$/.test(cleanUsername)) {
         return "Usernames can use letters, numbers, dots, dashes and underscores.";
+      }
+      if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        return "Add a valid email address.";
       }
       if (password.length < 8) return "Use at least 8 characters for your password.";
       if (password.toLowerCase() === cleanUsername.toLowerCase()) {
@@ -102,7 +113,8 @@ export function AuthPage() {
       if (mode === "signin") {
         await signIn(username.trim(), password);
       } else {
-        await register(username.trim(), password);
+        await register(username.trim(), email.trim(), password);
+        showToast("Check your inbox to confirm your watchlog email.");
       }
       navigate(next, { replace: true });
     } catch (submitError) {
@@ -164,13 +176,13 @@ export function AuthPage() {
 
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
             <label className="field-label" htmlFor="auth-username">
-              Username
+              {isRegister ? "Username" : "Username or email"}
             </label>
             <input
               id="auth-username"
               className="text-input"
               type="text"
-              autoComplete="username"
+              autoComplete={isRegister ? "username" : "username email"}
               autoCapitalize="none"
               spellCheck={false}
               value={username}
@@ -184,6 +196,29 @@ export function AuthPage() {
               <p className="field-help">
                 3+ characters: letters, numbers, dots, dashes or underscores.
               </p>
+            ) : null}
+
+            {isRegister ? (
+              <>
+                <label className="field-label field-label-spaced" htmlFor="auth-email">
+                  Email
+                </label>
+                <input
+                  id="auth-email"
+                  className="text-input"
+                  type="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={email}
+                  aria-invalid={Boolean(error) && !email.trim()}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    if (error) setError(null);
+                  }}
+                />
+                <p className="field-help">We'll send one confirmation link. No newsletters.</p>
+              </>
             ) : null}
 
             <label className="field-label field-label-spaced" htmlFor="auth-password">
@@ -214,7 +249,13 @@ export function AuthPage() {
             </div>
             {isRegister ? (
               <p className="field-help">8+ characters, not all numbers.</p>
-            ) : null}
+            ) : (
+              <p className="auth-forgot">
+                <Link to="/forgot-password" className="text-link">
+                  Forgot password?
+                </Link>
+              </p>
+            )}
 
             {isRegister ? (
               <>

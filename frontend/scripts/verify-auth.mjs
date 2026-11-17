@@ -3,6 +3,7 @@ import {
   createRecorder,
   deleteUsers,
   launchBrowser,
+  markUserVerified,
   outputDir,
   settle,
   unexpectedErrors,
@@ -25,18 +26,20 @@ try {
   await settle(page);
   await page.screenshot({ path: `${out}/01-auth-desktop.png`, fullPage: true });
 
-  await page.getByLabel("Username").fill("alice");
+  await page.getByLabel(/^Username( or email)?$/).fill("alice");
   await page.getByLabel("Password", { exact: true }).fill("wrong password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByText("That username and password don't match.").waitFor({ timeout: 10_000 });
+  await page.getByText("That login and password don't match.").waitFor({ timeout: 10_000 });
   check("bad credentials show an error", true);
 
   await page.getByRole("tab", { name: "Create account" }).click();
-  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Username", { exact: true }).fill(username);
+  await page.getByLabel("Email", { exact: true }).fill(`${username}@example.com`);
   await page.getByLabel("Password", { exact: true }).fill("testpass123");
   await page.getByLabel("Confirm password").fill("testpass123");
   await page.getByRole("button", { name: "Create account", exact: true }).last().click();
   await page.waitForURL(base + "/", { timeout: 10_000 });
+  markUserVerified(username);
   await page.locator(".side-user strong").getByText(username, { exact: true }).waitFor({ timeout: 10_000 });
   check("registration signs the member in", true);
   check("member UI has no guest copy", (await page.getByText(/guest/i).count()) === 0);
@@ -57,7 +60,7 @@ try {
   await page.goto(base + "/groups", { waitUntil: "networkidle" });
   await page.waitForURL(/\/auth\?next=/, { timeout: 10_000 });
   check("deep link keeps the return path", new URL(page.url()).searchParams.get("next") === "/groups");
-  await page.getByLabel("Username").fill(username);
+  await page.getByLabel(/^Username( or email)?$/).fill(username);
   await page.getByLabel("Password", { exact: true }).fill("testpass123");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL(base + "/groups", { timeout: 10_000 });

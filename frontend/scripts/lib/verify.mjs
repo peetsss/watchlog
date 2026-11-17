@@ -59,7 +59,7 @@ export async function settle(page, wait = 350) {
 
 export async function login(page, username = "alice", password = passwords[username]) {
   await page.goto(base + "/auth", { waitUntil: "networkidle" });
-  await page.getByLabel("Username").fill(username);
+  await page.getByLabel(/^Username( or email)?$/).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL(base + "/", { timeout: 10_000 });
@@ -68,11 +68,18 @@ export async function login(page, username = "alice", password = passwords[usern
 export async function register(page, username, password = "testpass123") {
   await page.goto(base + "/auth", { waitUntil: "networkidle" });
   await page.getByRole("tab", { name: "Create account" }).click();
-  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Username", { exact: true }).fill(username);
+  await page.getByLabel("Email", { exact: true }).fill(`${username}@example.com`);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByLabel("Confirm password").fill(password);
   await page.getByRole("button", { name: "Create account", exact: true }).last().click();
   await page.waitForURL(base + "/", { timeout: 10_000 });
+  markUserVerified(username);
+}
+
+export function markUserVerified(username) {
+  if (!username) return;
+  databaseSql(`UPDATE users SET email_verified_at=now() WHERE username='${username}'`);
 }
 
 export async function csrfHeaders(context) {

@@ -16,7 +16,9 @@ import { OfflineBanner } from "./components/OfflineBanner";
 import { RequireMember } from "./components/RequireMember";
 import { Wordmark } from "./components/Wordmark";
 import { buttonClass } from "./components/Button";
+import { AccountPage } from "./pages/AccountPage";
 import { AuthPage } from "./pages/AuthPage";
+import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "./pages/EmailAuthPages";
 import { GroupPage } from "./pages/group/GroupPage";
 import { GroupJoinPage } from "./pages/GroupJoinPage";
 import { GroupsPage } from "./pages/GroupsPage";
@@ -80,6 +82,9 @@ export function App() {
               <Route path="/about" element={<AboutPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/terms" element={<TermsPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route
                 element={
                   <RequireMember>
@@ -91,6 +96,7 @@ export function App() {
                 <Route path="/groups" element={<GroupsPage />} />
                 <Route path="/groups/:id" element={<GroupPage />} />
                 <Route path="/search" element={<SearchPage />} />
+                <Route path="/account" element={<AccountPage />} />
               </Route>
               <Route
                 path="/lobby/:id"
