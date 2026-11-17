@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import worker_process_init, worker_process_shutdown
 
 from app.core.config import Settings, get_settings
@@ -6,7 +7,7 @@ from app.core.logging import configure_logging
 from app.core.observability import init_sentry
 from app.workers.runtime import dispose_worker_runtime, init_worker_runtime
 
-TASK_MODULES = ("app.tasks.health",)
+TASK_MODULES = ("app.tasks.health", "app.tasks.email")
 
 
 def create_celery_app(settings: Settings | None = None) -> Celery:
@@ -28,6 +29,20 @@ def create_celery_app(settings: Settings | None = None) -> Celery:
         broker_connection_retry_on_startup=True,
         timezone="UTC",
         enable_utc=True,
+        beat_schedule={
+            "dispatch-email-outbox": {
+                "task": "watchlog.email.dispatch_outbox",
+                "schedule": 5.0,
+            },
+            "cleanup-email-tokens": {
+                "task": "watchlog.email.cleanup_tokens",
+                "schedule": crontab(minute=15),
+            },
+            "cleanup-email-outbox": {
+                "task": "watchlog.email.cleanup_outbox",
+                "schedule": crontab(hour=3, minute=30),
+            },
+        },
     )
     return celery_app
 

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:32px;background:#0f1012;color:#f4efe6;font-family:Inter,Arial,sans-serif;">
+    <div style="max-width:520px;margin:0 auto;padding:32px;border:1px solid #2c2d31;border-radius:16px;background:#17181b;">
+      <p style="margin:0 0 8px;color:#e7b45a;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;">watchlog</p>
+      <h1 style="margin:0 0 16px;font-family:Georgia,serif;font-size:32px;font-weight:400;">Confirm your email</h1>
+      <p style="margin:0 0 20px;color:#ded7cc;line-height:1.6;">Hi {{ username }}, confirm this address to finish setting up your watchlog account.</p>
+      <p style="margin:0 0 24px;">
+        <a href="{{ public_url }}/verify-email?token={{ token }}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#e7b45a;color:#1a1305;font-weight:600;text-decoration:none;">Confirm email</a>
+      </p>
+      <p style="margin:0;color:#8d8880;font-size:12px;line-height:1.6;">If you did not create a watchlog account, you can ignore this message.</p>
+    </div>
+  </body>
+</html>

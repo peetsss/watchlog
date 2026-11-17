@@ -1,0 +1,7 @@
+Hi {{ username }},
+
+Confirm your watchlog email address:
+
+{{ public_url }}/verify-email?token={{ token }}
+
+If you did not create a watchlog account, you can ignore this message.

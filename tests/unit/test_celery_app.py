@@ -10,6 +10,7 @@ def test_celery_uses_the_configured_broker_and_ignores_results() -> None:
     assert app.conf.task_serializer == "json"
     assert app.conf.task_ignore_result is True
     assert app.conf.task_acks_late is True
+    assert "dispatch-email-outbox" in app.conf.beat_schedule
 
 
 def test_ping_task_runs_without_a_broker() -> None:

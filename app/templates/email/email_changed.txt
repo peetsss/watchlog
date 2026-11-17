@@ -1,0 +1,5 @@
+Hi {{ username }},
+
+Your watchlog account now uses {{ email }}.
+
+If this was not you, contact hello@watchlog.example immediately.
