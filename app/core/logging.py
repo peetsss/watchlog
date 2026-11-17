@@ -1,10 +1,13 @@
+import json
 import logging
 import sys
 from contextvars import ContextVar
+from datetime import UTC, datetime
+from typing import Literal
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 _HANDLER_NAME = "watchlog"
-_LOG_FORMAT = "%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s"
+_TEXT_LOG_FORMAT = "%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s"
 
 
 class RequestIdFilter(logging.Filter):
@@ -13,12 +16,35 @@ class RequestIdFilter(logging.Filter):
         return True
 
 
-def configure_logging(level: str) -> None:
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload: dict[str, object] = {
+            "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "request_id": getattr(record, "request_id", "-"),
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
+def configure_logging(level: str, log_format: Literal["text", "json"] = "text") -> None:
     root = logging.getLogger()
-    if not any(handler.get_name() == _HANDLER_NAME for handler in root.handlers):
-        handler = logging.StreamHandler(sys.stdout)
-        handler.set_name(_HANDLER_NAME)
-        handler.setFormatter(logging.Formatter(_LOG_FORMAT))
-        handler.addFilter(RequestIdFilter())
-        root.addHandler(handler)
+    formatter: logging.Formatter
+    if log_format == "json":
+        formatter = JsonFormatter()
+    else:
+        formatter = logging.Formatter(_TEXT_LOG_FORMAT)
+    for handler in root.handlers:
+        if handler.get_name() == _HANDLER_NAME:
+            handler.setFormatter(formatter)
+            root.setLevel(level.upper())
+            return
+    handler = logging.StreamHandler(sys.stdout)
+    handler.set_name(_HANDLER_NAME)
+    handler.setFormatter(formatter)
+    handler.addFilter(RequestIdFilter())
+    root.addHandler(handler)
     root.setLevel(level.upper())

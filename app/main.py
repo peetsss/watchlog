@@ -15,6 +15,7 @@ from app.core.db import create_engine, create_sessionmaker
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
+from app.core.observability import init_sentry
 from app.core.redis import create_redis
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.session_middleware import SessionMiddleware
@@ -29,7 +30,8 @@ def create_app(
     hub: LobbyHub | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
-    configure_logging(resolved_settings.log_level)
+    configure_logging(resolved_settings.log_level, resolved_settings.log_format)
+    init_sentry(resolved_settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
