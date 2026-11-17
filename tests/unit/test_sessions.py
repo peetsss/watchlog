@@ -71,6 +71,29 @@ async def test_touch_extends_the_session() -> None:
     assert await store.get(session_id) is not None
 
 
+async def test_revoke_user_sessions_keeps_anonymous_sessions() -> None:
+    store = MemorySessionStore()
+    first = await store.create(new_session("member", user_id=42), ttl=60)
+    second = await store.create(new_session("member", user_id=42), ttl=60)
+    anonymous = await store.create(new_session("anonymous"), ttl=60)
+
+    await store.revoke_user_sessions(42)
+
+    assert await store.get(first) is None
+    assert await store.get(second) is None
+    assert await store.get(anonymous) is not None
+
+
+async def test_rotated_session_stays_in_the_user_index() -> None:
+    store = MemorySessionStore()
+    original = await store.create(new_session("member", user_id=42), ttl=60)
+    rotated = await store.rotate(original, new_session("member", user_id=42), ttl=60)
+
+    await store.revoke_user_sessions(42)
+
+    assert await store.get(rotated) is None
+
+
 def test_session_id_hash_is_stable_and_one_way() -> None:
     session_id = "a-secret-session-id"
 

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 SessionKind = Literal["member", "guest", "anonymous"]
 
 SESSION_PREFIX = "watchlog:sess:"
+USER_SESSIONS_PREFIX = "watchlog:sess:user:"
 SESSION_ID_BYTES = 32
 CSRF_TOKEN_BYTES = 32
 
@@ -89,6 +90,8 @@ class SessionStore(Protocol):
 
     async def rotate(self, session_id: str, data: SessionData, ttl: int) -> str: ...
 
+    async def revoke_user_sessions(self, user_id: int) -> None: ...
+
 
 class RedisSessionStore:
     def __init__(self, redis: Redis, prefix: str = SESSION_PREFIX) -> None:
@@ -98,9 +101,20 @@ class RedisSessionStore:
     def _key(self, session_id: str) -> str:
         return f"{self._prefix}{hash_session_id(session_id)}"
 
+    def _user_key(self, user_id: int) -> str:
+        return f"{USER_SESSIONS_PREFIX}{user_id}"
+
+    async def _index_user(self, session_id: str, data: SessionData, ttl: int) -> None:
+        if data.user_id is None:
+            return
+        key = self._user_key(data.user_id)
+        await self._redis.sadd(key, hash_session_id(session_id))
+        await self._redis.expire(key, ttl)
+
     async def create(self, data: SessionData, ttl: int) -> str:
         session_id = new_session_id()
         await self._redis.set(self._key(session_id), data.model_dump_json(), ex=ttl)
+        await self._index_user(session_id, data, ttl)
         return session_id
 
     async def get(self, session_id: str) -> SessionData | None:
@@ -117,17 +131,32 @@ class RedisSessionStore:
 
     async def save(self, session_id: str, data: SessionData, ttl: int) -> None:
         await self._redis.set(self._key(session_id), data.model_dump_json(), ex=ttl)
+        await self._index_user(session_id, data, ttl)
 
     async def touch(self, session_id: str, ttl: int) -> None:
         await self._redis.expire(self._key(session_id), ttl)
+        data = await self.get(session_id)
+        if data is not None and data.user_id is not None:
+            await self._redis.expire(self._user_key(data.user_id), ttl)
 
     async def delete(self, session_id: str) -> None:
+        data = await self.get(session_id)
         await self._redis.delete(self._key(session_id))
+        if data is not None and data.user_id is not None:
+            await self._redis.srem(self._user_key(data.user_id), hash_session_id(session_id))
 
     async def rotate(self, session_id: str, data: SessionData, ttl: int) -> str:
         new_id = await self.create(data, ttl)
         await self.delete(session_id)
         return new_id
+
+    async def revoke_user_sessions(self, user_id: int) -> None:
+        user_key = self._user_key(user_id)
+        session_hashes = await self._redis.smembers(user_key)
+        if session_hashes:
+            keys = [f"{self._prefix}{session_hash}" for session_hash in session_hashes]
+            await self._redis.delete(*keys)
+        await self._redis.delete(user_key)
 
 
 @dataclass
@@ -140,10 +169,16 @@ class MemorySessionStore:
     def __init__(self, clock: Callable[[], float] = time.time) -> None:
         self._clock = clock
         self._entries: dict[str, _MemoryEntry] = {}
+        self._user_sessions: dict[int, set[str]] = {}
+
+    def _index_user(self, session_id: str, data: SessionData) -> None:
+        if data.user_id is not None:
+            self._user_sessions.setdefault(data.user_id, set()).add(session_id)
 
     async def create(self, data: SessionData, ttl: int) -> str:
         session_id = new_session_id()
         self._entries[session_id] = _MemoryEntry(data=data, expires_at=self._clock() + ttl)
+        self._index_user(session_id, data)
         return session_id
 
     async def get(self, session_id: str) -> SessionData | None:
@@ -157,6 +192,7 @@ class MemorySessionStore:
 
     async def save(self, session_id: str, data: SessionData, ttl: int) -> None:
         self._entries[session_id] = _MemoryEntry(data=data, expires_at=self._clock() + ttl)
+        self._index_user(session_id, data)
 
     async def touch(self, session_id: str, ttl: int) -> None:
         entry = self._entries.get(session_id)
@@ -164,12 +200,22 @@ class MemorySessionStore:
             entry.expires_at = self._clock() + ttl
 
     async def delete(self, session_id: str) -> None:
-        self._entries.pop(session_id, None)
+        entry = self._entries.pop(session_id, None)
+        if entry is not None and entry.data.user_id is not None:
+            sessions = self._user_sessions.get(entry.data.user_id)
+            if sessions is not None:
+                sessions.discard(session_id)
+                if not sessions:
+                    self._user_sessions.pop(entry.data.user_id, None)
 
     async def rotate(self, session_id: str, data: SessionData, ttl: int) -> str:
         new_id = await self.create(data, ttl)
         await self.delete(session_id)
         return new_id
+
+    async def revoke_user_sessions(self, user_id: int) -> None:
+        for session_id in self._user_sessions.pop(user_id, set()):
+            self._entries.pop(session_id, None)
 
 
 def set_session_cookie(response: Response, session_id: str, data: SessionData, settings: Settings) -> None:
