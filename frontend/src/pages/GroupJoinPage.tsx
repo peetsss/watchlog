@@ -3,6 +3,7 @@ import { ArrowRight, Film, Link2, Loader2, Lock, Users } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
+import { LegalLinks } from "../components/LegalLinks";
 import { Wordmark } from "../components/Wordmark";
 import { movies } from "../data";
 import { useGroupPreview, useJoinGroup } from "../lib/api-groups";
@@ -175,6 +176,7 @@ export function GroupJoinPage() {
           </div>
         </aside>
       </div>
+      <LegalLinks className="join-legal" />
     </main>
   );
 }

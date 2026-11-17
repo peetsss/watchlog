@@ -22,6 +22,7 @@ import { GroupJoinPage } from "./pages/GroupJoinPage";
 import { GroupsPage } from "./pages/GroupsPage";
 import { HubPage } from "./pages/HubPage";
 import { JoinPage } from "./pages/JoinPage";
+import { AboutPage, PrivacyPage, TermsPage } from "./pages/LegalPage";
 import { SearchPage } from "./pages/SearchPage";
 import { LobbyPage } from "./pages/lobby/LobbyPage";
 import { queryClient } from "./lib/query";
@@ -76,6 +77,9 @@ export function App() {
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/login" element={<Navigate to="/auth" replace />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
               <Route
                 element={
                   <RequireMember>

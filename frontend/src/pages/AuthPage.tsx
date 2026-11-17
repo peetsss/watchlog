@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/Button";
+import { LegalLinks } from "../components/LegalLinks";
 import { SessionError, SessionLoading } from "../components/RequireMember";
 import { Wordmark } from "../components/Wordmark";
 import { movies } from "../data";
@@ -307,6 +308,7 @@ export function AuthPage() {
           watchlog<span>.</span>
         </span>
         <span>For the people who stay for the credits.</span>
+        <LegalLinks className="auth-legal" />
       </footer>
     </main>
   );

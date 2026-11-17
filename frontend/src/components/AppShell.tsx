@@ -5,6 +5,7 @@ import { useActiveLobby } from "../lib/api-lobby";
 import { cx } from "../lib/cx";
 import { useSession } from "../state/Session";
 import { Avatar } from "./Avatar";
+import { LegalLinks } from "./LegalLinks";
 import { Wordmark } from "./Wordmark";
 
 const navItems = [
@@ -115,6 +116,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
           <p className="side-note">A quieter place for movie people.</p>
+          <LegalLinks />
         </div>
       </aside>
 

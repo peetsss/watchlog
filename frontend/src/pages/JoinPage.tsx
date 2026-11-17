@@ -3,6 +3,7 @@ import { ArrowRight, Clock, Link2, Loader2, Lock, Users } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
+import { LegalLinks } from "../components/LegalLinks";
 import { Wordmark } from "../components/Wordmark";
 import { movies } from "../data";
 import { joinLobby, useLobbyPreview } from "../lib/api-lobby";
@@ -211,6 +212,7 @@ export function JoinPage() {
           </div>
         </aside>
       </div>
+      <LegalLinks className="join-legal" />
     </main>
   );
 }
