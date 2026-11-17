@@ -30,24 +30,6 @@ x-app-environment: &app-environment
   WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
 
 services:
-  caddy:
-    image: caddy:2.10.2-alpine
-    depends_on:
-      api:
-        condition: service_healthy
-    environment:
-      WATCHLOG_SITE_ADDRESS: ${WATCHLOG_SITE_ADDRESS:-http://localhost}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks:
-      - watchlog
-    restart: unless-stopped
-
   migrate:
     image: watchlog:prod
     command: ["alembic", "upgrade", "head"]
@@ -74,8 +56,9 @@ services:
       redis:
         condition: service_healthy
     environment: *app-environment
-    expose:
-      - "8000"
+    ports:
+      # Loopback only: the host reverse proxy is the public entry point.
+      - "127.0.0.1:8000:8000"
     networks:
       - watchlog
     restart: unless-stopped
@@ -165,7 +148,5 @@ networks:
   watchlog:
 
 volumes:
-  caddy_config:
-  caddy_data:
   postgres_data:
   redis_data:

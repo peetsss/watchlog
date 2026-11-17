@@ -117,15 +117,20 @@ to send real mail.
 ### Production
 
 ```bash
-# set WATCHLOG_SECRET_KEY, WATCHLOG_PUBLIC_URL, WATCHLOG_SITE_ADDRESS,
-# POSTGRES_PASSWORD and your host/origin values in .env
+# set WATCHLOG_SECRET_KEY, WATCHLOG_PUBLIC_URL, POSTGRES_PASSWORD and your
+# host/origin values in .env
 docker compose up -d --build
 ```
 
-Caddy terminates TLS and serves the SPA through the FastAPI process on your
-configured domain. Migrations run once in a dedicated service before the API,
-worker and beat start. The API exposes `/health` for liveness and `/ready` for
-database/Redis readiness; use `/ready` for external checks.
+The API publishes only on `127.0.0.1:8000`. TLS is terminated by a reverse
+proxy on the VPS, configured on the server outside this repo; it must forward
+WebSockets on `/ws` and set the forwarded headers. Keep port 8000 closed at the
+firewall. The [runbook](docs/production-runbook.md#host-reverse-proxy) lists the
+proxy requirements.
+
+Migrations run once in a dedicated service before the API, worker and beat
+start. The API exposes `/health` for liveness and `/ready` for database/Redis
+readiness; use `/ready` for external checks.
 
 For real account email, verify a sending domain in Resend and set
 `WATCHLOG_MAIL_BACKEND=resend`, `WATCHLOG_MAIL_FROM` and
