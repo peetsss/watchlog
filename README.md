@@ -28,6 +28,7 @@ The app is built around a simple rhythm — **one room, one shortlist, one pick*
 ## Features
 
 - **Groups and watchlists** — create a club, invite people by link, add films, mark them watched and keep the crew's history in one place.
+- **Guest nights** — open or join an open room with just a display name, then claim the account later without losing your votes or host seat.
 - **Club scores** — every member scores out of ten. The club average is derived from the people actually in the group, never from an invented crowd.
 - **Film detail on demand** — synopsis, credits, runtime and genres are loaded from the local catalogue when a sheet opens, not stuffed into every list response.
 - **A real movie-night lobby** — ready up, vote on each film, reveal the ballot together, shortlist unanimous picks, then run a final round of one-pick-each.
@@ -141,7 +142,7 @@ just check                         # ruff, formatting, Alembic drift, pytest
 cd frontend && npm run verify:all  # API-backed Playwright flows
 ```
 
-The browser suite covers a two-user group night, auth and route gates, open-lobby invites, private rooms, the film sheet and mobile layouts. It shortens a test lobby's pool through the dev Postgres container so the full night runs in seconds; see [`frontend/README.md`](frontend/README.md) for prerequisites and cleanup details.
+The browser suite covers a two-user group night, auth and route gates, guest open-room hosting/joining/claim, open-lobby invites, private rooms, the film sheet and mobile layouts. It shortens a test lobby's pool through the dev Postgres container so the full night runs in seconds; see [`frontend/README.md`](frontend/README.md) for prerequisites and cleanup details.
 
 ## Project layout
 
