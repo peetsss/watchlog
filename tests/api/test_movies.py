@@ -10,8 +10,13 @@ from tests.api.helpers import register_member
 
 
 class FakeTMDB:
-    def __init__(self, results: list[MovieSearchResult] | None) -> None:
+    def __init__(
+        self,
+        results: list[MovieSearchResult] | None,
+        watch_payload: dict[str, object] | None = None,
+    ) -> None:
         self.results = results
+        self.watch_payload = watch_payload
 
     async def search(self, query: str) -> list[MovieSearchResult] | None:
         return self.results
@@ -19,6 +24,33 @@ class FakeTMDB:
     async def get_details(self, tmdb_id: int, media_type: str) -> dict[str, object] | None:
         return None
 
+    async def get_watch_providers(self, tmdb_id: int, media_type: str) -> dict[str, object] | None:
+        return self.watch_payload
+
+
+WATCH_PAYLOAD = {
+    "results": {
+        "PL": {
+            "link": "https://www.themoviedb.org/movie/438631/watch?locale=PL",
+            "flatrate": [
+                {
+                    "provider_id": 8,
+                    "provider_name": "Netflix",
+                    "logo_path": "/netflix.jpg",
+                    "display_priority": 1,
+                }
+            ],
+            "rent": [
+                {
+                    "provider_id": 2,
+                    "provider_name": "Apple TV",
+                    "logo_path": "/apple.jpg",
+                    "display_priority": 1,
+                }
+            ],
+        }
+    }
+}
 
 SEARCH_RESULTS = [
     MovieSearchResult(
@@ -84,7 +116,11 @@ async def test_search_validates_the_query(client: AsyncClient) -> None:
     assert response.json()["error"]["code"] == "invalid_request"
 
 
-async def test_movie_detail(client: AsyncClient, movie_factory: Callable[..., int]) -> None:
+async def test_movie_detail(
+    client: AsyncClient,
+    app: FastAPI,
+    movie_factory: Callable[..., int],
+) -> None:
     await register_member(client)
     movie_id = movie_factory(
         tmdb_id=438631,
@@ -94,6 +130,7 @@ async def test_movie_detail(client: AsyncClient, movie_factory: Callable[..., in
         runtime=155,
         genres="Science Fiction",
     )
+    app.dependency_overrides[get_tmdb_client] = lambda: FakeTMDB([], None)
 
     response = await client.get(f"/api/movies/{movie_id}")
 
@@ -103,7 +140,29 @@ async def test_movie_detail(client: AsyncClient, movie_factory: Callable[..., in
     assert body["title"] == "Dune"
     assert body["release_date"] == "2021-10-22"
     assert body["runtime"] == 155
+    assert body["watch"] is None
     assert "embeddings" not in body
+
+
+async def test_movie_detail_loads_and_caches_watch_availability(
+    client: AsyncClient,
+    app: FastAPI,
+    movie_factory: Callable[..., int],
+) -> None:
+    await register_member(client)
+    movie_id = movie_factory(tmdb_id=438631, title="Dune")
+    app.dependency_overrides[get_tmdb_client] = lambda: FakeTMDB([], WATCH_PAYLOAD)
+
+    response = await client.get(f"/api/movies/{movie_id}")
+
+    assert response.status_code == 200
+    watch = response.json()["watch"]
+    assert watch["region"] == "PL"
+    assert watch["link"] == "https://www.themoviedb.org/movie/438631/watch?locale=PL"
+    assert watch["stale"] is False
+    assert [provider["name"] for provider in watch["offers"]["flatrate"]] == ["Netflix"]
+    assert watch["offers"]["flatrate"][0]["logo_url"] == "https://image.tmdb.org/t/p/w92/netflix.jpg"
+    assert [provider["name"] for provider in watch["offers"]["rent"]] == ["Apple TV"]
 
 
 async def test_movie_detail_requires_authentication(client: AsyncClient, movie_factory: Callable[..., int]) -> None:

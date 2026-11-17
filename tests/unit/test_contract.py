@@ -212,7 +212,7 @@ def test_lobby_contract_fields() -> None:
     }
     assert _fields(BallotEntry) == {"participant_id", "name", "choice"}
     assert _fields(VoteTally) == {"interested", "watched", "not_interested", "total"}
-    assert _fields(FinalistRef) == {"movie", "pick_count", "viewer_picked"}
+    assert _fields(FinalistRef) == {"movie", "pick_count", "viewer_picked", "watch"}
     assert _fields(Capabilities) == {
         "can_start",
         "can_unready",
@@ -254,6 +254,7 @@ def test_lobby_contract_fields() -> None:
         "picks_revealed",
         "viewer_pick",
         "winner",
+        "winner_watch",
         "capabilities",
     }
     assert _fields(LobbyStateEnvelope) == {"lobby"}
@@ -328,6 +329,7 @@ def test_movie_contract_fields() -> None:
         "homepage",
         "created_at",
         "updated_at",
+        "watch",
     }
 
 

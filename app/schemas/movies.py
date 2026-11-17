@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.watch import WatchAvailability
+
 
 class MovieSearchResult(BaseModel):
     tmdb_id: int
@@ -60,3 +62,4 @@ class MovieDetail(BaseModel):
     homepage: str | None
     created_at: datetime
     updated_at: datetime
+    watch: WatchAvailability | None = None

@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.watch import WatchAvailability
+
 
 class MovieRef(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -47,6 +49,7 @@ class FinalistRef(BaseModel):
     movie: MovieRef
     pick_count: int | None
     viewer_picked: bool
+    watch: WatchAvailability | None = None
 
 
 class Capabilities(BaseModel):
@@ -91,6 +94,7 @@ class LobbyState(BaseModel):
     picks_revealed: bool
     viewer_pick: int | None
     winner: MovieRef | None
+    winner_watch: WatchAvailability | None = None
     capabilities: Capabilities
 
 

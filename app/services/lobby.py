@@ -6,6 +6,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.domain.lobby import engine, rules
 from app.domain.lobby.exceptions import (
     AlreadyActiveLobbyError,
@@ -36,6 +37,7 @@ from app.schemas.lobby import (
 from app.services.identity import Viewer
 from app.services.lobby_pool import resolve_pool
 from app.services.viewer import color_for, initials_for
+from app.services.watch_providers import load_cached_availability
 
 logger = logging.getLogger(__name__)
 
@@ -658,6 +660,18 @@ async def get_state(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> LobbySt
         movie_ids.add(lobby.winner_movie_id)
     movies = await _movie_map(db, movie_ids)
 
+    settings = get_settings()
+    watch_region = viewer.user.region if viewer.user is not None else settings.default_region
+    watch_movie_ids = set(finalist_ids)
+    if lobby.winner_movie_id is not None:
+        watch_movie_ids.add(lobby.winner_movie_id)
+    watch_by_movie = await load_cached_availability(
+        db,
+        watch_movie_ids,
+        watch_region,
+        settings.watch_provider_ttl_seconds,
+    )
+
     ordered = sorted(
         participants,
         key=lambda participant: (
@@ -695,6 +709,7 @@ async def get_state(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> LobbySt
                 movie=MovieRef.model_validate(movie),
                 pick_count=pick_counts.get(movie_id, 0) if pick_counts is not None else None,
                 viewer_picked=picks.get(str(viewer_participant.id)) == movie_id,
+                watch=watch_by_movie.get(movie_id),
             )
         )
 
@@ -763,5 +778,6 @@ async def get_state(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> LobbySt
         picks_revealed=lobby.picks_revealed,
         viewer_pick=picks.get(str(viewer_participant.id)),
         winner=_movie_ref(movies.get(lobby.winner_movie_id)) if lobby.winner_movie_id is not None else None,
+        winner_watch=watch_by_movie.get(lobby.winner_movie_id) if lobby.winner_movie_id is not None else None,
         capabilities=_capabilities(lobby, viewer_is_host, viewer_participant.is_ready),
     )

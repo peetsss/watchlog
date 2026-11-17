@@ -2,12 +2,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query
 
-from app.api.deps import CurrentUser, TMDBDep
+from app.api.deps import CurrentUser, LobbyViewer, SettingsDep, TMDBDep
 from app.core.db import SessionDep
 from app.core.errors import AppError
 from app.models.movie import Movie
 from app.schemas.movies import MovieDetail, MovieSearchEnvelope
 from app.services.movies import attach_local_ids
+from app.services.watch_providers import get_watch_availability
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
@@ -28,10 +29,20 @@ async def search_movies(
 @router.get("/{movie_id}", response_model=MovieDetail)
 async def get_movie(
     movie_id: Annotated[int, Path(ge=1)],
-    _user: CurrentUser,
+    viewer: LobbyViewer,
     db: SessionDep,
-) -> Movie:
+    settings: SettingsDep,
+    tmdb: TMDBDep,
+) -> MovieDetail:
     movie = await db.get(Movie, movie_id)
     if movie is None:
         raise AppError("Movie not found.", code="not_found", status_code=404)
-    return movie
+    region = viewer.user.region if viewer.user is not None else settings.default_region
+    watch = await get_watch_availability(
+        db,
+        movie,
+        region,
+        settings.watch_provider_ttl_seconds,
+        tmdb,
+    )
+    return MovieDetail.model_validate(movie).model_copy(update={"watch": watch})

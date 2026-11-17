@@ -98,3 +98,46 @@ class TMDBClient:
     async def get_details(self, tmdb_id: int, media_type: str) -> dict[str, object] | None:
         endpoint = f"/tv/{tmdb_id}" if media_type == "series" else f"/movie/{tmdb_id}"
         return await self._get(endpoint, {"append_to_response": "credits,keywords,external_ids"})
+
+    async def get_watch_providers(self, tmdb_id: int, media_type: str) -> dict[str, object] | None:
+        endpoint = f"/tv/{tmdb_id}/watch/providers" if media_type == "series" else f"/movie/{tmdb_id}/watch/providers"
+        return await self._get(endpoint)
+
+
+class SyncTMDBWatchProviderClient:
+    def __init__(
+        self,
+        api_key: str,
+        language: str = "en-US",
+        timeout: float = 10.0,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        self._api_key = api_key
+        self._language = language
+        self._client = httpx.Client(base_url=TMDBClient.BASE_URL, timeout=timeout, transport=transport)
+
+    def __enter__(self) -> SyncTMDBWatchProviderClient:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self._client.close()
+
+    def get_watch_providers(self, tmdb_id: int, media_type: str) -> dict[str, object] | None:
+        endpoint = f"/tv/{tmdb_id}/watch/providers" if media_type == "series" else f"/movie/{tmdb_id}/watch/providers"
+        try:
+            response = self._client.get(
+                endpoint,
+                params={"api_key": self._api_key, "language": self._language},
+            )
+            response.raise_for_status()
+        except httpx.HTTPError:
+            logger.exception("TMDB watch-provider request for %s failed", endpoint)
+            return None
+        payload = response.json()
+        if not isinstance(payload, dict):
+            logger.warning("TMDB returned a non-object watch-provider payload for %s", endpoint)
+            return None
+        return payload
