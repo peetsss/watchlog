@@ -44,6 +44,7 @@ def main() -> None:
             "8000",
             "--workers",
             os.getenv("WEB_CONCURRENCY", "1"),
+            "--no-access-log",
         ],
     )
 

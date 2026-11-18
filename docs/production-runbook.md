@@ -49,6 +49,15 @@ After proxy changes, reload it and confirm the site and `/ws` still work. On our
 VPS that is `sudo systemctl reload caddy`, with logs in
 `journalctl -u caddy -f`.
 
+## Logging
+
+Uvicorn access logs are disabled in the API entrypoint and the dev stack. The
+app request log includes the method, redacted path and client IP; tokens in
+invite paths and query strings are replaced with `[REDACTED]`.
+
+If the host proxy keeps access logs, redact or disable the invite and token
+paths there too. Do not forward token-bearing URLs to a third-party log service.
+
 ## CI/CD
 
 Development happens on `dev`; `main` is production. release-please is paused
