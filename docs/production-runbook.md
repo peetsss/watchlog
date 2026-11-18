@@ -74,9 +74,9 @@ The VPS only pulls images. It never builds.
   to contain `chore(release): vX.Y.Z`, which is the promotion PR title. Squash
   keeps the subject clean; a merge commit also passes but is noisier.
 - Add a repository secret `AUTOMATION_TOKEN`: a fine-grained PAT with
-  `contents: write` and `pull-requests: write`. It is required: release-please
-  and the promotion workflow refuse to run without it, so bot-created PRs always
-  trigger checks.
+  `contents: write`, `issues: write` and `pull-requests: write`. It is required:
+  release-please and the promotion workflow refuse to run without it, so
+  bot-created PRs always trigger checks.
 
 Create a `production` environment (Settings → Environments) and add these
 environment secrets:
