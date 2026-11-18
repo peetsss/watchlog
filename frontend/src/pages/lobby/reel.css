@@ -67,14 +67,12 @@
 .reel-deck {
   position: relative;
   width: min(900px, 100%);
-  height: 520px;
   margin: 16px auto 0;
   perspective: 1100px;
   touch-action: pan-y;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-  cursor: grab;
 }
 
 .reel-deck.is-dragging {
@@ -127,7 +125,12 @@
 }
 
 .reel-card.is-current {
+  position: relative;
+  top: auto;
+  left: auto;
   z-index: 3;
+  margin: 0 auto;
+  transform: none;
 }
 
 .reel-card.is-prev,
@@ -206,7 +209,7 @@
 }
 
 .reel-copy {
-  padding: 12px 2px 0;
+  padding: 12px 2px 14px;
 }
 
 .reel-copy h2 {
@@ -235,7 +238,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin: 0 0 18px;
+  margin: 14px 0 18px;
 }
 
 .reel-dot {
@@ -457,7 +460,7 @@
   }
 
   .reel-deck {
-    height: 470px;
+    height: auto;
     margin-top: 12px;
   }
 
