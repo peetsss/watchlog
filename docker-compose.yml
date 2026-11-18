@@ -29,9 +29,11 @@ x-app-environment: &app-environment
   WATCHLOG_REQUIRE_VERIFIED_EMAIL: ${WATCHLOG_REQUIRE_VERIFIED_EMAIL:-true}
   WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
 
+x-app-image: &app-image ${WATCHLOG_IMAGE:?Set WATCHLOG_IMAGE to the deployed image tag}
+
 services:
   migrate:
-    image: watchlog:prod
+    image: *app-image
     command: ["alembic", "upgrade", "head"]
     depends_on:
       database:
@@ -44,10 +46,7 @@ services:
     restart: "no"
 
   api:
-    image: watchlog:prod
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: *app-image
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -64,7 +63,7 @@ services:
     restart: unless-stopped
 
   worker:
-    image: watchlog:prod
+    image: *app-image
     command:
       - celery
       - -A
@@ -92,7 +91,7 @@ services:
     restart: unless-stopped
 
   beat:
-    image: watchlog:prod
+    image: *app-image
     command:
       - celery
       - -A

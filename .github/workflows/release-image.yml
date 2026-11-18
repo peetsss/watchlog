@@ -1,0 +1,67 @@
+name: Release image
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and push the release image
+        id: meta
+        env:
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          image="$REGISTRY/${IMAGE_NAME,,}"
+          tag="$GITHUB_REF_NAME"
+          sha="sha-${GITHUB_SHA::12}"
+          echo "image=$image:$tag" >> "$GITHUB_OUTPUT"
+          echo "$GITHUB_TOKEN" | docker login "$REGISTRY" -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --name release --use --driver docker-container
+          docker buildx build --platform linux/amd64 --push \
+            --tag "$image:$tag" \
+            --tag "$image:$sha" \
+            .
+
+  promote:
+    runs-on: ubuntu-latest
+    needs:
+      - image
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Open the promotion PR
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || github.token }}
+          IMAGE: ${{ needs.image.outputs.image }}
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          branch="release/$tag"
+          git push --force origin "HEAD:refs/heads/$branch"
+          existing="$(gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$existing" ]; then
+            gh pr create \
+              --base main \
+              --head "$branch" \
+              --title "chore(release): $tag" \
+              --body "Promote $tag to production. Image: $IMAGE"
+          fi

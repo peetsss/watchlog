@@ -70,16 +70,18 @@ and the Resend values for real email.
 
 ## Production
 
+Development happens on `dev`. A release PR bumps the version and creates a
+`v0.x.y` tag; the tag build pushes the image, and a promotion PR merges it into
+`main`, which deploys to the VPS over SSH. The server only pulls images.
+
+Local production build:
+
 ```bash
-docker compose up -d --build
+just prod
 ```
 
-The API listens on `127.0.0.1:8000`; a host reverse proxy terminates TLS and
-forwards `/ws`. Migrations run as a one-shot Compose service first. Set secrets
-and domain values in `.env` before deploying.
-
-Deploy, rollback, restore, admin and incident steps:
-[`docs/production-runbook.md`](docs/production-runbook.md).
+First-time server setup, required GitHub secrets, promotion and rollback live in
+the [production runbook](docs/production-runbook.md#cicd).
 
 ## Tests
 

@@ -21,6 +21,11 @@ WATCHLOG_RESEND_API_KEY=<resend key>
 WATCHLOG_SENTRY_DSN=<optional sentry dsn>
 ```
 
+The deploy workflow sets `WATCHLOG_IMAGE` to the release tag it deploys. Manual
+runs must export it, for example
+`WATCHLOG_IMAGE=ghcr.io/<owner>/watchlog:v<version>`. Keep it out of the app's
+`.env` unless you want a fixed manual default.
+
 The host reverse proxy keeps its own configuration on the VPS, outside this
 repository; see [Host reverse proxy](#host-reverse-proxy).
 
@@ -44,16 +49,135 @@ After proxy changes, reload it and confirm the site and `/ws` still work. On our
 VPS that is `sudo systemctl reload caddy`, with logs in
 `journalctl -u caddy -f`.
 
+## CI/CD
+
+Development happens on `dev`; `main` is production. Feature PRs target `dev`.
+release-please opens a release PR on `dev`; merging it updates the version files
+and creates `v0.x.y`. The tag workflow builds and pushes the image, then opens a
+promotion PR to `main`. Merging that PR deploys `v0.x.y` to the VPS.
+
+The VPS only pulls images. It never builds.
+
+| Workflow | Trigger | Does |
+| --- | --- | --- |
+| `ci.yml` | PRs and pushes to `dev`/`main` | checks; Docker build check on PRs; deploy on `main` |
+| `release.yml` | push to `dev` | release-please release PR |
+| `release-image.yml` | tag `v*` | image build/push; promotion PR to `main` |
+| `pr-title.yml` | PRs to `dev`/`main` | conventional PR title check |
+
+### GitHub settings
+
+- Make `dev` the default branch.
+- Protect `dev` and `main`: require pull requests, the `backend`, `frontend`,
+  `image-check` and `PR title` checks, and disable force pushes.
+- Allow only squash merges on `main`. The deploy job requires the subject
+  `chore(release): vX.Y.Z`, which is the promotion PR title.
+- Add a repository secret `AUTOMATION_TOKEN`: a fine-grained PAT with
+  `contents: write` and `pull-requests: write`. It lets release-please and the
+  promotion PR trigger CI. Without it the workflows fall back to
+  `GITHUB_TOKEN`, but bot-created PRs will not run checks.
+
+Create a `production` environment (Settings → Environments) and add these
+environment secrets:
+
+| Secret | Value |
+| --- | --- |
+| `VPS_HOST` | VPS hostname or IP |
+| `VPS_USER` | `deploy` |
+| `VPS_SSH_KEY` | private ed25519 key for the deploy user |
+| `VPS_KNOWN_HOSTS` | output of `ssh-keyscan -H <VPS_HOST>` |
+| `VPS_PORT` | optional, defaults to `22` |
+| `VPS_APP_DIR` | optional, defaults to `/srv/watchlog` |
+
+Add required reviewers to the environment if production deploys should wait for
+approval.
+
+Generate the pair on a trusted machine:
+
+```bash
+ssh-keygen -t ed25519 -f watchlog-deploy -C watchlog-deploy
+ssh-keyscan -H <VPS_HOST>
+```
+
+Put the public key in the deploy user's `~/.ssh/authorized_keys`, the private key
+in `VPS_SSH_KEY`, and the keyscan output in `VPS_KNOWN_HOSTS`.
+
+### VPS bootstrap
+
+1. Create a `deploy` user and add it to the `docker` group. Docker group access
+   is effectively root; protect the key and the VPS login accordingly.
+2. Clone the repository to `/srv/watchlog` with a deploy key or token. The
+   workflow runs `git fetch origin main` and resets the working tree to it.
+3. Create `.env` from `.env.template`, fill production secrets and domain
+   values, and keep it out of Git.
+4. Log in to GHCR as the deploy user with a token that can read packages:
+   `docker login ghcr.io -u <github-user>`. Make the package public instead if
+   you prefer anonymous pulls.
+5. Configure the host reverse proxy and firewall as described above.
+6. Deploy the first image manually after the first release:
+
+```bash
+cd /srv/watchlog
+export WATCHLOG_IMAGE=ghcr.io/<owner>/watchlog:v0.1.0
+docker compose pull
+docker compose up -d --remove-orphans
+curl -fsS http://127.0.0.1:8000/ready
+```
+
+### How a deploy runs
+
+A release promotion to `main` runs the checks and then the deploy job:
+
+1. reads the version from `pyproject.toml`;
+2. requires the latest commit subject to start with
+   `chore(release): v<version>`;
+3. verifies `ghcr.io/<owner>/watchlog:v<version>` exists;
+4. SSHes to the VPS and runs:
+
+```bash
+git fetch origin main
+git reset --hard FETCH_HEAD
+export WATCHLOG_IMAGE=ghcr.io/<owner>/watchlog:v<version>
+docker compose pull
+docker compose up -d --remove-orphans
+curl -fsS http://127.0.0.1:8000/ready
+```
+
+`docker compose up` runs the one-shot `migrate` service and then starts the API,
+worker and beat. If `/ready` fails, the job fails; inspect `migrate` and API logs
+before rolling back.
+
+### Rollback
+
+Deploy the previous version tag without rebuilding:
+
+```bash
+cd /srv/watchlog
+export WATCHLOG_IMAGE=ghcr.io/<owner>/watchlog:v<previous>
+docker compose pull
+docker compose up -d --remove-orphans
+```
+
+If the release changed the schema incompatibly, restore the database backup
+instead of only changing the image.
+
 ## Deploy
 
 1. Create a database backup and confirm it succeeded.
-2. Pull the release commit.
-3. `docker compose up -d --build --remove-orphans`.
-4. Confirm `migrate` exited 0.
-5. Confirm the API is healthy at `/ready`.
-6. Confirm `worker` and `beat` are running.
-7. Confirm the host reverse proxy is active and reload it after config changes.
-8. Smoke test:
+2. Merge the release promotion PR into `main`; the workflow verifies and
+   deploys the version tag. For a manual deploy, export the version tag and run:
+
+```bash
+export WATCHLOG_IMAGE=ghcr.io/<owner>/watchlog:v0.1.0
+docker compose pull
+docker compose up -d --remove-orphans
+```
+
+3. Confirm `migrate` exited 0.
+4. Confirm the API is healthy at `/ready`.
+5. Confirm `worker` and `beat` are running.
+6. Confirm the host reverse proxy is active and reload it after config changes.
+7. Smoke test:
 
 ```text
 GET /health -> ok
@@ -65,12 +189,12 @@ open an invite -> guest room -> claim
 
 ## Rollback
 
-1. Stop the API and worker.
-2. Deploy the previous image/commit.
-3. Run the matching Alembic revision only after checking whether the release
-   added a migration.
+1. Set `WATCHLOG_IMAGE` to the previous `v` tag.
+2. `docker compose pull && docker compose up -d --remove-orphans`.
+3. Check whether the release added a migration. Do not auto-downgrade a schema
+   the old image cannot read.
 4. Restore the database backup if a schema rollback is required.
-5. Start the API and worker and run the smoke tests.
+5. Run the smoke tests.
 
 Do not run `docker compose down -v` during rollback. It deletes named data
 volumes.
