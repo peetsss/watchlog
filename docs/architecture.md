@@ -26,9 +26,9 @@ Browser
                                             ── TMDB / JustWatch (watch data)
 ```
 
-The API publishes only on `127.0.0.1:8000`; the host proxy is the public entry
-point. Redis databases are split by convention: DB 0 for sessions, CSRF and
-rate limits, DB 1 for the Celery broker.
+In production the API publishes only on `127.0.0.1:8000`; the host proxy is the
+public entry point. Redis databases are split by convention: DB 0 for sessions,
+CSRF and rate limits, DB 1 for the Celery broker.
 
 ## 2. Code map
 
@@ -160,7 +160,7 @@ ready ──start──▶ playing ──last film / advance──▶ final_roun
 Rules:
 
 - A room is `group` (members only) or `open` (guests allowed).
-- The pool is 100 random non-adult films, excluding the group’s existing
+- The pool is 25 random non-adult films, excluding the group’s existing
   watchlist for group rooms, or an explicit pool for tests.
 - Ready players are the players; unready members are removed on start. The host
   cannot leave.
@@ -289,9 +289,101 @@ valid for seven days; creating one revokes the group’s previous live link.
 - Celery tasks are tested by calling `.apply()` with a worker runtime pointed at
   the test database.
 - Playwright flows in `frontend/` exercise the SPA against a running dev stack;
-  they are intentionally separate from `just check`.
+  they are intentionally separate from `just check`. The DB helpers refuse a
+  non-local `WATCHLOG_URL` unless `WATCHLOG_ALLOW_REMOTE_VERIFY=1`.
 
-## 13. Extending the backend
+## 13. Data operations
+
+The app reads films from the local `movies` table, not live from TMDB. Search
+and film detail stay fast, a TMDB outage does not empty the catalogue, and the
+lobby pool is a plain ordered query. The cost is an explicit import step after a
+fresh deploy.
+
+```bash
+just ingest --dry-run                 # parse the TMDB CSV without writing
+just ingest --min-votes 50 --limit 50000
+just watch-providers --scope popular --limit 500
+just seed                             # development only
+```
+
+- `ingest_tmdb.py` reads the bundled-format TMDB CSV. The 582 MB file is not in
+  the Docker build context, so upload it and mount it when importing on a server.
+- `copy_movies.py` copies the catalogue from a legacy database; it is kept for
+  migrations, not for normal deploys.
+- `embed_movies.py` fills `movies.embeddings`. Retrieval is not part of this
+  release, so importing without embeddings is supported.
+- `backfill_watch_providers.py` warms availability snapshots; the daily task
+  keeps them fresh afterwards.
+- `seed_dev_data.py` creates demo users and a club. Never run it in production.
+
+Backups, restore and provider backfill procedures live in
+`docs/production-runbook.md`.
+
+## 14. Scaling and failure behaviour
+
+The API is stateless: sessions, CSRF state and rate-limit counters live in Redis;
+lobbies and account data live in Postgres. Extra Uvicorn workers
+(`WEB_CONCURRENCY`) or extra API containers are safe behind the proxy. WebSocket
+clients do not need sticky sessions because every process subscribes to the
+Redis lobby channel.
+
+- **Lobby contention** is per room. Writes take a row lock, so fights are limited
+  to players acting on the same room at the same time, which is the scale the
+  product targets.
+- **Redis loss** invalidates sessions and the rate-limit counters; clients
+  re-authenticate. Postgres remains the source of truth. The hub reconnects its
+  subscriptions on demand.
+- **Celery loss** delays email and provider refresh. Email waits in
+  `email_outbox`; stale watch rows still render with `stale: true`.
+- **TMDB or Resend outage** degrades search, watch data or email, but not
+  sign-in, groups or a running lobby.
+- **Proxy misconfiguration** is the main deployment risk: without WebSocket
+  upgrades the app falls back to REST; without `X-Forwarded-For` all users share
+  the proxy’s rate-limit identity.
+
+## 15. Decisions and trade-offs
+
+| Decision | Why | Cost |
+| --- | --- | --- |
+| Server-side sessions in Redis | Instant revocation, rotation and per-device control without JWT blocklists | Redis is required for login; a flush signs everyone out |
+| Guests as first-class identities | A room can start with only a display name; no throwaway accounts | Two identity paths, claim logic and expiry cleanup |
+| Pure immutable lobby engine | The rules are deterministic and testable without a database | Explicit mapping between `Game` and ORM rows |
+| Lobby snapshot plus normalised votes/picks | Fast state reload, simple versioning and an audit trail | Pool/finalists are JSONB, so membership is enforced in code |
+| Full state over WebSocket | Reconnect-safe and avoids client-side patch bugs | More bytes per update than deltas |
+| Redis pub/sub hub | Multiple API processes can serve the same room | No durable event log; clients refetch full state on reconnect |
+| Transactional email outbox + Celery | Mail cannot be lost when a transaction commits | Delivery is eventual; worker and beat must be healthy |
+| Opaque hashed tokens for email and invites | Revocable, single-use, no JWT secret sprawl | A database lookup per use and periodic cleanup |
+| Soft email verification | People can play immediately; only group actions are gated | Unverified accounts remain usable and can host open rooms |
+| Fixed-window Redis rate limits | One atomic Lua script, cheap and easy to reason about | Bursts at window boundaries; not a token bucket |
+| One image for API, worker, beat and migrate | One build, one set of dependencies, one deploy artefact | Worker images carry web dependencies and vice versa |
+| Async SQLAlchemy in the API, sync in Celery | Each runtime gets the natural driver model | Two engines, session factories and TMDB clients |
+| Watch availability snapshots in Postgres | Fast lists and finalists, resilient to TMDB latency | Staleness and refresh jobs; availability can lag TMDB |
+| Region on the user, `PL` by default | Simple product model and one cached region per user | No per-request region switch or travel mode |
+| Alembic migration as a deploy step | Startup is predictable; no racing migrations between replicas | A deploy must run migrations before the new code |
+| FastAPI serves the built SPA | Same origin for cookies, CSRF and WebSockets | Frontend build is coupled to the backend image |
+| Real Postgres and Redis in tests | Catches constraint, transaction and serialization bugs | Slower suite; services must be running |
+| Legacy UUID join kept behind a flag | Existing tests and old links remain diagnosable | A disabled attack surface that must stay disabled |
+| Rightmost `X-Forwarded-For` hop | A client cannot pre-seed the address the proxy saw | Assumes one trusted proxy and a loopback-only API |
+
+## 16. Known limitations
+
+- Notifications, scheduling, RAG and an admin UI are out of scope for this
+  release.
+- Account deletion is support-assisted; self-serve export is available.
+- Any group member can revoke the group’s invite link. Admin-only revocation is
+  an open product decision.
+- The frontend has end-to-end flows but no unit-test layer; pure client helpers
+  are covered indirectly.
+- TMDB metadata is `en-US`, the catalogue is English, and the default watch
+  region is `PL`.
+- Rate limiting is fixed-window; there is no token bucket or global concurrency
+  limit.
+- The deployment is a single VPS with one Postgres and one Redis. There is no
+  high-availability setup.
+- WebSocket delivery is best-effort; the REST state endpoint is the recovery
+  path, not an event replay log.
+
+## 17. Extending the backend
 
 For a new endpoint: add or extend a Pydantic schema, put the transaction in a
 service, add a thin router, regenerate `docs/openapi.json` with `just openapi`,
