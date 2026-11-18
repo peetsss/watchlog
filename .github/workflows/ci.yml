@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       database:
-        image: pgvector/pgvector:pg18-trixie
+        image: pgvector/pgvector:0.8.7-pg18-trixie@sha256:ab49524d18df7200b74ac9a475e1db6297fc1eb57da4c214c63d10ecc4b754fa
         env:
           POSTGRES_DB: watchlog_test
           POSTGRES_USER: watchlog
@@ -31,7 +31,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
       redis:
-        image: redis:7-alpine
+        image: redis:8.8.4-alpine@sha256:1273af45b299d2b8b60d0e400d90aa6c2c5b1794f01d6a7ca60ff3ba6e65efb5
         ports:
           - 6379:6379
         options: >-
@@ -48,12 +48,12 @@ jobs:
       POSTGRES_PORT: 5432
       WATCHLOG_REDIS_URL: redis://127.0.0.1:6379/0
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: "0.9.25"
+          version: "0.13.9"
           enable-cache: true
-      - run: uv python install 3.14
+      - run: uv python install 3.14.2
       - run: uv sync --frozen
       - run: uv run ruff check app tests alembic scripts
       - run: uv run ruff format --check app tests alembic scripts
@@ -64,10 +64,10 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
@@ -83,5 +83,5 @@ jobs:
       - backend
       - frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: docker build -t watchlog:ci .
