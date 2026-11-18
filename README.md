@@ -50,6 +50,9 @@ Vite · Docker
 
 ## Quick start
 
+Work on `dev`; feature PRs target `dev`. `main` only receives release
+promotions.
+
 Docker + Docker Compose, [uv](https://docs.astral.sh/uv/), Node 22+ and npm, and
 [just](https://github.com/casey/just).
 
