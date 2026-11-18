@@ -57,7 +57,7 @@ Docker + Docker Compose, [uv](https://docs.astral.sh/uv/), Node 22+ and npm, and
 [just](https://github.com/casey/just).
 
 ```bash
-cp .env.template .env        # add TMDB_API_KEY for live film search
+cp .env.template .env        # add TMDB_ACCESS_TOKEN for live film search
 uv sync
 just hooks                   # tests + frontend build before each commit
 just dev                     # API, Postgres, Redis, Celery

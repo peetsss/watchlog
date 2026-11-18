@@ -111,6 +111,9 @@ def test_auth_cookies_use_security_flags() -> None:
         secret_key="a" * 32,
         public_url="https://watchlog.example",
         database_url="postgresql+psycopg://user:secret@db.example:5432/watchlog",
+        mail_backend="resend",
+        mail_from="watchlog <hello@watchlog.example>",
+        resend_api_key="re_test",
     )
     response = Response()
     data = new_session("member", user_id=1)

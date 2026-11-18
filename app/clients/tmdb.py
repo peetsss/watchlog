@@ -28,17 +28,29 @@ def _as_int(value: object) -> int | None:
     return value
 
 
+def _auth(api_key: str, access_token: str, language: str) -> tuple[dict[str, str], dict[str, object]]:
+    headers: dict[str, str] = {}
+    query: dict[str, object] = {"language": language}
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
+    else:
+        query["api_key"] = api_key
+    return headers, query
+
+
 class TMDBClient:
     BASE_URL = "https://api.themoviedb.org/3"
 
     def __init__(
         self,
         api_key: str,
+        access_token: str = "",
         language: str = "en-US",
         timeout: float = 10.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._api_key = api_key
+        self._access_token = access_token
         self._language = language
         self._client = httpx.AsyncClient(base_url=self.BASE_URL, timeout=timeout, transport=transport)
 
@@ -52,13 +64,17 @@ class TMDBClient:
         await self._client.aclose()
 
     async def _get(self, endpoint: str, params: dict[str, object] | None = None) -> dict[str, object] | None:
+        headers, auth_query = _auth(self._api_key, self._access_token, self._language)
         query = dict(params or {})
-        query.update({"api_key": self._api_key, "language": self._language})
+        query.update(auth_query)
         try:
-            response = await self._client.get(endpoint, params=query)
+            response = await self._client.get(endpoint, params=query, headers=headers)
             response.raise_for_status()
-        except httpx.HTTPError:
-            logger.exception("TMDB request to %s failed", endpoint)
+        except httpx.HTTPStatusError as exc:
+            logger.error("TMDB request to %s failed with HTTP %s", endpoint, exc.response.status_code)
+            return None
+        except httpx.HTTPError as exc:
+            logger.error("TMDB request to %s failed: %s", endpoint, type(exc).__name__)
             return None
 
         payload = response.json()
@@ -108,11 +124,13 @@ class SyncTMDBWatchProviderClient:
     def __init__(
         self,
         api_key: str,
+        access_token: str = "",
         language: str = "en-US",
         timeout: float = 10.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self._api_key = api_key
+        self._access_token = access_token
         self._language = language
         self._client = httpx.Client(base_url=TMDBClient.BASE_URL, timeout=timeout, transport=transport)
 
@@ -127,14 +145,15 @@ class SyncTMDBWatchProviderClient:
 
     def get_watch_providers(self, tmdb_id: int, media_type: str) -> dict[str, object] | None:
         endpoint = f"/tv/{tmdb_id}/watch/providers" if media_type == "series" else f"/movie/{tmdb_id}/watch/providers"
+        headers, query = _auth(self._api_key, self._access_token, self._language)
         try:
-            response = self._client.get(
-                endpoint,
-                params={"api_key": self._api_key, "language": self._language},
-            )
+            response = self._client.get(endpoint, params=query, headers=headers)
             response.raise_for_status()
-        except httpx.HTTPError:
-            logger.exception("TMDB watch-provider request for %s failed", endpoint)
+        except httpx.HTTPStatusError as exc:
+            logger.error("TMDB watch-provider request for %s failed with HTTP %s", endpoint, exc.response.status_code)
+            return None
+        except httpx.HTTPError as exc:
+            logger.error("TMDB watch-provider request for %s failed: %s", endpoint, type(exc).__name__)
             return None
         payload = response.json()
         if not isinstance(payload, dict):

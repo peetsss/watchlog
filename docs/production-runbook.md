@@ -14,7 +14,8 @@ WATCHLOG_PUBLIC_URL=https://watchlog.example
 WATCHLOG_ALLOWED_HOSTS=watchlog.example
 WATCHLOG_TRUSTED_ORIGINS=https://watchlog.example
 POSTGRES_PASSWORD=<long random value>
-TMDB_API_KEY=<tmdb key>
+TMDB_ACCESS_TOKEN=<v4 read access token>
+# TMDB_API_KEY=<v3 fallback>
 WATCHLOG_MAIL_BACKEND=resend
 WATCHLOG_MAIL_FROM="watchlog <hello@watchlog.example>"
 WATCHLOG_RESEND_API_KEY=<resend key>
@@ -276,10 +277,14 @@ just admin email requeue --id 123
   the token; the Celery email dispatcher sends it.
 - Failed rows are visible in the outbox and can be requeued with the admin CLI.
 - Account security emails (password reset/change) should never be disabled.
+- The console mailer is development/test only. Production refuses to start with
+  `WATCHLOG_MAIL_BACKEND=console`.
 
 ## TMDB and JustWatch
 
-- TMDB film metadata and images require `TMDB_API_KEY`.
+- TMDB film metadata and images require a TMDB credential. Prefer a v4 read
+  access token (`TMDB_ACCESS_TOKEN`); the v3 `TMDB_API_KEY` remains supported as
+  a fallback. If both are set, the access token is used.
 - Watch availability comes from TMDB's `/watch/providers`, powered by JustWatch.
 - Provider snapshots live in `movie_watch_regions` and
   `movie_watch_providers`.

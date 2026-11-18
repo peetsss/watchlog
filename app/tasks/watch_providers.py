@@ -36,11 +36,12 @@ def refresh_movie_watch_providers(movie_id: int, region: str, force: bool = Fals
         try:
             with SyncTMDBWatchProviderClient(
                 api_key=settings.tmdb_api_key.get_secret_value(),
+                access_token=settings.tmdb_access_token.get_secret_value(),
                 language=settings.tmdb_language,
             ) as client:
                 payload = client.get_watch_providers(movie.tmdb_id, movie.media_type)
         except Exception:
-            logger.exception("TMDB watch-provider fetch failed for movie %s", movie_id)
+            logger.warning("TMDB watch-provider fetch failed for movie %s", movie_id)
             payload = None
 
         parsed = parse_watch_providers(payload, region) if payload is not None else None

@@ -1,6 +1,8 @@
+import logging
+
 import httpx
 
-from app.clients.tmdb import TMDBClient
+from app.clients.tmdb import SyncTMDBWatchProviderClient, TMDBClient
 
 
 async def test_search_maps_movies_and_series() -> None:
@@ -52,6 +54,48 @@ async def test_search_returns_none_on_http_error() -> None:
 
     async with TMDBClient(api_key="key", transport=httpx.MockTransport(handler)) as client:
         assert await client.search("Dune") is None
+
+
+async def test_access_token_uses_bearer_and_omits_api_key() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["Authorization"] == "Bearer v4-secret"
+        assert "api_key" not in request.url.params
+        assert request.url.params["language"] == "en-US"
+        return httpx.Response(200, json={"results": []})
+
+    async with TMDBClient(
+        api_key="v3-secret",
+        access_token="v4-secret",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        assert await client.search("Dune") == []
+
+
+async def test_http_error_does_not_log_the_api_key(caplog) -> None:
+    caplog.set_level(logging.ERROR)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"status_message": "boom"})
+
+    async with TMDBClient(api_key="super-secret-key", transport=httpx.MockTransport(handler)) as client:
+        assert await client.search("Dune") is None
+
+    assert "super-secret-key" not in caplog.text
+    assert "HTTP 500" in caplog.text
+
+
+def test_sync_client_uses_the_access_token() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["Authorization"] == "Bearer v4-secret"
+        assert "api_key" not in request.url.params
+        return httpx.Response(200, json={"results": {}})
+
+    with SyncTMDBWatchProviderClient(
+        api_key="v3-secret",
+        access_token="v4-secret",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        assert client.get_watch_providers(1, "movie") == {"results": {}}
 
 
 async def test_get_details_uses_the_media_type_endpoint() -> None:

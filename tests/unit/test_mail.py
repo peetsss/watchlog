@@ -1,9 +1,10 @@
 import json
+import logging
 
 import httpx
 import pytest
 
-from app.clients.resend import EmailMessage, MailError, ResendMailer, build_mailer
+from app.clients.resend import ConsoleMailer, EmailMessage, MailError, ResendMailer, build_mailer
 from app.core.config import Settings
 from app.services.mail import render_email
 
@@ -96,3 +97,35 @@ def test_build_mailer_uses_the_console_backend_by_default() -> None:
     mailer = build_mailer(Settings(_env_file=None))
 
     assert mailer.__class__.__name__ == "ConsoleMailer"
+
+
+def test_console_mailer_hides_the_body_at_info(caplog) -> None:
+    caplog.set_level(logging.INFO)
+
+    ConsoleMailer().send(
+        EmailMessage(
+            to="alice@example.com",
+            subject="Confirm your watchlog email",
+            html="<p>token-123</p>",
+            text="https://watchlog.example/verify?token=token-123",
+        )
+    )
+
+    assert "alice@example.com" in caplog.text
+    assert "Confirm your watchlog email" in caplog.text
+    assert "token-123" not in caplog.text
+
+
+def test_console_mailer_logs_the_body_at_debug(caplog) -> None:
+    caplog.set_level(logging.DEBUG, logger="app.clients.resend")
+
+    ConsoleMailer().send(
+        EmailMessage(
+            to="alice@example.com",
+            subject="Confirm your watchlog email",
+            html="<p>token-123</p>",
+            text="Hello alice",
+        )
+    )
+
+    assert "Hello alice" in caplog.text

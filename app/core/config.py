@@ -57,6 +57,10 @@ class Settings(BaseSettings):
         SecretStr(""),
         validation_alias=AliasChoices("WATCHLOG_TMDB_API_KEY", "TMDB_API_KEY"),
     )
+    tmdb_access_token: SecretStr = Field(
+        SecretStr(""),
+        validation_alias=AliasChoices("WATCHLOG_TMDB_ACCESS_TOKEN", "TMDB_ACCESS_TOKEN"),
+    )
     tmdb_language: str = "en-US"
     default_region: str = "PL"
     supported_regions: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["PL"])
@@ -115,11 +119,12 @@ class Settings(BaseSettings):
             raise ValueError("WATCHLOG_DATABASE_URL or POSTGRES_PASSWORD must be set in production")
         if not self.public_url:
             raise ValueError("WATCHLOG_PUBLIC_URL must be set in production")
-        if self.mail_backend == "resend":
-            if not self.mail_from:
-                raise ValueError("WATCHLOG_MAIL_FROM must be set when WATCHLOG_MAIL_BACKEND=resend")
-            if not self.resend_api_key.get_secret_value():
-                raise ValueError("WATCHLOG_RESEND_API_KEY must be set when WATCHLOG_MAIL_BACKEND=resend")
+        if self.mail_backend != "resend":
+            raise ValueError("WATCHLOG_MAIL_BACKEND must be resend in production")
+        if not self.mail_from:
+            raise ValueError("WATCHLOG_MAIL_FROM must be set when WATCHLOG_MAIL_BACKEND=resend")
+        if not self.resend_api_key.get_secret_value():
+            raise ValueError("WATCHLOG_RESEND_API_KEY must be set when WATCHLOG_MAIL_BACKEND=resend")
         return self
 
     @property

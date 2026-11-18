@@ -111,10 +111,25 @@ def test_production_accepts_explicit_configuration() -> None:
         secret_key="a" * 32,
         public_url="https://watchlog.example/",
         database_url="postgresql+psycopg://user:secret@db.example:5432/watchlog",
+        mail_backend="resend",
+        mail_from="watchlog <hello@watchlog.example>",
+        resend_api_key="re_test",
     )
 
     assert settings.is_production
     assert settings.public_url == "https://watchlog.example"
+
+
+def test_production_rejects_the_console_mailer() -> None:
+    with pytest.raises(ValidationError, match="WATCHLOG_MAIL_BACKEND must be resend"):
+        Settings(
+            _env_file=None,
+            env="prod",
+            secret_key="a" * 32,
+            public_url="https://watchlog.example",
+            database_url="postgresql+psycopg://user:secret@db.example:5432/watchlog",
+            mail_backend="console",
+        )
 
 
 def test_region_configuration_is_validated() -> None:
