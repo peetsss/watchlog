@@ -113,14 +113,10 @@ jobs:
         run: |
           set -euo pipefail
           version="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
-          subject="$(git log -1 --pretty=%s)"
-          case "$subject" in
-            "chore(release): v$version"*) ;;
-            *)
-              echo "main must receive a squash-merged release PR, got: $subject" >&2
-              exit 1
-              ;;
-          esac
+          if ! git log -1 --pretty=%B | grep -q "chore(release): v$version"; then
+            echo "main must receive a release promotion PR for v$version" >&2
+            exit 1
+          fi
           image="ghcr.io/${GITHUB_REPOSITORY,,}:v$version"
           echo "image=$image" >> "$GITHUB_OUTPUT"
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin

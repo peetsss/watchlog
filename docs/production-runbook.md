@@ -70,8 +70,9 @@ The VPS only pulls images. It never builds.
 - Make `dev` the default branch.
 - Protect `dev` and `main`: require pull requests, the `backend`, `frontend`,
   `image-check` and `PR title` checks, and disable force pushes.
-- Allow only squash merges on `main`. The deploy job requires the subject
-  `chore(release): vX.Y.Z`, which is the promotion PR title.
+- Allow only squash merges on `main`. The deploy job requires the commit body
+  to contain `chore(release): vX.Y.Z`, which is the promotion PR title. Squash
+  keeps the subject clean; a merge commit also passes but is noisier.
 - Add a repository secret `AUTOMATION_TOKEN`: a fine-grained PAT with
   `contents: write` and `pull-requests: write`. It lets release-please and the
   promotion PR trigger CI. Without it the workflows fall back to
