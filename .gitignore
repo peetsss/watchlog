@@ -16,3 +16,7 @@ frontend/.vite/
 # Data
 TMDB_movie_dataset_v11.csv
 backups/
+
+# Local deployment keys
+watchlog-deploy
+watchlog-deploy.pub

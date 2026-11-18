@@ -1,0 +1,51 @@
+name: Promote release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to promote, without the v prefix (for example 0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: promote-release
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: v${{ inputs.version }}
+      - name: Require the automation token
+        env:
+          TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "Add AUTOMATION_TOKEN with contents and pull-requests write access." >&2
+            exit 1
+          fi
+      - name: Open the promotion PR
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          branch="release/$tag"
+          existing="$(gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          git push --force origin "HEAD:refs/heads/$branch"
+          if [ -z "$existing" ]; then
+            gh pr create \
+              --base main \
+              --head "$branch" \
+              --title "chore(release): $tag" \
+              --body "Promote $tag to production."
+          fi

@@ -61,21 +61,28 @@ paths there too. Do not forward token-bearing URLs to a third-party log service.
 
 ## CI/CD
 
-Development happens on `dev`; `main` is production. release-please is paused
-until launch and runs only via manual dispatch. The first production release is
-tagged manually as `v0.1.0`; after that, release-please or a manual release can
-create `v0.x.y`.
+Development happens on `dev`; `main` is production. Release and promotion are
+explicit manual actions:
 
-A release tag builds and pushes the image, then opens a promotion PR to `main`.
-Merging that PR deploys the release to the VPS. Feature PRs target `dev`.
+1. run the `Release` workflow with the version you want
+2. merge the release PR on `dev`
+3. the tag build pushes the image and creates the GitHub release
+4. run the `Promote release` workflow with the same version
+5. merge the promotion PR into `main` to deploy
+
+Nothing is released or promoted by a normal `dev` push.
+
+The first production release is tagged manually as `v0.1.0`; after that, use the
+manual Release workflow with an explicit version.
 
 The VPS only pulls images. It never builds.
 
 | Workflow | Trigger | Does |
 | --- | --- | --- |
 | `ci.yml` | PRs and pushes to `dev`/`main` | checks; Docker build check on PRs; deploy on `main` |
-| `release.yml` | manual dispatch (paused until launch) | release-please release PR |
-| `release-image.yml` | tag `v*` | image build/push; GitHub release; promotion PR to `main` |
+| `release.yml` | manual dispatch with a version | release-please release PR |
+| `release-image.yml` | tag `v*` | image build/push; GitHub release |
+| `promote.yml` | manual dispatch with a version | promotion PR to `main` |
 | `pr-title.yml` | PRs to `dev`/`main` | conventional PR title check |
 
 ### GitHub settings
@@ -140,8 +147,7 @@ curl -fsS http://127.0.0.1:8000/ready
 
 ### First production release
 
-release-please stays paused until the app is ready to go live. After the staging
-smoke tests:
+Release and promotion are manual. After the staging smoke tests:
 
 1. Tag the release commit on `dev` and push the tag:
 
@@ -150,24 +156,32 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-2. `release-image.yml` builds and pushes `v0.1.0`, creates the GitHub release if
-   it is missing, and opens a `chore(release): v0.1.0` promotion PR.
-3. Merge the promotion PR into `main`. The deploy job verifies the image and
+2. `release-image.yml` builds and pushes `v0.1.0` and creates the GitHub release.
+3. Run the **Promote release** workflow with version `0.1.0` (or open a PR from
+   the `v0.1.0` tag to `main` manually). It creates
+   `chore(release): v0.1.0`.
+4. Merge the promotion PR into `main`. The deploy job verifies the image and
    ships it.
-4. After a healthy production deploy, re-enable release-please for later
-   releases by restoring the `push` trigger on `dev`, or keep using manual
-   dispatch.
 
-The manual tag is only for the first release; every later release can come from
-release-please.
+The manual tag is only for the first release.
+
+### Subsequent releases
+
+1. Run the **Release** workflow with the version, for example `0.1.1`.
+2. Review and merge the release-please PR on `dev`.
+3. The tag build pushes the image and creates the GitHub release.
+4. Run the **Promote release** workflow with `0.1.1`.
+5. Merge the promotion PR to deploy.
+
+The version input is authoritative; release-please does not choose a bump. No
+release or promotion happens on a normal push.
 
 ### How a deploy runs
 
 A release promotion to `main` runs the checks and then the deploy job:
 
 1. reads the version from `pyproject.toml`;
-2. requires the latest commit subject to start with
-   `chore(release): v<version>`;
+2. requires the commit body to contain `chore(release): v<version>`;
 3. verifies `ghcr.io/<owner>/watchlog:v<version>` exists;
 4. SSHes to the VPS and runs:
 
