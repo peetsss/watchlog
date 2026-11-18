@@ -21,4 +21,6 @@ async def test_oversized_body_is_rejected_before_parsing(client: AsyncClient, ca
 
     assert response.status_code == 413
     assert response.json()["error"]["code"] == "request_too_large"
+    assert response.headers["cache-control"] == "no-store"
+    assert "default-src 'self'" in response.headers["content-security-policy"]
     assert "/api/auth/register" in caplog.text

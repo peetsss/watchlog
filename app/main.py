@@ -65,10 +65,10 @@ def create_app(
 
     app.add_middleware(CSRFMiddleware)
     app.add_middleware(SessionMiddleware)
+    app.add_middleware(RequestBodyLimitMiddleware, max_bytes=resolved_settings.max_request_body_bytes)
     if resolved_settings.env != "test":
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=resolved_settings.allowed_hosts)
     app.add_middleware(SecurityHeadersMiddleware)
-    app.add_middleware(RequestBodyLimitMiddleware, max_bytes=resolved_settings.max_request_body_bytes)
     app.add_middleware(RequestContextMiddleware)
 
     register_exception_handlers(app)
