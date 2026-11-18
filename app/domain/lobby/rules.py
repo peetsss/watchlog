@@ -1,7 +1,7 @@
 from typing import Final
 
 FINALIST_COUNT: Final[int] = 10
-POOL_SIZE: Final[int] = 100
+POOL_SIZE: Final[int] = 25
 
 GROUP_LOBBY: Final[str] = "group"
 OPEN_LOBBY: Final[str] = "open"
