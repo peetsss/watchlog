@@ -79,7 +79,9 @@ class MemoryRateLimiter:
 def client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        candidate = forwarded.split(",", 1)[0].strip()
+        # The nearest proxy appends the address it saw, so the rightmost hop is
+        # the only one a client cannot pre-seed by forging the header.
+        candidate = forwarded.rsplit(",", 1)[-1].strip()
         if candidate:
             return candidate
     return request.client.host if request.client is not None else "unknown"

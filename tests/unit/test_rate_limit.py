@@ -1,8 +1,10 @@
+from types import SimpleNamespace
 from typing import cast
 
 from redis.asyncio import Redis
+from starlette.requests import Request
 
-from app.core.rate_limit import MemoryRateLimiter, RedisRateLimiter, rate_limit_key
+from app.core.rate_limit import MemoryRateLimiter, RedisRateLimiter, client_ip, rate_limit_key
 
 
 class FakeClock:
@@ -29,6 +31,21 @@ def test_rate_limit_key_does_not_expose_the_identity() -> None:
     assert first != second
     assert "alice" not in first
     assert first.startswith("watchlog:rate:login:")
+
+
+def test_client_ip_uses_the_nearest_forwarded_hop() -> None:
+    request = SimpleNamespace(
+        headers={"x-forwarded-for": "203.0.113.9, 198.51.100.7"},
+        client=SimpleNamespace(host="10.0.0.2"),
+    )
+
+    assert client_ip(cast(Request, request)) == "198.51.100.7"
+
+
+def test_client_ip_falls_back_to_the_socket_address() -> None:
+    request = SimpleNamespace(headers={}, client=SimpleNamespace(host="10.0.0.2"))
+
+    assert client_ip(cast(Request, request)) == "10.0.0.2"
 
 
 async def test_memory_limiter_allows_then_blocks() -> None:

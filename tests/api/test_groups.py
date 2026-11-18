@@ -1,7 +1,8 @@
 from collections.abc import Callable
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
+import time_machine
 from fastapi import FastAPI
 from httpx import AsyncClient
 
@@ -62,6 +63,43 @@ async def test_group_invite_token_preview_join_and_revoke(client: AsyncClient, a
     async with new_client(app) as carol:
         await register_member(carol, "carol")
         assert (await carol.get(f"/api/group-invites/{token}")).status_code == 404
+
+
+async def test_group_invite_expires_after_seven_days(client: AsyncClient) -> None:
+    await register_member(client)
+    group = await create_group(client, "Friday Film Club")
+
+    invite = await client.get(f"/api/groups/{group['id']}/invite")
+    token = invite.json()["invite_link"].rsplit("/", 1)[-1]
+
+    with time_machine.travel(datetime.now(UTC) + timedelta(days=8), tick=False):
+        response = await client.get(f"/api/group-invites/{token}")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "invalid_invite"
+
+
+async def test_legacy_group_join_is_disabled(
+    client: AsyncClient,
+    app: FastAPI,
+) -> None:
+    await register_member(client)
+    group = await create_group(client, "Friday Film Club")
+
+    async with new_client(app) as bob:
+        await register_member(bob, "bob")
+        original = app.state.settings.legacy_group_join_enabled
+        app.state.settings.legacy_group_join_enabled = False
+        try:
+            response = await bob.post(
+                f"/api/groups/{group['id']}/members",
+                headers=csrf_headers(current_csrf(bob)),
+            )
+        finally:
+            app.state.settings.legacy_group_join_enabled = original
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "legacy_join_disabled"
 
 
 async def test_create_and_list_group(client: AsyncClient) -> None:

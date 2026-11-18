@@ -124,6 +124,13 @@ export async function startOpenNight(page) {
 }
 
 function databaseSql(sql) {
+  const host = new URL(base).hostname;
+  const local = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!local.has(host) && process.env.WATCHLOG_ALLOW_REMOTE_VERIFY !== "1") {
+    throw new Error(
+      `Refusing to mutate the database behind ${base}; set WATCHLOG_ALLOW_REMOTE_VERIFY=1 to override`,
+    );
+  }
   execFileSync(
     "docker",
     [

@@ -62,6 +62,48 @@ async def test_guest_can_host_play_and_claim_an_open_lobby(
     assert claimed["players"][0]["is_host"] is True
 
 
+async def test_guest_claim_preserves_votes_and_picks(
+    client: AsyncClient,
+    movie_factory: Callable[..., int],
+) -> None:
+    insert_movies(movie_factory, 3)
+    guest = await create_guest(client, "Riley")
+    assert guest["is_guest"] is True
+
+    lobby = await create_lobby(client)
+    await lobby_action(client, lobby["uuid"], "ready")
+    lobby = await lobby_action(client, lobby["uuid"], "start")
+
+    while lobby["status"] == "playing":
+        current = lobby["current_movie"]["id"]
+        lobby = await lobby_action(
+            client,
+            lobby["uuid"],
+            "vote",
+            {"movie_id": current, "choice": "interested"},
+        )
+        lobby = await lobby_action(client, lobby["uuid"], "next-round")
+
+    assert lobby["status"] == "final_round"
+    target = lobby["finalists"][0]["movie"]["id"]
+    picked = await lobby_action(client, lobby["uuid"], "pick", {"movie_id": target})
+    assert picked["picks_revealed"] is True
+
+    await register_member(client)
+    claimed = await lobby_state(client, lobby["uuid"])
+
+    assert claimed["status"] == "final_round"
+    assert claimed["viewer_is_host"] is True
+    assert claimed["viewer_pick"] == target
+    assert claimed["picks_revealed"] is True
+    assert [item["movie"]["id"] for item in claimed["finalists"]] == [
+        item["movie"]["id"] for item in lobby["finalists"]
+    ]
+
+    finished = await lobby_action(client, lobby["uuid"], "finalize")
+    assert finished["winner"]["id"] == target
+
+
 async def test_guest_can_join_an_open_lobby(
     client: AsyncClient,
     app: FastAPI,
