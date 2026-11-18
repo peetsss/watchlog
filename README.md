@@ -97,6 +97,7 @@ cp .env.template .env
 # add a TMDB_API_KEY if you want live film search
 
 uv sync
+just hooks        # install the pre-commit hook (tests + frontend build)
 just dev          # API + Postgres + Redis + Celery worker/beat
 just seed         # alice / bob / carol, password: correct horse
 
@@ -150,6 +151,10 @@ Deployment, rollback, restore and admin steps live in
 just check                         # ruff, formatting, Alembic drift, pytest
 cd frontend && npm run verify:all  # API-backed Playwright flows
 ```
+
+`just hooks` installs a pre-commit hook that runs `just check` and the frontend
+build. Skip it for a work-in-progress commit with
+`SKIP_PRECOMMIT=1 git commit ...` or `git commit --no-verify`.
 
 The browser suite covers a two-user group night, auth and route gates, guest open-room hosting/joining/claim, open-lobby invites, private rooms, the film sheet and mobile layouts. It shortens a test lobby's pool through the dev Postgres container so the full night runs in seconds; see [`frontend/README.md`](frontend/README.md) for prerequisites and cleanup details.
 

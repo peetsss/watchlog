@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${SKIP_PRECOMMIT:-0}" == "1" ]]; then
+  echo "pre-commit: skipped (SKIP_PRECOMMIT=1)"
+  exit 0
+fi
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "pre-commit: backend lint, migration drift and tests"
+just check
+
+echo "pre-commit: frontend typecheck and build"
+(
+  cd frontend
+  npm run build
+)

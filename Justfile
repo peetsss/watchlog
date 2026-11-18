@@ -45,6 +45,11 @@ api-db:
     {{DC}} up -d database
     {{DC}} exec -T database sh -c 'createdb -U "$POSTGRES_USER" -T template0 watchlog_v2 2>/dev/null || true'
 
+# install the repo git hooks
+hooks:
+    git config core.hooksPath .githooks
+    @echo "installed .githooks (backend checks + frontend build on commit)"
+
 # apply Alembic migrations on the host
 migrate:
     uv run alembic upgrade head
