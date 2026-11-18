@@ -36,7 +36,10 @@ class Settings(BaseSettings):
     trusted_proxy_ips: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     database_url: SecretStr | None = None
-    postgres_db: str = Field("watchlog_v2", validation_alias=AliasChoices("WATCHLOG_DB", "WATCHLOG_POSTGRES_DB"))
+    postgres_db: str = Field(
+        "watchlog_v2",
+        validation_alias=AliasChoices("WATCHLOG_DB", "WATCHLOG_POSTGRES_DB", "POSTGRES_DB"),
+    )
     postgres_user: str = Field("watchlog", validation_alias="POSTGRES_USER")
     postgres_password: SecretStr = Field(SecretStr(""), validation_alias="POSTGRES_PASSWORD")
     postgres_host: str = Field("127.0.0.1", validation_alias="POSTGRES_HOST")

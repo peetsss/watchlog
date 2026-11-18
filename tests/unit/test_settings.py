@@ -3,6 +3,23 @@ from pydantic import ValidationError
 
 from app.core.config import DEFAULT_SECRET, Settings
 
+POSTGRES_ENV_VARS = (
+    "WATCHLOG_DB",
+    "WATCHLOG_POSTGRES_DB",
+    "POSTGRES_DB",
+    "POSTGRES_USER",
+    "POSTGRES_PASSWORD",
+    "POSTGRES_HOST",
+    "POSTGRES_PORT",
+    "WATCHLOG_DATABASE_URL",
+)
+
+
+@pytest.fixture(autouse=True)
+def _clean_database_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in POSTGRES_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+
 
 def test_defaults_target_the_new_database() -> None:
     settings = Settings(_env_file=None)
