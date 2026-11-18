@@ -46,6 +46,14 @@ the app. Our VPS uses Caddy; any proxy works if it:
 - leaves port 8000 closed at the firewall, so the proxy is the only entry
   point.
 
+Set `WATCHLOG_TRUSTED_PROXY_IPS` to the proxy address as seen by the API:
+comma-separated exact IPs or CIDRs. With an empty value the API ignores
+`X-Forwarded-For` entirely and rate limits key on the proxy IP. Find the Docker
+gateway with `docker network inspect watchlog_watchlog`; a value such as
+`172.18.0.0/16` is accepted.
+
+Do not use `0.0.0.0/0`; that would let untrusted peers forge the client IP.
+
 After proxy changes, reload it and confirm the site and `/ws` still work. On our
 VPS that is `sudo systemctl reload caddy`, with logs in
 `journalctl -u caddy -f`.

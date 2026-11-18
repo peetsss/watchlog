@@ -37,7 +37,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 "Request failed: %s %s from %s",
                 request.method,
                 redact_path(request.url.path),
-                client_ip(request),
+                client_ip(request, request.app.state.settings.trusted_proxy_ips),
             )
             raise
         else:
@@ -47,7 +47,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 "%s %s from %s -> %s (%.1f ms)",
                 request.method,
                 redact_path(request.url.path),
-                client_ip(request),
+                client_ip(request, request.app.state.settings.trusted_proxy_ips),
                 response.status_code,
                 duration_ms,
             )
