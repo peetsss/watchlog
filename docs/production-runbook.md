@@ -24,15 +24,22 @@ WATCHLOG_RESEND_API_KEY=<resend key>
 WATCHLOG_SENTRY_DSN=<optional sentry dsn>
 ```
 
-The deploy workflow sets `WATCHLOG_IMAGE` to the release tag it deploys. Manual
+`WATCHLOG_SECRET_KEY` is reserved for future signing use; rotating it does not
+revoke sessions today. Keep it set for rollback compatibility.
+
+The deploy workflow writes the current release tag to `.env` as
+`WATCHLOG_IMAGE` so later admin and backup commands use the same image. Manual
 runs must export it, for example
-`WATCHLOG_IMAGE=ghcr.io/<owner>/watchlog:v<version>`. Keep it out of the app's
-`.env` unless you want a fixed manual default.
+`WATCHLOG_IMAGE=ghcr.io/<owner>/watchlog:v<version>`.
 
 The host reverse proxy keeps its own configuration on the VPS, outside this
 repository; see [Host reverse proxy](#host-reverse-proxy).
 
-Do not store these values in Git.
+Do not store these values in Git. On the VPS:
+
+```bash
+install -m 600 .env
+```
 
 ## Host reverse proxy
 
@@ -44,6 +51,8 @@ the app. Our VPS uses Caddy; any proxy works if it:
 - forwards to `127.0.0.1:8000`;
 - supports WebSocket upgrades on `/ws`; cap frames to 64 KiB and set a
   connection/message limit at the proxy as the outer guard;
+- caps request bodies at 1 MiB; the app returns `413` and the proxy limit is the
+  first line of defence;
 - sets `X-Forwarded-For` and `X-Forwarded-Proto` (rate limits key on the client
   IP);
 - leaves port 8000 closed at the firewall, so the proxy is the only entry
@@ -261,6 +270,10 @@ open an invite -> guest room -> claim
 Do not run `docker compose down -v` during rollback. It deletes named data
 volumes.
 
+Redis stores sessions and rate-limit counters. Set a `maxmemory` appropriate
+for the host, use `noeviction`, and alert when used memory exceeds roughly 70%.
+Do not use an eviction policy that silently discards rate-limit keys.
+
 ## Backup and restore
 
 Backup:
@@ -269,29 +282,43 @@ Backup:
 set -a
 source .env
 set +a
-WATCHLOG_BACKUP_DIR=/srv/watchlog/backups just backup
+WATCHLOG_BACKUP_VIA_DOCKER=1 \
+WATCHLOG_BACKUP_DIR=/srv/watchlog/backups \
+just backup
 ```
 
-Restore into a fresh database:
+Restore into the running database container:
 
 ```bash
-pg_restore --clean --if-exists --no-owner \
-  --dbname=watchlog_v2 \
-  /srv/watchlog/backups/watchlog_v2-<timestamp>.dump
+set -a
+source .env
+set +a
+docker compose exec -T database pg_restore \
+  -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  --clean --if-exists --no-owner \
+  < /srv/watchlog/backups/watchlog_v2-<timestamp>.dump
 ```
 
-Test the restore on a staging database before relying on it.
+Test the restore on a staging database before relying on it. Database dumps
+contain emails, password hashes and email outbox payloads; encrypt them at rest
+if the host or backup target is shared. The backup script writes a `0600` dump
+inside a `0700` directory.
 
 ## Admin commands
 
+On the VPS, run the CLI inside the API container:
+
 ```bash
-just admin user disable alice
-just admin user enable alice
-just admin user revoke-sessions alice
-just admin group delete <group-uuid>
-just admin group revoke-invites <group-uuid>
-just admin email requeue --recipient alice@example.com
-just admin email requeue --id 123
+set -a
+source .env
+set +a
+docker compose exec api python scripts/admin.py user disable alice
+docker compose exec api python scripts/admin.py user enable alice
+docker compose exec api python scripts/admin.py user revoke-sessions alice
+docker compose exec api python scripts/admin.py group delete <group-uuid>
+docker compose exec api python scripts/admin.py group revoke-invites <group-uuid>
+docker compose exec api python scripts/admin.py email requeue --recipient alice@example.com
+docker compose exec api python scripts/admin.py email requeue --id 123
 ```
 
 ## Email

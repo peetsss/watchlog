@@ -31,7 +31,7 @@ x-app-environment: &app-environment
   WATCHLOG_MAX_REQUEST_BODY_BYTES: ${WATCHLOG_MAX_REQUEST_BODY_BYTES:-1048576}
   WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
 
-x-app-image: &app-image ${WATCHLOG_IMAGE:?Set WATCHLOG_IMAGE to the deployed image tag}
+x-app-image: &app-image ${WATCHLOG_IMAGE:-watchlog:prod}
 
 services:
   migrate:
