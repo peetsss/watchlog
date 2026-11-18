@@ -20,9 +20,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Require the automation token
+        env:
+          TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "Add AUTOMATION_TOKEN with contents and pull-requests write access." >&2
+            exit 1
+          fi
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
-          token: ${{ secrets.AUTOMATION_TOKEN || github.token }}
+          token: ${{ secrets.AUTOMATION_TOKEN }}
           target-branch: dev
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          skip-labeling: true

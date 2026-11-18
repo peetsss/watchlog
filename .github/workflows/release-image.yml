@@ -48,9 +48,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Require the automation token
+        env:
+          TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "Add AUTOMATION_TOKEN with contents and pull-requests write access." >&2
+            exit 1
+          fi
       - name: Open the promotion PR
         env:
-          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
           IMAGE: ${{ needs.image.outputs.image }}
         run: |
           set -euo pipefail
