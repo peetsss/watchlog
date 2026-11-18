@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Final
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
@@ -73,7 +74,10 @@ async def join_invite(db: AsyncSession, raw_token: str, user: User) -> Group:
     )
     if membership is None:
         db.add(GroupMembership(group_id=group.id, user_id=user.id, role="member"))
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
     return group
 
 

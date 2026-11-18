@@ -54,6 +54,18 @@ async def test_csrf_bootstraps_an_anonymous_session(client: AsyncClient) -> None
     assert client.cookies.get("wl_csrf")
 
 
+async def test_private_api_responses_are_not_cached(client: AsyncClient) -> None:
+    csrf_response = await client.get("/api/auth/csrf")
+    assert csrf_response.headers["cache-control"] == "no-store"
+
+    await register(client, current_csrf(client))
+
+    me = await client.get("/api/me")
+    assert me.headers["cache-control"] == "no-store"
+    session = await client.get("/api/auth/session")
+    assert session.headers["cache-control"] == "no-store"
+
+
 async def test_register_me_logout_and_login(client: AsyncClient) -> None:
     token = await csrf_token(client)
     viewer = await register(client, token)

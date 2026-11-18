@@ -121,7 +121,7 @@ def start(game: Game, players: Iterable[str] | None = None) -> Game:
 
 def vote(game: Game, user_id: str, movie_id: int, choice: str) -> Game:
     if choice not in VOTE_CHOICES:
-        raise InvalidChoiceError(f"Unknown vote choice: {choice!r}")
+        raise InvalidChoiceError("That vote is not valid.")
     if game.status != PLAYING or game.revealed or game.current is None or user_id not in game.players:
         return game
     if movie_id != game.current:

@@ -108,11 +108,13 @@ async def csrf(
     session_id, data = await ensure_session(request, store, settings)
     set_session_cookie(response, session_id, data, settings)
     set_csrf_cookie(response, data, settings)
+    response.headers["Cache-Control"] = "no-store"
     return CSRFResponse(csrf_token=data.csrf)
 
 
 @router.get("/session", response_model=SessionEnvelope)
-async def session(data: SessionDataDep, db: SessionDep) -> SessionEnvelope:
+async def session(data: SessionDataDep, response: Response, db: SessionDep) -> SessionEnvelope:
+    response.headers["Cache-Control"] = "no-store"
     if data is not None and data.kind == "member" and data.user_id is not None:
         user = await db.get(User, data.user_id)
         if user is not None and user.is_active:

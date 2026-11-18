@@ -216,7 +216,8 @@ curl -fsS http://127.0.0.1:8000/ready
 
 `docker compose up` runs the one-shot `migrate` service and then starts the API,
 worker and beat. If `/ready` fails, the job fails; inspect `migrate` and API logs
-before rolling back.
+before rolling back. In production `/ready` returns only the status; the
+dependency detail is kept for development and tests.
 
 ### Rollback
 

@@ -68,6 +68,10 @@ just frontend                # Vite on http://localhost:5173
 SPA <http://localhost:5173> · API <http://localhost:8001> ·
 Swagger <http://localhost:8001/api/docs>
 
+The dev stack binds loopback only. Rate limits are disabled and docs are
+enabled, so do not expose it to an untrusted network. For a phone on the LAN,
+run `npm run dev -- --host 0.0.0.0` explicitly.
+
 Development mail prints to the worker logs. Set `WATCHLOG_MAIL_BACKEND=resend`
 and the Resend values for real email.
 

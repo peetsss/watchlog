@@ -53,6 +53,12 @@ async def test_group_invite_token_preview_join_and_revoke(client: AsyncClient, a
         )
         assert joined.status_code == 200
         assert joined.json()["member_count"] == 2
+        again = await bob.post(
+            f"/api/group-invites/{token}/join",
+            headers=csrf_headers(current_csrf(bob)),
+        )
+        assert again.status_code == 200
+        assert again.json()["member_count"] == 2
 
     revoked = await client.delete(
         f"/api/groups/{group['id']}/invite",

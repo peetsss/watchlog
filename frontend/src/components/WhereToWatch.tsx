@@ -27,6 +27,16 @@ function regionName(region: string): string {
   return region;
 }
 
+function safeExternalUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function ProviderChip({ provider }: { provider: WatchProviderView }) {
   return (
     <span className="watch-provider" title={provider.name}>
@@ -65,6 +75,7 @@ export function WhereToWatch({
   const fallback = watch.offers.rent.length ? watch.offers.rent : watch.offers.buy;
   const compactProviders = (flat.length ? flat : fallback).slice(0, 3);
   const justwatch = justWatchUrl(watch.region);
+  const tmdbLink = safeExternalUrl(watch.link);
 
   if (compact) {
     if (!compactProviders.length) return null;
@@ -119,8 +130,8 @@ export function WhereToWatch({
         <a href={justwatch} target="_blank" rel="noopener">
           Watch options by JustWatch <ExternalLink size={12} aria-hidden="true" />
         </a>
-        {watch.link ? (
-          <a href={watch.link} target="_blank" rel="noopener">
+        {tmdbLink ? (
+          <a href={tmdbLink} target="_blank" rel="noopener">
             See all on TMDB <ExternalLink size={12} aria-hidden="true" />
           </a>
         ) : null}

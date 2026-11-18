@@ -42,6 +42,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             raise
         else:
             response.headers[REQUEST_ID_HEADER] = request_id
+            session = getattr(request.state, "session", None)
+            if session is not None and request.url.path.startswith("/api/") and "cache-control" not in response.headers:
+                response.headers["Cache-Control"] = "no-store"
             duration_ms = (time.perf_counter() - started_at) * 1000
             logger.info(
                 "%s %s from %s -> %s (%.1f ms)",

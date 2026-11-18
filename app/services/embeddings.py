@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.movie import Movie
 
-OLLAMA_URL: Final[str] = "http://100.99.131.45:11434"
+OLLAMA_URL: Final[str] = "http://127.0.0.1:11434"
 EMBED_MODEL: Final[str] = "qwen3-embedding:latest"
 EMBED_DIMENSIONS: Final[int] = 1024
 

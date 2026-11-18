@@ -311,7 +311,9 @@ just seed                             # development only
 - `copy_movies.py` copies the catalogue from a legacy database; it is kept for
   migrations, not for normal deploys.
 - `embed_movies.py` fills `movies.embeddings`. Retrieval is not part of this
-  release, so importing without embeddings is supported.
+  release, so importing without embeddings is supported. The embedding client
+  defaults to `OLLAMA_URL` (`http://127.0.0.1:11434`) and can be overridden in
+  the environment for a different Ollama endpoint.
 - `backfill_watch_providers.py` warms availability snapshots; the daily task
   keeps them fresh afterwards.
 - `seed_dev_data.py` creates demo users and a club. Never run it in production.
