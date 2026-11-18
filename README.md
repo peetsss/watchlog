@@ -73,9 +73,10 @@ and the Resend values for real email.
 
 ## Production
 
-Development happens on `dev`. A release PR bumps the version and creates a
-`v0.x.y` tag; the tag build pushes the image, and a promotion PR merges it into
-`main`, which deploys to the VPS over SSH. The server only pulls images.
+Development happens on `dev`. The first production release is tagged manually
+as `v0.1.0`; after that, release-please or a manual release creates `v0.x.y`.
+The tag build pushes the image, and a promotion PR merges it into `main`, which
+deploys to the VPS over SSH. The server only pulls images.
 
 Local production build:
 

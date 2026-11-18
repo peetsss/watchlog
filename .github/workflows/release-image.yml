@@ -56,6 +56,15 @@ jobs:
             echo "Add AUTOMATION_TOKEN with contents and pull-requests write access." >&2
             exit 1
           fi
+      - name: Ensure the GitHub release exists
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --title "$tag" --generate-notes
+          fi
       - name: Open the promotion PR
         env:
           GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}

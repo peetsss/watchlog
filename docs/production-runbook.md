@@ -51,18 +51,21 @@ VPS that is `sudo systemctl reload caddy`, with logs in
 
 ## CI/CD
 
-Development happens on `dev`; `main` is production. Feature PRs target `dev`.
-release-please opens a release PR on `dev`; merging it updates the version files
-and creates `v0.x.y`. The tag workflow builds and pushes the image, then opens a
-promotion PR to `main`. Merging that PR deploys `v0.x.y` to the VPS.
+Development happens on `dev`; `main` is production. release-please is paused
+until launch and runs only via manual dispatch. The first production release is
+tagged manually as `v0.1.0`; after that, release-please or a manual release can
+create `v0.x.y`.
+
+A release tag builds and pushes the image, then opens a promotion PR to `main`.
+Merging that PR deploys the release to the VPS. Feature PRs target `dev`.
 
 The VPS only pulls images. It never builds.
 
 | Workflow | Trigger | Does |
 | --- | --- | --- |
 | `ci.yml` | PRs and pushes to `dev`/`main` | checks; Docker build check on PRs; deploy on `main` |
-| `release.yml` | push to `dev` | release-please release PR |
-| `release-image.yml` | tag `v*` | image build/push; promotion PR to `main` |
+| `release.yml` | manual dispatch (paused until launch) | release-please release PR |
+| `release-image.yml` | tag `v*` | image build/push; GitHub release; promotion PR to `main` |
 | `pr-title.yml` | PRs to `dev`/`main` | conventional PR title check |
 
 ### GitHub settings
@@ -124,6 +127,29 @@ docker compose pull
 docker compose up -d --remove-orphans
 curl -fsS http://127.0.0.1:8000/ready
 ```
+
+### First production release
+
+release-please stays paused until the app is ready to go live. After the staging
+smoke tests:
+
+1. Tag the release commit on `dev` and push the tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+2. `release-image.yml` builds and pushes `v0.1.0`, creates the GitHub release if
+   it is missing, and opens a `chore(release): v0.1.0` promotion PR.
+3. Merge the promotion PR into `main`. The deploy job verifies the image and
+   ships it.
+4. After a healthy production deploy, re-enable release-please for later
+   releases by restoring the `push` trigger on `dev`, or keep using manual
+   dispatch.
+
+The manual tag is only for the first release; every later release can come from
+release-please.
 
 ### How a deploy runs
 
