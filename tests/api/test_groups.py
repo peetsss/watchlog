@@ -102,6 +102,65 @@ async def test_legacy_group_join_is_disabled(
     assert response.json()["error"]["code"] == "legacy_join_disabled"
 
 
+async def test_create_group_is_rate_limited(client: AsyncClient) -> None:
+    await register_member(client)
+    headers = csrf_headers(current_csrf(client))
+
+    for index in range(20):
+        response = await client.post("/api/groups", json={"name": f"Club {index}"}, headers=headers)
+        assert response.status_code == 201
+
+    blocked = await client.post("/api/groups", json={"name": "Club blocked"}, headers=headers)
+
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "rate_limited"
+
+
+async def test_add_film_is_rate_limited(
+    client: AsyncClient,
+    movie_factory: Callable[..., int],
+) -> None:
+    await register_member(client)
+    group = await create_group(client, "Friday Film Club")
+    movie_factory(tmdb_id=900001, title="Rate Limited Film")
+    headers = csrf_headers(current_csrf(client))
+
+    for _ in range(60):
+        response = await client.post(
+            f"/api/groups/{group['id']}/films",
+            json={"tmdb_id": 900001, "media_type": "movie"},
+            headers=headers,
+        )
+        assert response.status_code == 200
+
+    blocked = await client.post(
+        f"/api/groups/{group['id']}/films",
+        json={"tmdb_id": 900001, "media_type": "movie"},
+        headers=headers,
+    )
+
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "rate_limited"
+
+
+async def test_group_lobby_creation_is_rate_limited(client: AsyncClient) -> None:
+    await register_member(client)
+    group = await create_group(client, "Friday Film Club")
+    headers = csrf_headers(current_csrf(client))
+
+    first = await client.post(f"/api/groups/{group['id']}/lobbies", headers=headers)
+    assert first.status_code == 201
+
+    for _ in range(19):
+        response = await client.post(f"/api/groups/{group['id']}/lobbies", headers=headers)
+        assert response.status_code == 409
+
+    blocked = await client.post(f"/api/groups/{group['id']}/lobbies", headers=headers)
+
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "rate_limited"
+
+
 async def test_create_and_list_group(client: AsyncClient) -> None:
     viewer = await register_member(client)
 

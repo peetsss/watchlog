@@ -94,7 +94,11 @@ def _guest_session(guest: Guest) -> SessionEnvelope:
     )
 
 
-@router.get("/csrf", response_model=CSRFResponse)
+@router.get(
+    "/csrf",
+    response_model=CSRFResponse,
+    dependencies=[Depends(rate_limit("auth.csrf", 60, 60, scope="ip"))],
+)
 async def csrf(
     request: Request,
     response: Response,

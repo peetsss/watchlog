@@ -30,6 +30,7 @@ def test_defaults_target_the_new_database() -> None:
     assert settings.default_region == "PL"
     assert settings.supported_regions == ["PL"]
     assert settings.celery_broker_url == "redis://127.0.0.1:6379/1"
+    assert settings.max_request_body_bytes == 1_048_576
 
 
 def test_database_url_override_wins() -> None:

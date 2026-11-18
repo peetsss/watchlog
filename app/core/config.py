@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     guest_session_ttl_seconds: int = Field(24 * 60 * 60, gt=0)
     anonymous_session_ttl_seconds: int = Field(60 * 60, gt=0)
     session_touch_interval_seconds: int = Field(60, gt=0)
+    max_request_body_bytes: int = Field(1_048_576, ge=1024, le=16_777_216)
 
     @field_validator("allowed_hosts", "trusted_origins", "trusted_proxy_ips", "supported_regions", mode="before")
     @classmethod

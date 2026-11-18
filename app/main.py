@@ -9,6 +9,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app import __version__
 from app.api.routers import account, auth, group_invites, groups, health, home, lobby, me, movies, root
+from app.core.body_limit import RequestBodyLimitMiddleware
 from app.core.config import Settings, get_settings
 from app.core.csrf import CSRFMiddleware
 from app.core.db import create_engine, create_sessionmaker
@@ -67,6 +68,7 @@ def create_app(
     if resolved_settings.env != "test":
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=resolved_settings.allowed_hosts)
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestBodyLimitMiddleware, max_bytes=resolved_settings.max_request_body_bytes)
     app.add_middleware(RequestContextMiddleware)
 
     register_exception_handlers(app)

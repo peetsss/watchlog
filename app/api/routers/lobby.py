@@ -5,13 +5,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import JSONResponse
 
-from app.api.deps import LobbySessionDep, LobbyViewer, OptionalLobbyViewer, SessionStoreDep, SettingsDep
+from app.api.deps import LobbySessionDep, LobbyViewer, OptionalLobbyViewer, SettingsDep
 from app.core.db import SessionDep
 from app.core.rate_limit import rate_limit
-from app.core.sessions import set_csrf_cookie, set_session_cookie
 from app.domain.lobby.exceptions import InvalidActionError, LobbyNotFoundError, NotAMemberError
 from app.models.group import Group
-from app.schemas.auth import CSRFResponse
 from app.schemas.lobby import (
     ActiveEnvelope,
     CreateLobbyRequest,
@@ -21,7 +19,6 @@ from app.schemas.lobby import (
 )
 from app.services import lobby as lobby_service
 from app.services import lobby_actions
-from app.services.auth import ensure_session
 
 router = APIRouter(prefix="/api/lobby", tags=["lobby"])
 logger = logging.getLogger(__name__)
@@ -71,19 +68,6 @@ def _not_modified(version: int) -> Response:
     response.headers["Cache-Control"] = "private, no-cache"
     response.headers["Vary"] = "Cookie"
     return response
-
-
-@router.get("/csrf/", response_model=CSRFResponse, include_in_schema=False)
-async def csrf(
-    request: Request,
-    response: Response,
-    settings: SettingsDep,
-    store: SessionStoreDep,
-) -> CSRFResponse:
-    session_id, data = await ensure_session(request, store, settings)
-    set_session_cookie(response, session_id, data, settings)
-    set_csrf_cookie(response, data, settings)
-    return CSRFResponse(csrf_token=data.csrf)
 
 
 @router.get(

@@ -45,6 +45,8 @@ def main() -> None:
             "--workers",
             os.getenv("WEB_CONCURRENCY", "1"),
             "--no-access-log",
+            "--ws-max-size",
+            "65536",
         ],
     )
 

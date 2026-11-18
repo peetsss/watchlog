@@ -152,6 +152,18 @@ async def test_duplicate_username_is_rejected(client: AsyncClient) -> None:
     assert response.json()["error"]["code"] == "username_taken"
 
 
+async def test_csrf_bootstrap_is_rate_limited(client: AsyncClient) -> None:
+    for _ in range(60):
+        response = await client.get("/api/auth/csrf")
+        assert response.status_code == 200
+
+    blocked = await client.get("/api/auth/csrf")
+
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "rate_limited"
+    assert blocked.headers["Retry-After"]
+
+
 async def test_registration_is_rate_limited(client: AsyncClient) -> None:
     await csrf_token(client)
     for index in range(5):

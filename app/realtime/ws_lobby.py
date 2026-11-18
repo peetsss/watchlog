@@ -6,6 +6,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.api.deps import _resolve_lobby_viewer
 from app.core.config import Settings
+from app.core.rate_limit import rate_limit_key
 from app.domain.lobby.errors import error_details
 from app.domain.lobby.exceptions import LobbyError, LobbyNotFoundError, NotAMemberError
 from app.realtime.events import LobbyEvent, LobbyRestarted
@@ -111,6 +112,23 @@ def _state_payload(state: LobbyState, reason: str | None = None) -> dict[str, ob
     return payload
 
 
+def _viewer_identity(viewer: Viewer) -> str:
+    if viewer.user_id is not None:
+        return f"user:{viewer.user_id}"
+    return f"guest:{viewer.guest_id}"
+
+
+async def _action_allowed(websocket: WebSocket, viewer: Viewer) -> bool:
+    if not websocket.app.state.settings.rate_limit_enabled:
+        return True
+    result = await websocket.app.state.rate_limiter.hit(
+        rate_limit_key("lobby.ws_action", _viewer_identity(viewer)),
+        120,
+        60,
+    )
+    return result.allowed
+
+
 @router.websocket("/ws/lobby/{lobby_uuid}/")
 async def lobby_socket(websocket: WebSocket, lobby_uuid: UUID) -> None:
     settings: Settings = websocket.app.state.settings
@@ -180,6 +198,15 @@ async def lobby_socket(websocket: WebSocket, lobby_uuid: UUID) -> None:
                 await _send_error(websocket, "invalid_action", "action must be a string")
                 continue
 
+            action_name = _ACTION_ALIASES.get(action)
+            if action != "leave" and not await _action_allowed(websocket, viewer):
+                await _send_error(
+                    websocket,
+                    "rate_limited",
+                    "Too many actions. Try again shortly.",
+                )
+                continue
+
             if action == "state.get":
                 current, reason = await _load_state(websocket, lobby_uuid, viewer)
                 if current is None:
@@ -189,7 +216,6 @@ async def lobby_socket(websocket: WebSocket, lobby_uuid: UUID) -> None:
                 await _safe_send(websocket, _state_payload(current))
                 continue
 
-            action_name = _ACTION_ALIASES.get(action)
             if action_name is None:
                 await _send_error(websocket, "invalid_action", f"Unknown lobby action: {action!r}")
                 continue

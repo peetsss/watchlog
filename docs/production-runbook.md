@@ -13,6 +13,8 @@ WATCHLOG_SECRET_KEY=<long random value>
 WATCHLOG_PUBLIC_URL=https://watchlog.example
 WATCHLOG_ALLOWED_HOSTS=watchlog.example
 WATCHLOG_TRUSTED_ORIGINS=https://watchlog.example
+WATCHLOG_TRUSTED_PROXY_IPS=172.18.0.0/16
+WATCHLOG_MAX_REQUEST_BODY_BYTES=1048576
 POSTGRES_PASSWORD=<long random value>
 TMDB_ACCESS_TOKEN=<v4 read access token>
 # TMDB_API_KEY=<v3 fallback>
@@ -40,7 +42,8 @@ the app. Our VPS uses Caddy; any proxy works if it:
 
 - serves the domain in `WATCHLOG_PUBLIC_URL` on 80/443 with a valid certificate;
 - forwards to `127.0.0.1:8000`;
-- supports WebSocket upgrades on `/ws`;
+- supports WebSocket upgrades on `/ws`; cap frames to 64 KiB and set a
+  connection/message limit at the proxy as the outer guard;
 - sets `X-Forwarded-For` and `X-Forwarded-Proto` (rate limits key on the client
   IP);
 - leaves port 8000 closed at the firewall, so the proxy is the only entry
