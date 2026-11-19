@@ -3,9 +3,9 @@ import { ArrowRight, Check, Info, Link2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGroupList } from "../lib/api-groups";
-import { createLobby } from "../lib/api-lobby";
+import { createLobby, joinLobby } from "../lib/api-lobby";
 import { ApiError } from "../lib/api";
-import { homeKeys, lobbyKeys } from "../lib/query-keys";
+import { homeKeys, groupKeys, lobbyKeys } from "../lib/query-keys";
 import { cx } from "../lib/cx";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
@@ -40,21 +40,56 @@ export function StartNightDialog({
   }, [groups, initialGroupId, open]);
 
   const selectedGroup = groups.find((group) => group.id === groupId) ?? null;
-  const canStart = !busy && (mode === "open" || Boolean(selectedGroup));
+  const activeLobby = mode === "group" ? selectedGroup?.activeLobby ?? null : null;
+  const canJoinActive = Boolean(activeLobby && (activeLobby.isParticipant || activeLobby.canJoin));
+  const canStart = !busy && (mode === "open" || Boolean(selectedGroup) && (!activeLobby || canJoinActive));
+  const primaryLabel = activeLobby
+    ? activeLobby.isParticipant
+      ? "Reopen the room"
+      : activeLobby.canJoin
+        ? "Join the room"
+        : "Night in progress"
+    : "Start the room";
+
+  const openLobby = (uuid: string) => {
+    onOpenChange(false);
+    navigate(`/lobby/${uuid}`);
+  };
 
   const handleStart = async () => {
     if (!canStart) return;
     setBusy(true);
     setError(null);
     try {
+      if (activeLobby) {
+        if (activeLobby.isParticipant) {
+          openLobby(activeLobby.uuid);
+          return;
+        }
+        if (activeLobby.canJoin) {
+          await joinLobby(activeLobby.uuid);
+          void queryClient.invalidateQueries({ queryKey: homeKeys.all });
+          void queryClient.invalidateQueries({ queryKey: groupKeys.all });
+          void queryClient.invalidateQueries({ queryKey: lobbyKeys.active() });
+          openLobby(activeLobby.uuid);
+          return;
+        }
+      }
       const lobby = await createLobby(mode === "group" ? selectedGroup?.id : undefined);
       void queryClient.invalidateQueries({ queryKey: homeKeys.all });
+      void queryClient.invalidateQueries({ queryKey: groupKeys.all });
       void queryClient.invalidateQueries({ queryKey: lobbyKeys.active() });
-      onOpenChange(false);
-      navigate(`/lobby/${lobby.uuid}`);
+      openLobby(lobby.uuid);
     } catch (startError) {
       if (startError instanceof ApiError && startError.code === "already_active") {
-        setError("That group already has an active room. Rejoin it from Home.");
+        setError("That group already has an active room. Rejoin it from the group page.");
+      } else if (startError instanceof ApiError && startError.code === "rate_limited") {
+        const minutes = startError.retryAfter ? Math.max(1, Math.ceil(startError.retryAfter / 60)) : null;
+        setError(
+          minutes
+            ? `Too many room attempts. Try again in ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`
+            : "Too many room attempts. Try again shortly.",
+        );
       } else {
         setError(
           startError instanceof ApiError
@@ -87,7 +122,7 @@ export function StartNightDialog({
               </>
             ) : (
               <>
-                Start the room <ArrowRight size={16} />
+                {primaryLabel} <ArrowRight size={16} />
               </>
             )}
           </Button>
@@ -116,7 +151,7 @@ export function StartNightDialog({
                 <strong>{group.name}</strong>
                 <span>
                   {group.memberCount} {group.memberCount === 1 ? "member" : "members"} ·{" "}
-                  {group.filmCount} {group.filmCount === 1 ? "film" : "films"}
+                  {group.filmCount} {group.filmCount === 1 ? "movie" : "movies"}
                 </span>
               </span>
               <span className="choice-check" aria-hidden="true">
@@ -164,7 +199,11 @@ export function StartNightDialog({
           {mode === "open"
             ? "The link is the only key. The room never appears in a public list."
             : selectedGroup
-              ? `Only ${selectedGroup.name} members can join this room.`
+              ? activeLobby
+                ? `${activeLobby.playerCount} ${
+                    activeLobby.playerCount === 1 ? "person is" : "people are"
+                  } already in the room.`
+                : `Only ${selectedGroup.name} members can join this room.`
               : "Choose a group or an open lobby to continue."}
         </span>
       </div>

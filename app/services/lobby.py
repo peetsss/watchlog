@@ -352,10 +352,19 @@ async def join_lobby(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     participants = await _participants(db, lobby.id)
     if _find_participant(participants, viewer) is not None:
         return lobby
-    if lobby.type != rules.OPEN_LOBBY:
-        raise NotJoinableError("Only open lobbies can be joined")
     if lobby.status != rules.READY:
-        raise NotJoinableError("The lobby is not accepting new members")
+        raise NotJoinableError("The night has already started")
+    if lobby.type == rules.GROUP_LOBBY:
+        if viewer.user_id is None or lobby.group_id is None:
+            raise NotJoinableError("Only group members can join this room")
+        membership = await db.scalar(
+            select(GroupMembership.user_id).where(
+                GroupMembership.group_id == lobby.group_id,
+                GroupMembership.user_id == viewer.user_id,
+            )
+        )
+        if membership is None:
+            raise NotJoinableError("This room is private to its group")
     if any(participant.display_name.casefold() == viewer.display_name.casefold() for participant in participants):
         raise NotJoinableError("That display name is taken in this room")
 
@@ -435,7 +444,7 @@ async def vote(db: AsyncSession, lobby_id: UUID, viewer: Viewer, movie_id: int, 
         raise InvalidChoiceError("That vote is not valid.")
     _require_status(lobby, rules.PLAYING)
     if lobby.revealed:
-        raise InvalidStateError("This film has already been revealed.")
+        raise InvalidStateError("This movie has already been revealed.")
 
     before = await _game_from_lobby(db, lobby, participants)
     if before.current is None:
@@ -453,7 +462,7 @@ async def next_round(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     _participant_for_viewer(participants, viewer)
     _require_status(lobby, rules.PLAYING)
     if not lobby.revealed:
-        raise InvalidStateError("This film has not been revealed yet.")
+        raise InvalidStateError("This movie has not been revealed yet.")
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.next_round(before)
     return await _commit(db, lobby, participants, before, after, reason="next_round")
@@ -468,7 +477,7 @@ async def pick(db: AsyncSession, lobby_id: UUID, viewer: Viewer, movie_id: int) 
         raise InvalidStateError("The final picks have already been revealed.")
     before = await _game_from_lobby(db, lobby, participants)
     if movie_id not in before.candidates:
-        raise InvalidChoiceError("That film is not a finalist.")
+        raise InvalidChoiceError("That movie is not a finalist.")
     after = engine.pick(before, str(participant.id), movie_id)
     return await _commit(db, lobby, participants, before, after, reason="pick")
 
@@ -479,7 +488,7 @@ async def advance(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     _require_host(participants, lobby, viewer)
     _require_status(lobby, rules.PLAYING)
     if lobby.revealed:
-        raise InvalidStateError("This film has already been revealed.")
+        raise InvalidStateError("This movie has already been revealed.")
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.reconcile(before) if before.current is None else engine.advance(before)
     return await _commit(db, lobby, participants, before, after, reason="advance")
@@ -581,8 +590,22 @@ async def get_join_preview(db: AsyncSession, lobby_id: UUID, viewer: Viewer | No
     lobby = await _get_lobby(db, lobby_id)
     participants = await _participants(db, lobby.id)
     is_participant = viewer is not None and _find_participant(participants, viewer) is not None
+    is_group_member = False
+    if viewer is not None and viewer.user_id is not None and lobby.group_id is not None:
+        is_group_member = (
+            await db.scalar(
+                select(GroupMembership.user_id).where(
+                    GroupMembership.group_id == lobby.group_id,
+                    GroupMembership.user_id == viewer.user_id,
+                )
+            )
+            is not None
+        )
     host = _host_participant(participants, lobby)
     group = await db.get(Group, lobby.group_id) if lobby.group_id is not None else None
+    can_join = (
+        not is_participant and lobby.status == rules.READY and (lobby.type == rules.OPEN_LOBBY or is_group_member)
+    )
     return JoinPreview(
         uuid=lobby.id,
         type=lobby.type,
@@ -591,8 +614,21 @@ async def get_join_preview(db: AsyncSession, lobby_id: UUID, viewer: Viewer | No
         group_name=group.name if group is not None else None,
         host_username=host.display_name if host is not None else None,
         player_count=len(participants),
-        can_join=lobby.type == rules.OPEN_LOBBY and lobby.status == rules.READY and not is_participant,
+        can_join=can_join,
         is_participant=is_participant,
+        is_group_member=is_group_member,
+    )
+
+
+async def get_active_lobby_for_group(db: AsyncSession, group_id: UUID) -> Lobby | None:
+    return await db.scalar(
+        select(Lobby)
+        .where(
+            Lobby.group_id == group_id,
+            Lobby.status.in_(list(rules.ACTIVE_STATUSES)),
+        )
+        .order_by(Lobby.created_at.desc(), Lobby.id.desc())
+        .limit(1)
     )
 
 

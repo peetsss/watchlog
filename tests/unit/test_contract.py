@@ -274,6 +274,7 @@ def test_lobby_contract_fields() -> None:
         "player_count",
         "can_join",
         "is_participant",
+        "is_group_member",
     }
     assert _fields(JoinPreviewEnvelope) == {"preview"}
     assert _fields(LobbySummary) == {
