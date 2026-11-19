@@ -2652,6 +2652,58 @@ button {
   backdrop-filter: blur(18px);
 }
 
+.players-rail {
+  display: none;
+}
+
+.players-rail-list {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.players-rail-list::-webkit-scrollbar {
+  display: none;
+}
+
+.players-rail-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.players-rail-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.players-rail-name em {
+  color: var(--muted-2);
+  font-size: 8px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.players-rail-state {
+  color: var(--muted-2);
+  font-size: 9px;
+}
+
+.players-rail-person.is-ready .players-rail-state {
+  color: var(--sage);
+}
+
 .players-head {
   display: flex;
   align-items: baseline;
@@ -4130,12 +4182,31 @@ button {
   }
 
   .waiting-inner {
-    gap: 28px;
-    padding: 96px 20px calc(126px + env(safe-area-inset-bottom));
+    gap: 18px;
+    padding: 88px 20px calc(190px + env(safe-area-inset-bottom));
   }
 
   .waiting-title {
-    font-size: clamp(44px, 11vw, 64px);
+    margin-bottom: 12px;
+    font-size: clamp(38px, 10vw, 52px);
+  }
+
+  .waiting-lede {
+    font-size: 14px;
+  }
+
+  .players-panel {
+    display: none;
+  }
+
+  .players-rail {
+    display: block;
+    margin-top: 16px;
+  }
+
+  .private-note,
+  .room-rules {
+    margin-top: 16px;
   }
 
   .lobby-shell.stage-waiting .lobby-top,
@@ -4523,6 +4594,42 @@ button {
 
   .empty-state h2 {
     font-size: 28px;
+  }
+
+  .room-actionbar {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .ready-summary {
+    display: none;
+  }
+
+  .room-actions {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .room-actions .text-button {
+    flex-shrink: 0;
+    min-height: 40px;
+  }
+
+  .room-actions .btn {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .waiting-inner {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+  }
+
+  .players-rail-list {
+    gap: 12px;
   }
 }
 
