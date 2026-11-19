@@ -190,9 +190,11 @@ The manual tag is only for the first release.
 
 ### Subsequent releases
 
-1. Run the **Release** workflow with the version, for example `0.1.1`.
+1. Run the **Release** workflow from `dev` with the version, for example `0.1.1`.
 2. Review and merge the release-please PR on `dev`.
-3. The tag build pushes the image and creates the GitHub release.
+3. Run the **Release** workflow again with the same version. Release-please tags
+   the merged release commit; `release-image.yml` then pushes the image and
+   creates the GitHub release.
 4. Run the **Promote release** workflow with `0.1.1`.
 5. Merge the promotion PR to deploy.
 
