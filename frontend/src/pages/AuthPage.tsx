@@ -27,6 +27,8 @@ function authMessage(error: unknown): string {
         return "That login and password don't match.";
       case "username_taken":
         return "That username is taken. Try another.";
+      case "username_not_allowed":
+        return "That username isn't allowed. Pick another one.";
       case "email_taken":
         return "That email is already in use.";
       case "email_unverified":
@@ -65,6 +67,16 @@ export function AuthPage() {
 
   const switchMode = (nextMode: Mode) => {
     if (busy || nextMode === mode) return;
+    if (nextMode === "register") {
+      const identifier = username.trim();
+      if (!email.trim() && identifier.includes("@")) {
+        setEmail(identifier);
+        setUsername("");
+      }
+    } else if (!username.trim() && email.trim()) {
+      setUsername(email.trim());
+      setEmail("");
+    }
     setMode(nextMode);
     setPassword("");
     setConfirm("");
@@ -90,7 +102,7 @@ export function AuthPage() {
       if (password.toLowerCase() === cleanUsername.toLowerCase()) {
         return "Your password can't match your username.";
       }
-      if (/^\d+$/.test(password)) return "Use at least one letter in your password.";
+      if (/^\d+$/.test(password)) return "Your password can't be only numbers.";
       if (password !== confirm) return "The passwords don't match yet.";
     }
 
@@ -194,7 +206,8 @@ export function AuthPage() {
             />
             {isRegister ? (
               <p className="field-help">
-                3+ characters: letters, numbers, dots, dashes or underscores.
+                3+ characters: letters, numbers, dots, dashes or underscores. This is what your
+                clubs will see.
               </p>
             ) : null}
 
@@ -248,7 +261,7 @@ export function AuthPage() {
               </button>
             </div>
             {isRegister ? (
-              <p className="field-help">8+ characters, not all numbers.</p>
+              <p className="field-help">At least 8 characters.</p>
             ) : (
               <p className="auth-forgot">
                 <Link to="/forgot-password" className="text-link">
@@ -281,13 +294,11 @@ export function AuthPage() {
               <p className="field-error auth-error" role="alert">
                 {error}
               </p>
-            ) : (
+            ) : !isRegister ? (
               <p className="field-help auth-help">
-                {isRegister
-                  ? "Your username is what your clubs will see."
-                  : "Your browser keeps the session — no token to copy."}
+                Your browser keeps the session — no token to copy.
               </p>
-            )}
+            ) : null}
 
             <Button type="submit" size="lg" className="auth-submit" disabled={busy}>
               {busy ? (
