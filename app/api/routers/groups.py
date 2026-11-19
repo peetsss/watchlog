@@ -52,14 +52,14 @@ async def preview_group(group_id: UUID, user: CurrentUser, db: SessionDep) -> Gr
 
 @router.get("/{group_id}", response_model=GroupDetail)
 async def get_group(group_id: UUID, context: GroupContextDep, db: SessionDep) -> GroupDetail:
-    return await group_service.get_group_detail(db, context.group)
+    return await group_service.get_group_detail(db, context.group, context.user)
 
 
 @router.post(
     "/{group_id}/lobbies",
     response_model=LobbyStateEnvelope,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(rate_limit("groups.lobby_create", 20, 3600, scope="viewer"))],
+    dependencies=[Depends(rate_limit("groups.lobby_create", 60, 3600, scope="viewer"))],
 )
 async def create_group_lobby(context: GroupContextDep, db: LobbySessionDep) -> LobbyStateEnvelope:
     viewer = Viewer.for_user(context.user)

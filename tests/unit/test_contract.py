@@ -117,6 +117,7 @@ def test_group_contract_fields() -> None:
         "member_count",
         "film_count",
         "members",
+        "active_lobby",
         "created_at",
     }
     assert _fields(GroupList) == {"groups"}
@@ -149,6 +150,7 @@ def test_group_contract_fields() -> None:
         "club_score",
         "score_count",
         "your_score",
+        "also_in_groups",
     }
     assert _fields(GroupFilmList) == {"films"}
     assert _fields(GroupFilmScores) == {"film_id", "scores"}
@@ -186,6 +188,7 @@ def test_home_contract_fields() -> None:
         "member_count",
         "film_count",
         "members",
+        "active_lobby",
         "up_next_count",
         "up_next",
         "last_watched",

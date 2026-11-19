@@ -27,4 +27,4 @@ async def preview_invite(token: str, user: CurrentUser, db: SessionDep) -> Group
 )
 async def join_invite(token: str, user: CurrentUser, db: SessionDep) -> GroupDetail:
     group = await invite_service.join_invite(db, token, user)
-    return await group_service.get_group_detail(db, group)
+    return await group_service.get_group_detail(db, group, user)

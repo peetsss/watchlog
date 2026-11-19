@@ -613,11 +613,25 @@
 }
 
 .group-score-dialog-scale {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: 14px;
   margin-top: 2px;
   color: var(--muted-2);
   font-size: 9px;
+}
+
+.group-score-dialog-scale span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.group-score-dialog-scale span:first-child {
+  transform: translateX(0);
+}
+
+.group-score-dialog-scale span:last-child {
+  transform: translateX(-100%);
 }
 
 @media (max-width: 960px) {

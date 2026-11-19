@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.lobby import JoinPreview
+
 
 class GroupMember(BaseModel):
     id: int
@@ -20,6 +22,7 @@ class GroupSummary(BaseModel):
     member_count: int
     film_count: int
     members: list[GroupMember]
+    active_lobby: JoinPreview | None = None
 
 
 class GroupList(BaseModel):
@@ -54,6 +57,12 @@ class MovieSummary(BaseModel):
     backdrop_path: str | None
 
 
+class GroupRef(BaseModel):
+    id: UUID
+    name: str
+    status: Literal["up_next", "watched"]
+
+
 class GroupFilm(BaseModel):
     id: int
     movie: MovieSummary
@@ -63,6 +72,7 @@ class GroupFilm(BaseModel):
     club_score: float | None
     score_count: int
     your_score: float | None
+    also_in_groups: list[GroupRef] = Field(default_factory=list)
 
 
 class GroupFilmList(BaseModel):
