@@ -333,6 +333,16 @@
       },
       "GroupDetail": {
         "properties": {
+          "active_lobby": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JoinPreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -403,6 +413,13 @@
               }
             ],
             "title": "Added By"
+          },
+          "also_in_groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupRef"
+            },
+            "title": "Also In Groups",
+            "type": "array"
           },
           "club_score": {
             "anyOf": [
@@ -595,6 +612,34 @@
         "title": "GroupPreview",
         "type": "object"
       },
+      "GroupRef": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "up_next",
+              "watched"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "title": "GroupRef",
+        "type": "object"
+      },
       "GroupStats": {
         "properties": {
           "average_score": {
@@ -645,6 +690,16 @@
       },
       "GroupSummary": {
         "properties": {
+          "active_lobby": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JoinPreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "description": {
             "anyOf": [
               {
@@ -745,6 +800,16 @@
       },
       "HomeFeaturedGroup": {
         "properties": {
+          "active_lobby": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JoinPreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "description": {
             "anyOf": [
               {
@@ -965,6 +1030,11 @@
               }
             ],
             "title": "Host Username"
+          },
+          "is_group_member": {
+            "default": false,
+            "title": "Is Group Member",
+            "type": "boolean"
           },
           "is_participant": {
             "title": "Is Participant",
@@ -2104,6 +2174,17 @@
             ],
             "title": "Movie Id"
           },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
           "poster_url": {
             "anyOf": [
               {
@@ -2122,6 +2203,17 @@
           "tmdb_id": {
             "title": "Tmdb Id",
             "type": "integer"
+          },
+          "tmdb_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdb Score"
           },
           "year": {
             "anyOf": [
