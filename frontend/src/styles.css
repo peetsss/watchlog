@@ -23,7 +23,8 @@
   --radius-sm: 8px;
   --radius: 12px;
   --radius-lg: 16px;
-  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-display: "Baloo 2 Variable", "Baloo 2", "Trebuchet MS", sans-serif;
+  --font-display-weight: 700;
   --font-ui: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   --sidebar: 248px;
@@ -118,10 +119,15 @@ button {
 
 .display {
   font-family: var(--font-display);
-  font-weight: 400;
-  letter-spacing: -0.022em;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
   line-height: 0.98;
   margin: 0;
+}
+
+.display em {
+  color: var(--amber);
+  font-style: normal;
 }
 
 .eyebrow {
@@ -818,7 +824,7 @@ button {
 
 .hub-title em {
   color: var(--amber);
-  font-style: italic;
+  font-style: normal;
 }
 
 .hub-lede {
@@ -1724,8 +1730,8 @@ button {
   margin: 0;
   font-family: var(--font-display);
   font-size: 32px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
   line-height: 1;
 }
 
@@ -1806,8 +1812,8 @@ button {
   margin: 0 0 6px;
   font-family: var(--font-display);
   font-size: 34px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
   line-height: 1;
 }
 
@@ -2801,8 +2807,8 @@ button {
   margin: 0 0 6px;
   font-family: var(--font-display);
   font-size: 34px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
   line-height: 1;
 }
 
@@ -2930,8 +2936,8 @@ button {
   margin: 0;
   font-family: var(--font-display);
   font-size: 30px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
   line-height: 1.02;
 }
 
@@ -4774,9 +4780,9 @@ button {
   margin: 0 0 7px;
   font-family: var(--font-display);
   font-size: 38px;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-  line-height: 0.94;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
+  line-height: 1;
 }
 
 .detail-meta {
@@ -4791,7 +4797,8 @@ button {
   color: var(--text-soft);
   font-family: var(--font-display);
   font-size: 17px;
-  font-style: italic;
+  font-weight: 500;
+  font-style: normal;
   line-height: 1.25;
 }
 
@@ -4913,8 +4920,8 @@ button {
   margin: 0;
   font-family: var(--font-display);
   font-size: 23px;
-  font-weight: 400;
-  letter-spacing: -0.015em;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
   line-height: 1.02;
 }
 

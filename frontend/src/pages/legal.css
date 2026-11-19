@@ -55,8 +55,8 @@
   color: var(--text);
   font-family: var(--font-display);
   font-size: 25px;
-  font-weight: 400;
-  letter-spacing: -0.015em;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
 }
 
 .legal-body h2:first-child {

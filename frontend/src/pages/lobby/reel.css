@@ -216,9 +216,9 @@
   margin: 0 0 4px;
   font-family: var(--font-display);
   font-size: 27px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
 }
 
 .reel-copy p {
@@ -382,9 +382,9 @@
   margin: 4px 0 3px;
   font-family: var(--font-display);
   font-size: 25px;
-  font-weight: 400;
-  letter-spacing: -0.018em;
-  line-height: 1;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
 }
 
 .reel-result-copy p {
