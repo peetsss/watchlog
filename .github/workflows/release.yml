@@ -32,6 +32,30 @@ jobs:
             echo "Add AUTOMATION_TOKEN with contents and pull-requests write access." >&2
             exit 1
           fi
+      - name: Pin the release version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          version = os.environ["RELEASE_VERSION"].strip().removeprefix("v")
+          if not version:
+              raise SystemExit("The version input is required.")
+
+          path = "release-please-config.json"
+          with open(path, encoding="utf-8") as handle:
+              config = json.load(handle)
+
+          config["packages"]["."]["release-as"] = version
+
+          with open(path, "w", encoding="utf-8") as handle:
+              json.dump(config, handle, indent=2)
+              handle.write("\n")
+
+          print(f"release-please will release as {version}")
+          PY
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.AUTOMATION_TOKEN }}
@@ -39,4 +63,3 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           skip-labeling: true
-          release-as: ${{ inputs.version }}
