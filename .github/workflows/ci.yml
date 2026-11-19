@@ -160,5 +160,12 @@ jobs:
           chmod 600 .env
           docker compose pull
           docker compose up -d --remove-orphans
-          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://127.0.0.1:8000/ready
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become ready" >&2
+          exit 1
           EOF

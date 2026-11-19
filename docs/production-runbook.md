@@ -11,7 +11,7 @@ Compose reads `.env`:
 WATCHLOG_ENV=prod
 WATCHLOG_SECRET_KEY=<long random value>
 WATCHLOG_PUBLIC_URL=https://watchlog.example
-WATCHLOG_ALLOWED_HOSTS=watchlog.example
+WATCHLOG_ALLOWED_HOSTS=watchlog.example,127.0.0.1,localhost
 WATCHLOG_TRUSTED_ORIGINS=https://watchlog.example
 WATCHLOG_TRUSTED_PROXY_IPS=172.18.0.0/16
 WATCHLOG_MAX_REQUEST_BODY_BYTES=1048576
@@ -26,6 +26,9 @@ WATCHLOG_SENTRY_DSN=<optional sentry dsn>
 
 `WATCHLOG_SECRET_KEY` is reserved for future signing use; rotating it does not
 revoke sessions today. Keep it set for rollback compatibility.
+
+Keep `127.0.0.1,localhost` in `WATCHLOG_ALLOWED_HOSTS`; the container health
+check and the deploy readiness probe connect through loopback.
 
 The deploy workflow writes the current release tag to `.env` as
 `WATCHLOG_IMAGE` so later admin and backup commands use the same image. Manual
