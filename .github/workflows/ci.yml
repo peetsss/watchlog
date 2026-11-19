@@ -160,12 +160,14 @@ jobs:
           chmod 600 .env
           docker compose pull
           docker compose up -d --remove-orphans
-          for attempt in $(seq 1 30); do
+          for attempt in {1..60}; do
             if curl -fsS http://127.0.0.1:8000/ready >/dev/null; then
               exit 0
             fi
             sleep 2
           done
           echo "API did not become ready" >&2
+          docker compose ps >&2 || true
+          docker compose logs --tail=50 api >&2 || true
           exit 1
           EOF

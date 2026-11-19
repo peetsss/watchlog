@@ -110,7 +110,7 @@ The VPS only pulls images. It never builds.
 
 ### GitHub settings
 
-- Make `dev` the default branch.
+- Keep `main` as the default branch. Feature PRs target `dev`.
 - Protect `dev` and `main`: require pull requests, the `backend`, `frontend`,
   `image-check` and `PR title` checks, and disable force pushes.
 - Allow only squash merges on `main`. The deploy job requires the commit body
@@ -190,16 +190,17 @@ The manual tag is only for the first release.
 
 ### Subsequent releases
 
-1. Run the **Release** workflow from `dev` with the version, for example `0.1.1`.
+1. Run the **Release** workflow from `dev` with the version, for example `0.1.2`.
 2. Review and merge the release-please PR on `dev`.
-3. Run the **Release** workflow again with the same version. Release-please tags
-   the merged release commit; `release-image.yml` then pushes the image and
-   creates the GitHub release.
-4. Run the **Promote release** workflow with `0.1.1`.
-5. Merge the promotion PR to deploy.
+3. Run the **Release** workflow from `dev` again with the same version.
+   Release-please tags the merged release commit; `release-image.yml` then
+   pushes the image and creates the GitHub release.
+4. Run the **Promote release** workflow from `dev` with `0.1.2`.
+5. Merge the promotion PR into `main` with squash to deploy.
 
 The version input is authoritative; release-please does not choose a bump. No
-release or promotion happens on a normal push.
+release or promotion happens on a normal push. Select `dev` as the workflow ref
+for both manual runs so the newest workflow definition is used.
 
 ### How a deploy runs
 

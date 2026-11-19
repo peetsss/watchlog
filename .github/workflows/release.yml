@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, without the v prefix (for example 0.1.1)"
+        description: "Release version, without the v prefix (for example 0.1.2)"
         required: true
         type: string
 
@@ -29,37 +29,48 @@ jobs:
           TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "Add AUTOMATION_TOKEN with contents and pull-requests write access." >&2
+            echo "Add AUTOMATION_TOKEN with contents, issues and pull-requests write access." >&2
             exit 1
           fi
-      - name: Pin the release version
+      - name: Ensure release labels exist
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          gh label create "autorelease: pending" --color FBCA04 --force --repo "$GITHUB_REPOSITORY"
+          gh label create "autorelease: tagged" --color 0E8A16 --force --repo "$GITHUB_REPOSITORY"
+      - name: Validate the requested version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           python3 - <<'PY'
-          import json
           import os
+          import re
 
-          version = os.environ["RELEASE_VERSION"].strip().removeprefix("v")
-          if not version:
-              raise SystemExit("The version input is required.")
-
-          path = "release-please-config.json"
-          with open(path, encoding="utf-8") as handle:
-              config = json.load(handle)
-
-          config["packages"]["."]["release-as"] = version
-
-          with open(path, "w", encoding="utf-8") as handle:
-              json.dump(config, handle, indent=2)
-              handle.write("\n")
-
-          print(f"release-please will release as {version}")
+          version = os.environ["INPUT_VERSION"].strip().removeprefix("v")
+          if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+              raise SystemExit(f"Invalid version: {version!r}")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+              handle.write(f"RELEASE_VERSION={version}\n")
+          print(f"Releasing as {version}")
           PY
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        with:
-          token: ${{ secrets.AUTOMATION_TOKEN }}
-          target-branch: dev
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-          skip-labeling: true
+      - name: Tag merged releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          npx --yes release-please@17.6.0 github-release \
+            --repo-url "$GITHUB_REPOSITORY" \
+            --target-branch dev \
+            --config-file release-please-config.json \
+            --manifest-file .release-please-manifest.json \
+            --token "$GITHUB_TOKEN"
+      - name: Create or update the release PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          npx --yes release-please@17.6.0 release-pr \
+            --repo-url "$GITHUB_REPOSITORY" \
+            --target-branch dev \
+            --config-file release-please-config.json \
+            --manifest-file .release-please-manifest.json \
+            --release-as "$RELEASE_VERSION" \
+            --token "$GITHUB_TOKEN"

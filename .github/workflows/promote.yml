@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to promote, without the v prefix (for example 0.1.0)"
+        description: "Version to promote, without the v prefix (for example 0.1.2)"
         required: true
         type: string
 
@@ -23,7 +23,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          ref: v${{ inputs.version }}
+          ref: main
+          token: ${{ secrets.AUTOMATION_TOKEN }}
       - name: Require the automation token
         env:
           TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
@@ -40,8 +41,18 @@ jobs:
           set -euo pipefail
           tag="v$VERSION"
           branch="release/$tag"
-          existing="$(gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          git fetch origin "$tag" --force
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$branch" origin/main
+          git read-tree --reset -u "$tag"
+          if git diff --cached --quiet; then
+            echo "main already matches $tag; nothing to promote." >&2
+            exit 1
+          fi
+          git commit -m "chore(release): $tag"
           git push --force origin "HEAD:refs/heads/$branch"
+          existing="$(gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number // empty')"
           if [ -z "$existing" ]; then
             gh pr create \
               --base main \
