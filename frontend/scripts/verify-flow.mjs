@@ -71,15 +71,15 @@ try {
   await settle(alice);
   await alice.screenshot({ path: `${out}/04-playing-reveal.png`, fullPage: true });
 
-  await alice.getByRole("button", { name: /Next film/ }).click();
-  await bob.locator(".room-stage").getByText("Film 2 of 2", { exact: true }).waitFor({ timeout: 10_000 });
+  await alice.getByRole("button", { name: /Next movie/ }).click();
+  await bob.locator(".room-stage").getByText("Movie 2 of 2", { exact: true }).waitFor({ timeout: 10_000 });
   await alice.locator(".reel-choice", { hasText: "I'm in" }).click();
   await bob.locator(".reel-choice", { hasText: "I'm in" }).click();
   await alice.getByText("Everyone was in.").waitFor({ timeout: 10_000 });
   await bob.getByRole("button", { name: /Finish the reel/ }).click();
 
-  await alice.getByRole("heading", { name: /2 films. One stage./ }).waitFor({ timeout: 10_000 });
-  await bob.getByRole("heading", { name: /2 films. One stage./ }).waitFor({ timeout: 10_000 });
+  await alice.getByRole("heading", { name: /2 movies. One stage./ }).waitFor({ timeout: 10_000 });
+  await bob.getByRole("heading", { name: /2 movies. One stage./ }).waitFor({ timeout: 10_000 });
   await settle(alice);
   await alice.screenshot({ path: `${out}/05-final.png`, fullPage: true });
 

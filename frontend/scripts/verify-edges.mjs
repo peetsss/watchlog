@@ -78,8 +78,8 @@ try {
   check("unknown page shows the 404 state", true);
 
   await alice.goto(base + "/search", { waitUntil: "networkidle" });
-  await alice.getByLabel("Search films and series by title").fill("Inception");
-  const offline = alice.getByText("Film search is offline.");
+  await alice.getByLabel("Search movies and series by title").fill("Inception");
+  const offline = alice.getByText("Movie search is offline.");
   const results = alice.locator(".search-card");
   await Promise.race([
     offline.waitFor({ timeout: 15_000 }),

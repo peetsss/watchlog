@@ -69,7 +69,7 @@ export function PlayingRoom({
         <div className="reel-content">
           <p className="session-loading" role="status">
             <Loader2 className="spin" size={17} aria-hidden="true" />
-            <span>Loading the next film…</span>
+            <span>Loading the next movie…</span>
           </p>
         </div>
       </section>
@@ -97,11 +97,11 @@ export function PlayingRoom({
       <div className="reel-content">
         <header className="reel-head">
           <p className="eyebrow">
-            Film {lobby.roundNumber} of {lobby.poolSize} <span className="dot-sep">·</span>{" "}
+            Movie {lobby.roundNumber} of {lobby.poolSize} <span className="dot-sep">·</span>{" "}
             {lobby.playerCount} in the room
           </p>
           <h1 className="display">The reel.</h1>
-          <p className="lede">One film at a time. The next one is already waiting.</p>
+          <p className="lede">One movie at a time. The next one is already waiting.</p>
         </header>
 
         <div className="reel-deck">
@@ -149,7 +149,7 @@ export function PlayingRoom({
                 className="text-button reel-about"
                 onClick={(event) => onOpenFilm(movie.id, event.currentTarget)}
               >
-                <Info size={13} /> About the film
+                <Info size={13} /> About the movie
               </button>
             </div>
           </article>
@@ -225,7 +225,7 @@ export function PlayingRoom({
                 <p>
                   {lobby.shortlisted
                     ? `${movie.title} moves to the shortlist.`
-                    : `${tally?.interested ?? 0} of ${tally?.total ?? lobby.playerCount} were in. A film needs every vote.`}
+                    : `${tally?.interested ?? 0} of ${tally?.total ?? lobby.playerCount} were in. A movie needs every vote.`}
                 </p>
               </div>
 
@@ -256,7 +256,7 @@ export function PlayingRoom({
                   </>
                 ) : (
                   <>
-                    {lobby.remainingCount <= 1 ? "Finish the reel" : "Next film"}{" "}
+                    {lobby.remainingCount <= 1 ? "Finish the reel" : "Next movie"}{" "}
                     <ArrowRight size={16} />
                   </>
                 )}
@@ -271,7 +271,7 @@ export function PlayingRoom({
               onClick={() => void send("advance")}
               disabled={pendingAction === "advance"}
             >
-              {pendingAction === "advance" ? "Skipping…" : "Skip this film"}
+              {pendingAction === "advance" ? "Skipping…" : "Skip this movie"}
             </button>
           ) : null}
         </div>
