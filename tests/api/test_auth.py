@@ -54,6 +54,18 @@ async def test_csrf_bootstraps_an_anonymous_session(client: AsyncClient) -> None
     assert client.cookies.get("wl_csrf")
 
 
+async def test_private_api_responses_are_not_cached(client: AsyncClient) -> None:
+    csrf_response = await client.get("/api/auth/csrf")
+    assert csrf_response.headers["cache-control"] == "no-store"
+
+    await register(client, current_csrf(client))
+
+    me = await client.get("/api/me")
+    assert me.headers["cache-control"] == "no-store"
+    session = await client.get("/api/auth/session")
+    assert session.headers["cache-control"] == "no-store"
+
+
 async def test_register_me_logout_and_login(client: AsyncClient) -> None:
     token = await csrf_token(client)
     viewer = await register(client, token)
@@ -150,6 +162,18 @@ async def test_duplicate_username_is_rejected(client: AsyncClient) -> None:
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "username_taken"
+
+
+async def test_csrf_bootstrap_is_rate_limited(client: AsyncClient) -> None:
+    for _ in range(60):
+        response = await client.get("/api/auth/csrf")
+        assert response.status_code == 200
+
+    blocked = await client.get("/api/auth/csrf")
+
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "rate_limited"
+    assert blocked.headers["Retry-After"]
 
 
 async def test_registration_is_rate_limited(client: AsyncClient) -> None:

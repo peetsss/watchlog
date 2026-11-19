@@ -57,7 +57,10 @@ LobbySessionDep = Annotated[AsyncSession, Depends(get_lobby_session)]
 
 
 async def get_tmdb_client(settings: SettingsDep) -> AsyncIterator[TMDBClient]:
-    async with TMDBClient(api_key=settings.tmdb_api_key.get_secret_value()) as client:
+    async with TMDBClient(
+        api_key=settings.tmdb_api_key.get_secret_value(),
+        access_token=settings.tmdb_access_token.get_secret_value(),
+    ) as client:
         yield client
 
 

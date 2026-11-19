@@ -13,6 +13,7 @@ x-dev-environment: &dev-environment
   WATCHLOG_LOG_FORMAT: text
   WATCHLOG_DOCS_ENABLED: "true"
   WATCHLOG_TMDB_API_KEY: ${TMDB_API_KEY:-}
+  WATCHLOG_TMDB_ACCESS_TOKEN: ${TMDB_ACCESS_TOKEN:-}
   WATCHLOG_TMDB_LANGUAGE: en-US
   WATCHLOG_DEFAULT_REGION: PL
   WATCHLOG_SUPPORTED_REGIONS: PL
@@ -23,6 +24,7 @@ x-dev-environment: &dev-environment
   WATCHLOG_SENTRY_DSN: ""
   WATCHLOG_RATE_LIMIT_ENABLED: "false"
   WATCHLOG_REQUIRE_VERIFIED_EMAIL: "true"
+  WATCHLOG_MAX_REQUEST_BODY_BYTES: "1048576"
 
 services:
   migrate:
@@ -51,9 +53,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log --ws-max-size 65536
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     environment: *dev-environment
     volumes:
       - ./app:/app/app

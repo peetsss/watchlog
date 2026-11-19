@@ -50,11 +50,14 @@ Vite · Docker
 
 ## Quick start
 
+Work on `dev`; feature PRs target `dev`. `main` only receives release
+promotions.
+
 Docker + Docker Compose, [uv](https://docs.astral.sh/uv/), Node 22+ and npm, and
 [just](https://github.com/casey/just).
 
 ```bash
-cp .env.template .env        # add TMDB_API_KEY for live film search
+cp .env.template .env        # add TMDB_ACCESS_TOKEN for live film search
 uv sync
 just hooks                   # tests + frontend build before each commit
 just dev                     # API, Postgres, Redis, Celery
@@ -65,21 +68,28 @@ just frontend                # Vite on http://localhost:5173
 SPA <http://localhost:5173> · API <http://localhost:8001> ·
 Swagger <http://localhost:8001/api/docs>
 
+The dev stack binds loopback only. Rate limits are disabled and docs are
+enabled, so do not expose it to an untrusted network. For a phone on the LAN,
+run `npm run dev -- --host 0.0.0.0` explicitly.
+
 Development mail prints to the worker logs. Set `WATCHLOG_MAIL_BACKEND=resend`
 and the Resend values for real email.
 
 ## Production
 
+Development happens on `dev`. Releases and `main` promotions are manual
+workflow dispatches; image builds, GitHub releases and deploys are automatic
+after that. The first production release is tagged manually as `v0.1.0`. The VPS
+only pulls images.
+
+Local production build:
+
 ```bash
-docker compose up -d --build
+just prod
 ```
 
-The API listens on `127.0.0.1:8000`; a host reverse proxy terminates TLS and
-forwards `/ws`. Migrations run as a one-shot Compose service first. Set secrets
-and domain values in `.env` before deploying.
-
-Deploy, rollback, restore, admin and incident steps:
-[`docs/production-runbook.md`](docs/production-runbook.md).
+First-time server setup, required GitHub secrets, promotion and rollback live in
+the [production runbook](docs/production-runbook.md#cicd).
 
 ## Tests
 

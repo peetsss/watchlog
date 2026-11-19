@@ -48,6 +48,7 @@ def main() -> None:
     settings = Settings()
     region = args.region or settings.default_region
     api_key = settings.tmdb_api_key.get_secret_value()
+    access_token = settings.tmdb_access_token.get_secret_value()
 
     engine = create_engine(settings.sqlalchemy_url, pool_pre_ping=True)
     with Session(engine) as session:
@@ -58,11 +59,15 @@ def main() -> None:
                 print(f"  {movie.tmdb_id} {movie.title}")
             return
 
-        if not api_key:
-            raise SystemExit("TMDB_API_KEY is required")
+        if not api_key and not access_token:
+            raise SystemExit("TMDB_ACCESS_TOKEN or TMDB_API_KEY is required")
 
         updated = skipped = failed = 0
-        with SyncTMDBWatchProviderClient(api_key=api_key, language=settings.tmdb_language) as client:
+        with SyncTMDBWatchProviderClient(
+            api_key=api_key,
+            access_token=access_token,
+            language=settings.tmdb_language,
+        ) as client:
             for index, movie in enumerate(movies, start=1):
                 if movie.tmdb_id is None:
                     continue

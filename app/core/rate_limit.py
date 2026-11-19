@@ -1,8 +1,9 @@
 import hashlib
 import math
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass
+from ipaddress import ip_address, ip_network
 from typing import Final, Literal, Protocol, cast
 
 from redis.asyncio import Redis
@@ -76,7 +77,27 @@ class MemoryRateLimiter:
         return _result(count, ttl, limit)
 
 
-def client_ip(request: Request) -> str:
+def _is_trusted_proxy(peer: str, trusted: Collection[str]) -> bool:
+    try:
+        address = ip_address(peer)
+    except ValueError:
+        return False
+    for entry in trusted:
+        try:
+            if "/" in entry:
+                if address in ip_network(entry, strict=False):
+                    return True
+            elif address == ip_address(entry):
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+def client_ip(request: Request, trusted_proxy_ips: Collection[str] = ()) -> str:
+    peer = request.client.host if request.client is not None else "unknown"
+    if not _is_trusted_proxy(peer, trusted_proxy_ips):
+        return peer
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         # The nearest proxy appends the address it saw, so the rightmost hop is
@@ -84,18 +105,22 @@ def client_ip(request: Request) -> str:
         candidate = forwarded.rsplit(",", 1)[-1].strip()
         if candidate:
             return candidate
-    return request.client.host if request.client is not None else "unknown"
+    return peer
 
 
-def request_identity(request: Request, scope: Literal["ip", "viewer"]) -> str:
+def request_identity(
+    request: Request,
+    scope: Literal["ip", "viewer"],
+    trusted_proxy_ips: Collection[str] = (),
+) -> str:
     if scope == "ip":
-        return f"ip:{client_ip(request)}"
+        return f"ip:{client_ip(request, trusted_proxy_ips)}"
     session = getattr(request.state, "session", None)
     if session is not None and session.kind == "member" and session.user_id is not None:
         return f"user:{session.user_id}"
     if session is not None and session.kind == "guest" and session.guest_id is not None:
         return f"guest:{session.guest_id}"
-    return f"ip:{client_ip(request)}"
+    return f"ip:{client_ip(request, trusted_proxy_ips)}"
 
 
 def rate_limit(
@@ -111,7 +136,7 @@ def rate_limit(
             return
         limiter: RateLimiter = request.app.state.rate_limiter
         result = await limiter.hit(
-            rate_limit_key(bucket, request_identity(request, scope)),
+            rate_limit_key(bucket, request_identity(request, scope, settings.trusted_proxy_ips)),
             limit,
             window_seconds,
         )

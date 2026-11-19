@@ -33,19 +33,55 @@ def test_rate_limit_key_does_not_expose_the_identity() -> None:
     assert first.startswith("watchlog:rate:login:")
 
 
-def test_client_ip_uses_the_nearest_forwarded_hop() -> None:
+def test_client_ip_ignores_forwarded_headers_by_default() -> None:
+    request = SimpleNamespace(
+        headers={"x-forwarded-for": "203.0.113.9"},
+        client=SimpleNamespace(host="10.0.0.2"),
+    )
+
+    assert client_ip(cast(Request, request)) == "10.0.0.2"
+
+
+def test_client_ip_uses_the_nearest_forwarded_hop_from_a_trusted_proxy() -> None:
     request = SimpleNamespace(
         headers={"x-forwarded-for": "203.0.113.9, 198.51.100.7"},
         client=SimpleNamespace(host="10.0.0.2"),
     )
 
-    assert client_ip(cast(Request, request)) == "198.51.100.7"
+    assert client_ip(cast(Request, request), ("10.0.0.2",)) == "198.51.100.7"
+
+
+def test_client_ip_accepts_a_trusted_proxy_cidr() -> None:
+    request = SimpleNamespace(
+        headers={"x-forwarded-for": "203.0.113.9"},
+        client=SimpleNamespace(host="10.0.0.2"),
+    )
+
+    assert client_ip(cast(Request, request), ("10.0.0.0/24",)) == "203.0.113.9"
+
+
+def test_client_ip_ignores_forwarded_headers_from_an_untrusted_peer() -> None:
+    request = SimpleNamespace(
+        headers={"x-forwarded-for": "203.0.113.9"},
+        client=SimpleNamespace(host="10.0.0.2"),
+    )
+
+    assert client_ip(cast(Request, request), ("10.0.0.3",)) == "10.0.0.2"
+
+
+def test_client_ip_ignores_invalid_trusted_proxy_entries() -> None:
+    request = SimpleNamespace(
+        headers={"x-forwarded-for": "203.0.113.9"},
+        client=SimpleNamespace(host="10.0.0.2"),
+    )
+
+    assert client_ip(cast(Request, request), ("not-an-ip", "999.1.1.1", "10.0.0.0/999")) == "10.0.0.2"
 
 
 def test_client_ip_falls_back_to_the_socket_address() -> None:
     request = SimpleNamespace(headers={}, client=SimpleNamespace(host="10.0.0.2"))
 
-    assert client_ip(cast(Request, request)) == "10.0.0.2"
+    assert client_ip(cast(Request, request), ("10.0.0.2",)) == "10.0.0.2"
 
 
 async def test_memory_limiter_allows_then_blocks() -> None:

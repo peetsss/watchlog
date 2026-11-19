@@ -44,6 +44,23 @@ async def test_ready_returns_503_when_a_dependency_fails(client: AsyncClient, mo
     assert response.json()["status"] == "unavailable"
 
 
+async def test_ready_hides_dependency_details_in_production(
+    client: AsyncClient,
+    app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_probe(app: FastAPI) -> dict[str, str]:
+        return {"database": "ok", "redis": "ok"}
+
+    monkeypatch.setattr("app.api.routers.health.probe_dependencies", fake_probe)
+    monkeypatch.setattr(app.state.settings, "env", "prod")
+
+    response = await client.get("/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 async def test_security_headers_are_present(client: AsyncClient) -> None:
     response = await client.get("/health")
 

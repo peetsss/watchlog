@@ -14,12 +14,13 @@ x-app-environment: &app-environment
   WATCHLOG_REDIS_URL: redis://redis:6379/0
   WATCHLOG_CELERY_BROKER_URL: redis://redis:6379/1
   WATCHLOG_TMDB_API_KEY: ${TMDB_API_KEY:-}
+  WATCHLOG_TMDB_ACCESS_TOKEN: ${TMDB_ACCESS_TOKEN:-}
   WATCHLOG_TMDB_LANGUAGE: ${WATCHLOG_TMDB_LANGUAGE:-en-US}
   WATCHLOG_DEFAULT_REGION: ${WATCHLOG_DEFAULT_REGION:-PL}
   WATCHLOG_SUPPORTED_REGIONS: ${WATCHLOG_SUPPORTED_REGIONS:-PL}
   WATCHLOG_WATCH_PROVIDER_TTL_SECONDS: ${WATCHLOG_WATCH_PROVIDER_TTL_SECONDS:-86400}
   WATCHLOG_PROVIDER_REFRESH_LIMIT: ${WATCHLOG_PROVIDER_REFRESH_LIMIT:-500}
-  WATCHLOG_MAIL_BACKEND: ${WATCHLOG_MAIL_BACKEND:-console}
+  WATCHLOG_MAIL_BACKEND: ${WATCHLOG_MAIL_BACKEND:?Set WATCHLOG_MAIL_BACKEND=resend in .env}
   WATCHLOG_MAIL_FROM: ${WATCHLOG_MAIL_FROM:-}
   WATCHLOG_MAIL_REPLY_TO: ${WATCHLOG_MAIL_REPLY_TO:-}
   WATCHLOG_RESEND_API_KEY: ${WATCHLOG_RESEND_API_KEY:-}
@@ -27,11 +28,14 @@ x-app-environment: &app-environment
   WATCHLOG_TRUSTED_PROXY_IPS: ${WATCHLOG_TRUSTED_PROXY_IPS:-}
   WATCHLOG_RATE_LIMIT_ENABLED: ${WATCHLOG_RATE_LIMIT_ENABLED:-true}
   WATCHLOG_REQUIRE_VERIFIED_EMAIL: ${WATCHLOG_REQUIRE_VERIFIED_EMAIL:-true}
+  WATCHLOG_MAX_REQUEST_BODY_BYTES: ${WATCHLOG_MAX_REQUEST_BODY_BYTES:-1048576}
   WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+
+x-app-image: &app-image ${WATCHLOG_IMAGE:-watchlog:prod}
 
 services:
   migrate:
-    image: watchlog:prod
+    image: *app-image
     command: ["alembic", "upgrade", "head"]
     depends_on:
       database:
@@ -44,10 +48,7 @@ services:
     restart: "no"
 
   api:
-    image: watchlog:prod
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: *app-image
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -64,7 +65,7 @@ services:
     restart: unless-stopped
 
   worker:
-    image: watchlog:prod
+    image: *app-image
     command:
       - celery
       - -A
@@ -92,7 +93,7 @@ services:
     restart: unless-stopped
 
   beat:
-    image: watchlog:prod
+    image: *app-image
     command:
       - celery
       - -A

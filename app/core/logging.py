@@ -5,6 +5,8 @@ from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Literal
 
+from app.core.redaction import RedactSecretsFilter
+
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 _HANDLER_NAME = "watchlog"
 _TEXT_LOG_FORMAT = "%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s"
@@ -40,11 +42,21 @@ def configure_logging(level: str, log_format: Literal["text", "json"] = "text") 
     for handler in root.handlers:
         if handler.get_name() == _HANDLER_NAME:
             handler.setFormatter(formatter)
+            if not any(isinstance(existing, RedactSecretsFilter) for existing in handler.filters):
+                handler.addFilter(RedactSecretsFilter())
             root.setLevel(level.upper())
+            _quiet_http_clients()
             return
     handler = logging.StreamHandler(sys.stdout)
     handler.set_name(_HANDLER_NAME)
     handler.setFormatter(formatter)
     handler.addFilter(RequestIdFilter())
+    handler.addFilter(RedactSecretsFilter())
     root.addHandler(handler)
     root.setLevel(level.upper())
+    _quiet_http_clients()
+
+
+def _quiet_http_clients() -> None:
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)

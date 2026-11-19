@@ -18,10 +18,10 @@ async def health() -> str:
 async def ready(request: Request) -> JSONResponse:
     checks = await probe_dependencies(request.app)
     healthy = all(value == "ok" for value in checks.values())
-    return JSONResponse(
-        {"status": "ok" if healthy else "unavailable", "checks": checks},
-        status_code=200 if healthy else 503,
-    )
+    payload: dict[str, object] = {"status": "ok" if healthy else "unavailable"}
+    if not request.app.state.settings.is_production:
+        payload["checks"] = checks
+    return JSONResponse(payload, status_code=200 if healthy else 503)
 
 
 async def probe_dependencies(app: FastAPI) -> dict[str, str]:

@@ -215,6 +215,8 @@ async def test_non_host_cannot_start(client: AsyncClient, app: FastAPI, movie_fa
 
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "not_host"
+    assert "user:" not in response.text
+    assert lobby["uuid"] not in response.text
 
 
 async def test_join_preview_and_join(client: AsyncClient, app: FastAPI, movie_factory: Callable[..., int]) -> None:

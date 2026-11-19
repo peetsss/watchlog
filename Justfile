@@ -117,6 +117,12 @@ frontend-check:
 frontend-verify:
     cd frontend && npm run verify:all
 
-# build and start the production app image on :8000
+# build the production image locally and start it on :8000
 prod:
-    docker compose up -d --build
+    docker build -t watchlog:prod .
+    WATCHLOG_IMAGE=watchlog:prod docker compose up -d --remove-orphans
+
+# pull the deployed image and restart the production stack
+prod-pull:
+    docker compose pull
+    docker compose up -d --remove-orphans

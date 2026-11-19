@@ -1,0 +1,53 @@
+name: Release image
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Require the automation token
+        env:
+          TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "Add AUTOMATION_TOKEN with contents write access." >&2
+            exit 1
+          fi
+      - name: Build and push the release image
+        env:
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          image="$REGISTRY/${IMAGE_NAME,,}"
+          tag="$GITHUB_REF_NAME"
+          sha="sha-${GITHUB_SHA::12}"
+          echo "$GITHUB_TOKEN" | docker login "$REGISTRY" -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --name release --use --driver docker-container
+          docker buildx build --platform linux/amd64 --push \
+            --tag "$image:$tag" \
+            --tag "$image:$sha" \
+            .
+      - name: Ensure the GitHub release exists
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --title "$tag" --generate-notes
+          fi

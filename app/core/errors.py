@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.redaction import redact_path
 from app.domain.lobby.errors import error_details
 from app.domain.lobby.exceptions import LobbyError
 
@@ -96,7 +97,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def _unhandled_error(request: Request, exc: Exception) -> JSONResponse:
-        logger.exception("Unhandled request error: %s %s", request.method, request.url.path)
+        logger.exception("Unhandled request error: %s %s", request.method, redact_path(request.url.path))
         return JSONResponse(
             error_payload("server_error", "An unexpected error occurred."),
             status_code=500,

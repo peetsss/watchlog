@@ -157,7 +157,10 @@ async def join_group(db: AsyncSession, user: User, group_id: UUID) -> GroupDetai
     )
     if membership is None:
         db.add(GroupMembership(group_id=group.id, user_id=user.id, role="member"))
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
     return await _summary(db, group)
 
 

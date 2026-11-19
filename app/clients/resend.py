@@ -32,7 +32,8 @@ class Mailer(Protocol):
 
 class ConsoleMailer:
     def send(self, message: EmailMessage) -> None:
-        logger.info("dev email to %s: %s\n%s", message.to, message.subject, message.text)
+        logger.info("dev email to %s: %s", message.to, message.subject)
+        logger.debug("dev email body:\n%s", message.text)
 
 
 class ResendMailer:

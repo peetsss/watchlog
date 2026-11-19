@@ -1,3 +1,4 @@
+import warnings
 from functools import lru_cache
 from typing import Annotated, Literal
 from urllib.parse import quote_plus
@@ -24,10 +25,9 @@ class Settings(BaseSettings):
     )
 
     env: Literal["dev", "test", "prod"] = "dev"
-    debug: bool = False
     log_level: str = "INFO"
     log_format: Literal["text", "json"] = "text"
-    docs_enabled: bool = True
+    docs_enabled: bool = False
     public_url: str | None = None
 
     secret_key: SecretStr = SecretStr(DEFAULT_SECRET)
@@ -57,6 +57,10 @@ class Settings(BaseSettings):
         SecretStr(""),
         validation_alias=AliasChoices("WATCHLOG_TMDB_API_KEY", "TMDB_API_KEY"),
     )
+    tmdb_access_token: SecretStr = Field(
+        SecretStr(""),
+        validation_alias=AliasChoices("WATCHLOG_TMDB_ACCESS_TOKEN", "TMDB_ACCESS_TOKEN"),
+    )
     tmdb_language: str = "en-US"
     default_region: str = "PL"
     supported_regions: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["PL"])
@@ -79,6 +83,7 @@ class Settings(BaseSettings):
     guest_session_ttl_seconds: int = Field(24 * 60 * 60, gt=0)
     anonymous_session_ttl_seconds: int = Field(60 * 60, gt=0)
     session_touch_interval_seconds: int = Field(60, gt=0)
+    max_request_body_bytes: int = Field(1_048_576, ge=1024, le=16_777_216)
 
     @field_validator("allowed_hosts", "trusted_origins", "trusted_proxy_ips", "supported_regions", mode="before")
     @classmethod
@@ -115,11 +120,26 @@ class Settings(BaseSettings):
             raise ValueError("WATCHLOG_DATABASE_URL or POSTGRES_PASSWORD must be set in production")
         if not self.public_url:
             raise ValueError("WATCHLOG_PUBLIC_URL must be set in production")
-        if self.mail_backend == "resend":
-            if not self.mail_from:
-                raise ValueError("WATCHLOG_MAIL_FROM must be set when WATCHLOG_MAIL_BACKEND=resend")
-            if not self.resend_api_key.get_secret_value():
-                raise ValueError("WATCHLOG_RESEND_API_KEY must be set when WATCHLOG_MAIL_BACKEND=resend")
+        if not self.public_url.startswith("https://"):
+            raise ValueError("WATCHLOG_PUBLIC_URL must use https in production")
+        if self.docs_enabled:
+            raise ValueError("WATCHLOG_DOCS_ENABLED must be false in production")
+        if self.allowed_hosts == DEFAULT_ALLOWED_HOSTS:
+            raise ValueError("WATCHLOG_ALLOWED_HOSTS must be set for the production host")
+        if self.trusted_origins == DEFAULT_TRUSTED_ORIGINS:
+            raise ValueError("WATCHLOG_TRUSTED_ORIGINS must be set for the production origin")
+        if not self.trusted_proxy_ips:
+            warnings.warn(
+                "WATCHLOG_TRUSTED_PROXY_IPS is empty; X-Forwarded-For is ignored",
+                UserWarning,
+                stacklevel=2,
+            )
+        if self.mail_backend != "resend":
+            raise ValueError("WATCHLOG_MAIL_BACKEND must be resend in production")
+        if not self.mail_from:
+            raise ValueError("WATCHLOG_MAIL_FROM must be set when WATCHLOG_MAIL_BACKEND=resend")
+        if not self.resend_api_key.get_secret_value():
+            raise ValueError("WATCHLOG_RESEND_API_KEY must be set when WATCHLOG_MAIL_BACKEND=resend")
         return self
 
     @property

@@ -35,7 +35,12 @@ async def list_groups(user: CurrentUser, db: SessionDep) -> GroupList:
     return await group_service.list_groups(db, user)
 
 
-@router.post("", response_model=GroupDetail, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=GroupDetail,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("groups.create", 20, 3600, scope="viewer"))],
+)
 async def create_group(payload: CreateGroupRequest, user: VerifiedUser, db: SessionDep) -> GroupDetail:
     return await group_service.create_group(db, user, payload.name, payload.description)
 
@@ -50,7 +55,12 @@ async def get_group(group_id: UUID, context: GroupContextDep, db: SessionDep) ->
     return await group_service.get_group_detail(db, context.group)
 
 
-@router.post("/{group_id}/lobbies", response_model=LobbyStateEnvelope, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{group_id}/lobbies",
+    response_model=LobbyStateEnvelope,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("groups.lobby_create", 20, 3600, scope="viewer"))],
+)
 async def create_group_lobby(context: GroupContextDep, db: LobbySessionDep) -> LobbyStateEnvelope:
     viewer = Viewer.for_user(context.user)
     lobby = await lobby_service.create_lobby(db, viewer, group=context.group)
@@ -63,7 +73,11 @@ async def get_watchlist(context: GroupContextDep, db: SessionDep) -> GroupFilmLi
     return await group_service.get_watchlist(db, context.group, context.user)
 
 
-@router.post("/{group_id}/films", response_model=GroupFilm)
+@router.post(
+    "/{group_id}/films",
+    response_model=GroupFilm,
+    dependencies=[Depends(rate_limit("groups.add_film", 60, 3600, scope="viewer"))],
+)
 async def add_film(
     payload: AddFilmRequest,
     context: GroupContextDep,

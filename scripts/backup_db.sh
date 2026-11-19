@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 : "${POSTGRES_DB:?POSTGRES_DB is required}"
 : "${POSTGRES_USER:?POSTGRES_USER is required}"
@@ -12,16 +13,26 @@ retention_days="${WATCHLOG_BACKUP_RETENTION_DAYS:-14}"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_file="${backup_dir}/${POSTGRES_DB}-${timestamp}.dump"
 
-mkdir -p "${backup_dir}"
+install -d -m 700 "${backup_dir}"
 
-PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
-    --host="${postgres_host}" \
-    --port="${postgres_port}" \
-    --username="${POSTGRES_USER}" \
-    --dbname="${POSTGRES_DB}" \
-    --format=custom \
-    --no-owner \
-    --file="${backup_file}"
+if [[ "${WATCHLOG_BACKUP_VIA_DOCKER:-0}" == "1" ]]; then
+    docker compose exec -T database pg_dump \
+        --username="${POSTGRES_USER}" \
+        --dbname="${POSTGRES_DB}" \
+        --format=custom \
+        --no-owner > "${backup_file}"
+else
+    PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
+        --host="${postgres_host}" \
+        --port="${postgres_port}" \
+        --username="${POSTGRES_USER}" \
+        --dbname="${POSTGRES_DB}" \
+        --format=custom \
+        --no-owner \
+        --file="${backup_file}"
+fi
+
+chmod 600 "${backup_file}"
 
 find "${backup_dir}" -type f -name "${POSTGRES_DB}-*.dump" -mtime +"${retention_days}" -delete
 

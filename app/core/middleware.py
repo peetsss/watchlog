@@ -7,6 +7,8 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.logging import request_id_var
+from app.core.rate_limit import client_ip
+from app.core.redaction import redact_path
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +33,24 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
         except Exception:
-            logger.exception("Request failed: %s %s", request.method, request.url.path)
+            logger.exception(
+                "Request failed: %s %s from %s",
+                request.method,
+                redact_path(request.url.path),
+                client_ip(request, request.app.state.settings.trusted_proxy_ips),
+            )
             raise
         else:
             response.headers[REQUEST_ID_HEADER] = request_id
+            session = getattr(request.state, "session", None)
+            if session is not None and request.url.path.startswith("/api/") and "cache-control" not in response.headers:
+                response.headers["Cache-Control"] = "no-store"
             duration_ms = (time.perf_counter() - started_at) * 1000
             logger.info(
-                "%s %s -> %s (%.1f ms)",
+                "%s %s from %s -> %s (%.1f ms)",
                 request.method,
-                request.url.path,
+                redact_path(request.url.path),
+                client_ip(request, request.app.state.settings.trusted_proxy_ips),
                 response.status_code,
                 duration_ms,
             )

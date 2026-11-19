@@ -2,8 +2,12 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - dev
+      - main
   push:
     branches:
+      - dev
       - main
 
 permissions:
@@ -11,7 +15,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   backend:
@@ -56,6 +60,7 @@ jobs:
       - run: uv python install 3.14.2
       - run: uv sync --frozen
       - run: uv run ruff check app tests alembic scripts
+      - run: uv run --with pip-audit pip-audit
       - run: uv run ruff format --check app tests alembic scripts
       - run: uv run alembic upgrade head
       - run: uv run alembic check
@@ -72,12 +77,15 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
         working-directory: frontend
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend
       - run: npm run typecheck
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
 
-  docker:
+  image-check:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     needs:
       - backend
@@ -85,3 +93,72 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: docker build -t watchlog:ci .
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - frontend
+    environment: production
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Resolve and verify the release image
+        id: image
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
+          if ! git log -1 --pretty=%B | grep -q "chore(release): v$version"; then
+            echo "main must receive a release promotion PR for v$version" >&2
+            exit 1
+          fi
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:v$version"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker manifest inspect "$image" >/dev/null
+      - name: Deploy to the VPS
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+          VPS_APP_DIR: ${{ secrets.VPS_APP_DIR || '/srv/watchlog' }}
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/deploy_key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/deploy_key" "$HOME/.ssh/known_hosts"
+
+          ssh -i "$HOME/.ssh/deploy_key" \
+            -p "$VPS_PORT" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$VPS_USER@$VPS_HOST" "bash -s" <<EOF
+          set -eu
+          cd '$VPS_APP_DIR'
+          git fetch origin main
+          git reset --hard FETCH_HEAD
+          export WATCHLOG_IMAGE='$IMAGE'
+          if grep -q '^WATCHLOG_IMAGE=' .env 2>/dev/null; then
+            sed -i "s|^WATCHLOG_IMAGE=.*|WATCHLOG_IMAGE=$IMAGE|" .env
+          else
+            printf 'WATCHLOG_IMAGE=%s\n' "$IMAGE" >> .env
+          fi
+          chmod 600 .env
+          docker compose pull
+          docker compose up -d --remove-orphans
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://127.0.0.1:8000/ready
+          EOF

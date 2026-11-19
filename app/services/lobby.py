@@ -54,7 +54,7 @@ async def _get_lobby(db: AsyncSession, lobby_id: UUID, *, lock: bool = False) ->
         statement = statement.with_for_update()
     lobby = await db.scalar(statement)
     if lobby is None:
-        raise LobbyNotFoundError(f"Lobby {lobby_id} not found")
+        raise LobbyNotFoundError("This room is no longer available.")
     return lobby
 
 
@@ -80,7 +80,7 @@ def _find_participant(participants: list[LobbyParticipant], viewer: Viewer) -> L
 def _participant_for_viewer(participants: list[LobbyParticipant], viewer: Viewer) -> LobbyParticipant:
     participant = _find_participant(participants, viewer)
     if participant is None:
-        raise NotAMemberError(f"{viewer.identity_key} is not a member of this lobby")
+        raise NotAMemberError("You are not a participant in this room.")
     return participant
 
 
@@ -95,14 +95,13 @@ def _require_host(participants: list[LobbyParticipant], lobby: Lobby, viewer: Vi
     host = _host_participant(participants, lobby)
     participant = _participant_for_viewer(participants, viewer)
     if host is None or host.id != participant.id:
-        raise NotHostError(f"{viewer.identity_key} is not the host of lobby {lobby.id}")
+        raise NotHostError("Only the host can do that.")
     return host
 
 
 def _require_status(lobby: Lobby, *statuses: str) -> None:
     if lobby.status not in statuses:
-        expected = "/".join(statuses)
-        raise InvalidStateError(f"Lobby {lobby.id} is {lobby.status}, expected {expected}")
+        raise InvalidStateError("That action is not available right now.")
 
 
 def _current_movie_id(lobby: Lobby) -> int | None:
@@ -252,7 +251,7 @@ async def create_lobby(
     host_user = host.user
     if group is not None:
         if host_user is None:
-            raise NotAMemberError("Guests cannot create group lobbies")
+            raise NotAMemberError("Guests cannot create group rooms.")
         membership = await db.scalar(
             select(GroupMembership).where(
                 GroupMembership.group_id == group.id,
@@ -260,7 +259,7 @@ async def create_lobby(
             )
         )
         if membership is None:
-            raise NotAMemberError(f"User {host_user.id} is not a member of group {group.id}")
+            raise NotAMemberError("You are not a member of this group.")
         active = await db.scalar(
             select(Lobby.id).where(
                 Lobby.group_id == group.id,
@@ -268,7 +267,7 @@ async def create_lobby(
             )
         )
         if active is not None:
-            raise AlreadyActiveLobbyError(f"Group {group.id} already has an active lobby")
+            raise AlreadyActiveLobbyError("This group already has an active room.")
 
     lobby_type = rules.GROUP_LOBBY if group is not None else rules.OPEN_LOBBY
     movie_ids = await resolve_pool(db, pool, group=group, size=pool_size)
@@ -289,7 +288,7 @@ async def create_lobby(
     except IntegrityError as exc:
         await db.rollback()
         if group is not None:
-            raise AlreadyActiveLobbyError(f"Group {group.id} already has an active lobby") from exc
+            raise AlreadyActiveLobbyError("This group already has an active room.") from exc
         raise
 
     if participants_override is not None:
@@ -341,7 +340,7 @@ async def create_lobby(
         None,
     )
     if host_participant is None:
-        raise NotAMemberError(f"{host.identity_key} is not a participant of lobby {lobby.id}")
+        raise NotAMemberError("You are not a participant in this room.")
     lobby.host_participant_id = host_participant.id
     await db.commit()
     await db.refresh(lobby)
@@ -380,7 +379,7 @@ async def leave_lobby(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby
     participants = await _participants(db, lobby.id)
     participant = _participant_for_viewer(participants, viewer)
     if participant.id == lobby.host_participant_id:
-        raise NotAMemberError("The host cannot leave the lobby")
+        raise NotAMemberError("The host cannot leave the room.")
     _require_status(lobby, rules.READY, rules.PLAYING, rules.FINAL_ROUND)
 
     before = await _game_from_lobby(db, lobby, participants)
@@ -433,10 +432,10 @@ async def vote(db: AsyncSession, lobby_id: UUID, viewer: Viewer, movie_id: int, 
     participants = await _participants(db, lobby.id)
     participant = _participant_for_viewer(participants, viewer)
     if choice not in rules.VOTE_CHOICES:
-        raise InvalidChoiceError(f"Unknown vote choice: {choice!r}")
+        raise InvalidChoiceError("That vote is not valid.")
     _require_status(lobby, rules.PLAYING)
     if lobby.revealed:
-        raise InvalidStateError(f"Lobby {lobby.id} already revealed the current film")
+        raise InvalidStateError("This film has already been revealed.")
 
     before = await _game_from_lobby(db, lobby, participants)
     if before.current is None:
@@ -454,7 +453,7 @@ async def next_round(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     _participant_for_viewer(participants, viewer)
     _require_status(lobby, rules.PLAYING)
     if not lobby.revealed:
-        raise InvalidStateError(f"Lobby {lobby.id} has not revealed the current film")
+        raise InvalidStateError("This film has not been revealed yet.")
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.next_round(before)
     return await _commit(db, lobby, participants, before, after, reason="next_round")
@@ -466,10 +465,10 @@ async def pick(db: AsyncSession, lobby_id: UUID, viewer: Viewer, movie_id: int) 
     participant = _participant_for_viewer(participants, viewer)
     _require_status(lobby, rules.FINAL_ROUND)
     if lobby.picks_revealed:
-        raise InvalidStateError(f"Lobby {lobby.id} already revealed the final picks")
+        raise InvalidStateError("The final picks have already been revealed.")
     before = await _game_from_lobby(db, lobby, participants)
     if movie_id not in before.candidates:
-        raise InvalidChoiceError(f"Movie {movie_id} is not a finalist in lobby {lobby.id}")
+        raise InvalidChoiceError("That film is not a finalist.")
     after = engine.pick(before, str(participant.id), movie_id)
     return await _commit(db, lobby, participants, before, after, reason="pick")
 
@@ -480,7 +479,7 @@ async def advance(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lobby:
     _require_host(participants, lobby, viewer)
     _require_status(lobby, rules.PLAYING)
     if lobby.revealed:
-        raise InvalidStateError(f"Lobby {lobby.id} is revealed; use next_round")
+        raise InvalidStateError("This film has already been revealed.")
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.reconcile(before) if before.current is None else engine.advance(before)
     return await _commit(db, lobby, participants, before, after, reason="advance")
@@ -492,7 +491,7 @@ async def finalize_lobby(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lo
     participant = _participant_for_viewer(participants, viewer)
     _require_status(lobby, rules.FINAL_ROUND)
     if not lobby.picks_revealed and participant.id != lobby.host_participant_id:
-        raise NotHostError(f"{viewer.identity_key} may not finalize lobby {lobby.id} before every pick is in")
+        raise NotHostError("Only the host can finalize before every pick is in.")
     before = await _game_from_lobby(db, lobby, participants)
     after = engine.finalize(before)
     return await _commit(db, lobby, participants, before, after, reason="finalize")
@@ -518,7 +517,7 @@ async def restart_lobby(db: AsyncSession, lobby_id: UUID, viewer: Viewer) -> Lob
     if lobby.group_id is not None:
         group = await db.get(Group, lobby.group_id)
         if group is None:
-            raise LobbyNotFoundError(f"Group {lobby.group_id} not found")
+            raise LobbyNotFoundError("This room is no longer available.")
         new_lobby = await create_lobby(db, viewer, group=group)
     else:
         viewers: list[Viewer] = []
