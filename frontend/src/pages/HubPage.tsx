@@ -14,6 +14,7 @@ import { Avatar, AvatarStack } from "../components/Avatar";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { JoinDialog } from "../components/JoinDialog";
+import { LegalLinks } from "../components/LegalLinks";
 import { MoviePoster } from "../components/MoviePoster";
 import { NightDialog } from "../components/NightDialog";
 import { PosterStack } from "../components/PosterStack";
@@ -56,7 +57,7 @@ function activeHeadline(active: HomeActiveLobbyView): string {
   if (active.status === "playing") {
     return active.currentMovieTitle
       ? `${active.currentMovieTitle} is on the table.`
-      : "One film is on the table.";
+      : "One movie is on the table.";
   }
   return "The shortlist is ready.";
 }
@@ -243,7 +244,7 @@ export function HubPage() {
                   to={`/search?group=${featured.id}`}
                   className="text-link hub-board-idle-link"
                 >
-                  Add a film <ArrowUpRight size={14} />
+                  Add a movie <ArrowUpRight size={14} />
                 </Link>
               </div>
             </>
@@ -254,7 +255,7 @@ export function HubPage() {
               </div>
               <h2 className="display">Start with the people.</h2>
               <p className="hub-board-live-copy">
-                Make a group, add the first film, then send the invite. The room can wait.
+                Make a group, add the first movie, then send the invite. The room can wait.
               </p>
               <Link to="/groups" className="btn btn-primary btn-md hub-board-rejoin">
                 Create your first group <ArrowRight size={16} />
@@ -267,7 +268,7 @@ export function HubPage() {
           <span>
             <Film size={14} aria-hidden="true" />{" "}
             {home.crews.count === 0
-              ? "No films on the shelves yet"
+              ? "No movies on the shelves yet"
               : `${home.crews.watchedCount} watched · ${home.crews.filmCount} on the shelves`}
           </span>
           <Link to="/groups" className="hub-board-crews">
@@ -436,6 +437,7 @@ export function HubPage() {
           watchlog<span>.</span>
         </span>
         <span>For the people who stay for the credits.</span>
+        <LegalLinks />
       </footer>
 
       <NightDialog
