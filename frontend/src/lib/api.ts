@@ -9,12 +9,14 @@ const CSRF_HEADER = "X-CSRF-Token";
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
+  readonly retryAfter: number | null;
 
-  constructor(message: string, code = "request_failed", status = 0) {
+  constructor(message: string, code = "request_failed", status = 0, retryAfter: number | null = null) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.status = status;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -77,5 +79,13 @@ export async function unwrap<T>(pending: Promise<Result<T>>): Promise<T> {
     if (payload.error.message) message = payload.error.message;
   }
 
-  throw new ApiError(message, code, result.response.status);
+  const retryAfterHeader = result.response.headers.get("Retry-After");
+  const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : null;
+
+  throw new ApiError(
+    message,
+    code,
+    result.response.status,
+    retryAfter !== null && Number.isFinite(retryAfter) ? retryAfter : null,
+  );
 }

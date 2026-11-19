@@ -28,6 +28,12 @@ def _as_int(value: object) -> int | None:
     return value
 
 
+def _as_float(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return float(value)
+
+
 def _auth(api_key: str, access_token: str, language: str) -> tuple[dict[str, str], dict[str, object]]:
     headers: dict[str, str] = {}
     query: dict[str, object] = {"language": language}
@@ -107,6 +113,8 @@ class TMDBClient:
                     year=release_date[:4] or None,
                     poster_url=f"{POSTER_BASE_URL}{poster_path}" if poster_path else None,
                     media_type="series" if item_type == "tv" else "movie",
+                    overview=_as_str(item.get("overview")),
+                    tmdb_score=_as_float(item.get("vote_average")),
                 )
             )
         return results

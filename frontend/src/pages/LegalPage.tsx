@@ -46,8 +46,8 @@ export function AboutPage() {
 
       <h2>How it works</h2>
       <p>
-        Create a group, add films, score what you watch and open a room when it is
-        time to choose. A room asks everyone to ready up, votes film by film, then
+        Create a group, add movies, score what you watch and open a room when it is
+        time to choose. A room asks everyone to ready up, votes movie by movie, then
         lets the finalists settle it with one pick each.
       </p>
 
@@ -59,7 +59,7 @@ export function AboutPage() {
             This product uses the TMDB API but is not endorsed or certified by TMDB.
           </p>
           <p>
-            Film metadata, posters and backdrops come from{" "}
+            Movie metadata, posters and backdrops come from{" "}
             <a href="https://www.themoviedb.org" target="_blank" rel="noopener">
               The Movie Database (TMDB)
             </a>
@@ -118,7 +118,7 @@ export function PrivacyPage() {
       <h2>Who processes it</h2>
       <p>
         We use service providers for hosting, database and Redis infrastructure, and
-        transactional email delivery. Film metadata and images come from TMDB. Watch
+        transactional email delivery. Movie metadata and images come from TMDB. Watch
         availability, when shown, comes from JustWatch via TMDB. We do not sell
         personal data.
       </p>
@@ -171,9 +171,9 @@ export function TermsPage() {
         harass people or publish content you do not have the right to share.
       </p>
 
-      <h2>Film data and availability</h2>
+      <h2>Movie data and availability</h2>
       <p>
-        Film data and imagery are provided by TMDB. Watch availability, when shown,
+        Movie data and imagery are provided by TMDB. Watch availability, when shown,
         is provided by JustWatch and can change. watchlog does not guarantee that a
         title is available on a particular service or in a particular country.
       </p>

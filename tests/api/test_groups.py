@@ -157,7 +157,7 @@ async def test_group_lobby_creation_is_rate_limited(client: AsyncClient) -> None
     first = await client.post(f"/api/groups/{group['id']}/lobbies", headers=headers)
     assert first.status_code == 201
 
-    for _ in range(19):
+    for _ in range(59):
         response = await client.post(f"/api/groups/{group['id']}/lobbies", headers=headers)
         assert response.status_code == 409
 
@@ -404,7 +404,7 @@ async def test_club_score_rounds_half_up(
     assert stats.json()["average_score"] == 8.3
 
 
-async def test_all_three_members_must_score(
+async def test_majority_of_members_must_score(
     client: AsyncClient,
     app: FastAPI,
     movie_factory: Callable[..., int],
@@ -422,13 +422,34 @@ async def test_all_three_members_must_score(
 
         await score_film(client, group["id"], film["id"], 8.0)
         after_two = await score_film(bob_client, group["id"], film["id"], 7.0)
-        assert after_two["status"] == "up_next"
+        assert after_two["status"] == "watched"
         assert after_two["score_count"] == 2
 
         after_three = await score_film(carol_client, group["id"], film["id"], 9.0)
         assert after_three["status"] == "watched"
         assert after_three["score_count"] == 3
         assert after_three["club_score"] == 8.0
+
+
+async def test_watchlist_shows_every_group_with_the_movie(
+    client: AsyncClient,
+    app: FastAPI,
+    movie_factory: Callable[..., int],
+) -> None:
+    await register_member(client)
+    first = await create_group(client, "First Club")
+    second = await create_group(client, "Second Club")
+    movie_factory(tmdb_id=27205, title="Inception")
+
+    film = await add_film(client, first["id"], 27205)
+    await add_film(client, second["id"], 27205)
+
+    watchlist = await client.get(f"/api/groups/{first['id']}/watchlist")
+    assert watchlist.status_code == 200
+    also_in = watchlist.json()["films"][0]["also_in_groups"]
+
+    assert {group["name"] for group in also_in} == {"First Club", "Second Club"}
+    assert film["also_in_groups"][0]["name"] == "First Club"
 
 
 async def test_leave_recomputes_the_watched_rule(

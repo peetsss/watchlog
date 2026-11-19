@@ -41,8 +41,8 @@ export function FinalRoom({
         <div className="final-inner final-empty-inner">
           <EmptyState
             icon={<Film size={24} />}
-            title="No film made the cut."
-            body="Not one film got a unanimous yes tonight. That's allowed. Call it a night and try again."
+            title="No movie made the cut."
+            body="Not one movie got a unanimous yes tonight. That's allowed. Call it a night and try again."
             action={
               <Button variant="ghost" onClick={onLeave}>
                 Back home
@@ -65,12 +65,12 @@ export function FinalRoom({
             {lobby.groupName ?? "Open room"}
           </p>
           <h1 className="display">
-            {finalists.length} {finalists.length === 1 ? "film" : "films"}. <em>One stage.</em>
+            {finalists.length} {finalists.length === 1 ? "movie" : "movies"}. <em>One stage.</em>
           </h1>
           <p className="lede">
             {finalists.length === 1
-              ? "One film made it through. It still needs the room's pick."
-              : `${finalists.length} films made it through. Choose the one you want to see; the room will do the rest.`}
+              ? "One movie made it through. It still needs the room's pick."
+              : `${finalists.length} movies made it through. Choose the one you want to see; the room will do the rest.`}
           </p>
         </header>
 
@@ -147,7 +147,7 @@ export function FinalRoom({
             <>
               <Sparkles size={15} aria-hidden="true" />
               <span>
-                {selectedId ? "Lock it in when you're ready." : "Pick a film to begin."}
+                {selectedId ? "Lock it in when you're ready." : "Pick a movie to begin."}
               </span>
             </>
           ) : !picksRevealed ? (
@@ -179,7 +179,7 @@ export function FinalRoom({
               </>
             ) : (
               <>
-                Lock in {selectedFinalist?.movie.title ?? "your film"} <ArrowRight size={15} />
+                Lock in {selectedFinalist?.movie.title ?? "your movie"} <ArrowRight size={15} />
               </>
             )}
           </Button>

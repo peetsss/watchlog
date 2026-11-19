@@ -4,6 +4,7 @@ import { useGroupList } from "../lib/api-groups";
 import { useActiveLobby } from "../lib/api-lobby";
 import { cx } from "../lib/cx";
 import { useSession } from "../state/Session";
+import { ActiveLobbyNotifications } from "./ActiveLobbyNotifications";
 import { Avatar } from "./Avatar";
 import { EmailVerificationBanner } from "./EmailVerificationBanner";
 import { LegalLinks } from "./LegalLinks";
@@ -83,14 +84,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           {groups.slice(0, 4).map((group, index) => (
-            <Link key={group.id} to={`/groups/${group.id}`} className="side-group">
+            <NavLink
+              key={group.id}
+              to={`/groups/${group.id}`}
+              end
+              className={({ isActive }) => cx("side-group", isActive && "is-active")}
+            >
               <span
                 className="side-group-dot"
                 style={{ background: groupTones[index % groupTones.length] }}
                 aria-hidden="true"
               />
               <span>{group.name}</span>
-            </Link>
+            </NavLink>
           ))}
         </div>
 
@@ -123,6 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="app-main">
+        <ActiveLobbyNotifications />
         <header className="mobile-top">
           <Wordmark />
           <div className="mobile-top-actions">

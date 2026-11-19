@@ -432,6 +432,51 @@ async def test_group_lobby_and_privacy(client: AsyncClient, app: FastAPI) -> Non
         assert group_denied.status_code == 403
 
 
+async def test_group_member_can_rejoin_while_waiting(
+    client: AsyncClient,
+    app: FastAPI,
+    movie_factory: Callable[..., int],
+) -> None:
+    await register_member(client)
+    insert_movies(movie_factory, 2)
+    group = await create_group(client, "Friday Film Club")
+
+    async with new_client(app) as bob_client:
+        await register_member(bob_client, "bob")
+        await join_group(bob_client, group["id"])
+        lobby = await create_group_lobby(client, group["id"])
+
+        left = await bob_client.post(
+            f"/api/lobby/{lobby['uuid']}/leave/",
+            json={},
+            headers=csrf_headers(current_csrf(bob_client)),
+        )
+        assert left.status_code == 204
+
+        detail = await bob_client.get(f"/api/groups/{group['id']}")
+        active = detail.json()["active_lobby"]
+        assert active["can_join"] is True
+        assert active["is_participant"] is False
+        assert active["is_group_member"] is True
+
+        rejoined = await bob_client.post(
+            f"/api/lobby/{lobby['uuid']}/join/",
+            headers=csrf_headers(current_csrf(bob_client)),
+        )
+        assert rejoined.status_code == 200
+        assert rejoined.json()["lobby"]["player_count"] == 2
+
+        await lobby_action(client, lobby["uuid"], "ready")
+        await lobby_action(client, lobby["uuid"], "start")
+
+        denied = await bob_client.post(
+            f"/api/lobby/{lobby['uuid']}/join/",
+            headers=csrf_headers(current_csrf(bob_client)),
+        )
+        assert denied.status_code == 409
+        assert denied.json()["error"]["code"] == "not_joinable"
+
+
 async def test_group_lobby_winner_is_added_to_the_watchlist(
     client: AsyncClient,
     movie_factory: Callable[..., int],

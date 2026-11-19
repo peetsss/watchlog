@@ -36,7 +36,7 @@
 
 .premiere-final-head h1 em {
   color: var(--amber);
-  font-style: italic;
+  font-style: normal;
 }
 
 .premiere-final-head .lede {
@@ -150,9 +150,9 @@
 .premiere-card-copy strong {
   font-family: var(--font-display);
   font-size: 24px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
 }
 
 .premiere-card-copy span {

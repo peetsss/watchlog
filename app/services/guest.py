@@ -4,14 +4,23 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import AppError
 from app.models.guest import Guest
 from app.models.lobby import Lobby, LobbyParticipant, LobbyPick, LobbyVote
 from app.models.user import User
+from app.services.moderation import is_allowed_name
 
 
 async def create_guest(db: AsyncSession, display_name: str, ttl_seconds: int) -> Guest:
+    cleaned_name = display_name.strip()
+    if not is_allowed_name(cleaned_name):
+        raise AppError(
+            "That display name isn't allowed. Pick another one.",
+            code="display_name_not_allowed",
+            status_code=400,
+        )
     guest = Guest(
-        display_name=display_name.strip(),
+        display_name=cleaned_name,
         expires_at=datetime.now(UTC) + timedelta(seconds=ttl_seconds),
     )
     db.add(guest)

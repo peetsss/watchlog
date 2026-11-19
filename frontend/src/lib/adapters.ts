@@ -30,6 +30,7 @@ export type GroupSummaryView = {
   members: GroupMemberView[];
   memberCount: number;
   filmCount: number;
+  activeLobby: LobbyPreviewView | null;
 };
 
 export type GroupPreviewView = {
@@ -75,7 +76,25 @@ export type MovieDetailView = MovieSummaryView & {
   writers: string[];
   cast: string[];
   language: string | null;
+  tmdbScore: number | null;
+  imdbId: string | null;
+  imdbScore: number | null;
+  rottentomatoScore: string | null;
+  metacriticScore: string | null;
+  filmwebScore: number | null;
+  imdbUrl: string | null;
+  rottentomatoUrl: string | null;
+  metacriticUrl: string | null;
+  filmwebUrl: string | null;
+  homepage: string | null;
+  voteCount: number | null;
   watch: WatchAvailabilityView | null;
+};
+
+export type GroupRefView = {
+  id: string;
+  name: string;
+  status: "up_next" | "watched";
 };
 
 export type GroupFilmView = {
@@ -87,6 +106,7 @@ export type GroupFilmView = {
   clubScore: number | null;
   scoreCount: number;
   yourScore: number | null;
+  alsoInGroups: GroupRefView[];
 };
 
 export type MemberScoreView = {
@@ -110,6 +130,8 @@ export type MovieSearchView = {
   year: string | null;
   poster: string | null;
   mediaType: "movie" | "series";
+  overview: string;
+  tmdbScore: number | null;
 };
 
 export type HomeLogEntryView = {
@@ -242,6 +264,7 @@ export type LobbyPreviewView = {
   playerCount: number;
   canJoin: boolean;
   isParticipant: boolean;
+  isGroupMember: boolean;
 };
 
 const VOTE_FROM_API: Record<string, LobbyVote> = {
@@ -314,6 +337,7 @@ export function groupSummaryToView(group: ApiGroupSummary): GroupSummaryView {
     members: group.members.map(memberToPerson),
     memberCount: group.member_count,
     filmCount: group.film_count,
+    activeLobby: group.active_lobby ? lobbyPreviewToView(group.active_lobby) : null,
   };
 }
 
@@ -389,6 +413,18 @@ export function movieDetailToView(movie: ApiMovieDetail): MovieDetailView {
     writers: splitList(movie.writers),
     cast: splitList(movie.actors),
     language: movie.spoken_languages ?? movie.original_language,
+    tmdbScore: movie.tmdb_score,
+    imdbId: movie.imdb_id,
+    imdbScore: movie.imdb_score,
+    rottentomatoScore: movie.rottentomato_score,
+    metacriticScore: movie.metacritic_score,
+    filmwebScore: movie.filmweb_score,
+    imdbUrl: movie.imdb_url,
+    rottentomatoUrl: movie.rottentomato_url,
+    metacriticUrl: movie.metacritic_url,
+    filmwebUrl: movie.filmweb_url,
+    homepage: movie.homepage,
+    voteCount: movie.vote_count,
     watch: watchToView(movie.watch),
   };
 }
@@ -403,6 +439,11 @@ export function groupFilmToView(film: ApiGroupFilm): GroupFilmView {
     clubScore: film.club_score,
     scoreCount: film.score_count,
     yourScore: film.your_score,
+    alsoInGroups: (film.also_in_groups ?? []).map((group) => ({
+      id: group.id,
+      name: group.name,
+      status: group.status,
+    })),
   };
 }
 
@@ -425,6 +466,8 @@ export function movieSearchToView(movie: ApiMovieSearchResult): MovieSearchView 
     year: movie.year,
     poster: movie.poster_url,
     mediaType: movie.media_type,
+    overview: movie.overview ?? "",
+    tmdbScore: movie.tmdb_score ?? null,
   };
 }
 
@@ -498,6 +541,7 @@ export function lobbyPreviewToView(preview: ApiLobbyPreview): LobbyPreviewView {
     playerCount: preview.player_count,
     canJoin: preview.can_join,
     isParticipant: preview.is_participant,
+    isGroupMember: preview.is_group_member,
   };
 }
 

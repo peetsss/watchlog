@@ -66,6 +66,32 @@ async def test_private_api_responses_are_not_cached(client: AsyncClient) -> None
     assert session.headers["cache-control"] == "no-store"
 
 
+async def test_register_rejects_reserved_and_blocked_usernames(client: AsyncClient) -> None:
+    for username in ("admin", "watchlog", "fuckyou"):
+        response = await client.post(
+            "/api/auth/register",
+            json={
+                "username": username,
+                "email": f"{username}@example.com",
+                "password": "correct horse",
+            },
+            headers=csrf_headers(await csrf_token(client)),
+        )
+        assert response.status_code == 400
+        assert response.json()["error"]["code"] == "username_not_allowed"
+
+
+async def test_guest_rejects_blocked_display_names(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/auth/guest",
+        json={"display_name": "watchlog support"},
+        headers=csrf_headers(await csrf_token(client)),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "display_name_not_allowed"
+
+
 async def test_register_me_logout_and_login(client: AsyncClient) -> None:
     token = await csrf_token(client)
     viewer = await register(client, token)

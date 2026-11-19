@@ -11,6 +11,7 @@ import {
 import { Link, useSearchParams } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
 import { MoviePoster } from "../components/MoviePoster";
+import { SearchMovieDialog } from "../components/SearchMovieDialog";
 import { type MovieSearchView } from "../lib/adapters";
 import { useAddFilm, useGroupList, useGroupWatchlist } from "../lib/api-groups";
 import { useMovieSearch } from "../lib/api-movies";
@@ -34,6 +35,7 @@ export function SearchPage() {
   const [addedKeys, setAddedKeys] = useState<Set<string>>(new Set());
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
+  const [detailMovie, setDetailMovie] = useState<MovieSearchView | null>(null);
 
   const groups = groupsQuery.data ?? [];
   const debouncedQuery = useDebouncedValue(query.trim(), 350);
@@ -68,8 +70,8 @@ export function SearchPage() {
     return watchlist.data?.some((film) => film.movie.tmdbId === movie.tmdbId) ?? false;
   };
 
-  const handleAdd = async (movie: MovieSearchView) => {
-    if (!targetGroup) return;
+  const handleAdd = async (movie: MovieSearchView): Promise<boolean> => {
+    if (!targetGroup) return false;
     setAddError(null);
     setPendingKey(movie.key);
     try {
@@ -84,10 +86,12 @@ export function SearchPage() {
         return next;
       });
       showToast(`Added ${movie.title} to ${targetGroup.name}.`);
+      return true;
     } catch (error) {
       setAddError(
-        error instanceof ApiError ? error.message : "Couldn't add the film. Try again.",
+        error instanceof ApiError ? error.message : "Couldn't add the movie. Try again.",
       );
+      return false;
     } finally {
       setPendingKey(null);
     }
@@ -117,7 +121,7 @@ export function SearchPage() {
           <Search size={18} aria-hidden="true" />
           <input
             type="search"
-            aria-label="Search films and series by title"
+            aria-label="Search movies and series by title"
             placeholder="Title, e.g. Inception"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -135,7 +139,7 @@ export function SearchPage() {
             <select
               value={targetGroupId}
               onChange={(event) => setTargetGroupId(event.target.value)}
-              aria-label="Choose a group to add films to"
+              aria-label="Choose a group to add movies to"
               disabled={!groups.length}
             >
               {groups.map((group) => (
@@ -154,7 +158,7 @@ export function SearchPage() {
           {(
             [
               { value: "all", label: "All", count: results.length },
-              { value: "movie", label: "Films", count: movieCount },
+              { value: "movie", label: "Movies", count: movieCount },
               { value: "series", label: "Series", count: seriesCount },
             ] as const
           ).map((item) => (
@@ -182,7 +186,7 @@ export function SearchPage() {
         <EmptyState
           icon={<Search size={24} />}
           title="Start with a title."
-          body="Search the catalog for a film or series, then add it to the watchlist you're planning for."
+          body="Search the catalog for a movie or series, then add it to the watchlist you're planning for."
         />
       ) : search.isPending ? (
         <p className="session-loading" role="status">
@@ -192,7 +196,7 @@ export function SearchPage() {
       ) : search.isError ? (
         <EmptyState
           icon={<Search size={24} />}
-          title={searchError?.code === "tmdb_unavailable" ? "Film search is offline." : "Search didn't answer."}
+          title={searchError?.code === "tmdb_unavailable" ? "Movie search is offline." : "Search didn't answer."}
           body={
             searchError?.code === "tmdb_unavailable"
               ? "The catalog service isn't configured or reachable right now. Add a TMDB API key to the API, then try again."
@@ -224,16 +228,30 @@ export function SearchPage() {
 
               return (
                 <article className="search-card" key={movie.key}>
+                  <button
+                    type="button"
+                    className="search-card-open"
+                    onClick={() => setDetailMovie(movie)}
+                    aria-label={`Details for ${movie.title}`}
+                  />
                   <div className="search-poster">
                     <MoviePoster src={movie.poster} title={movie.title} />
                   </div>
                   <div className="search-card-body">
                     <h2 className="display">{movie.title}</h2>
                     <p className="search-meta">
-                      {[movie.year, movie.mediaType === "series" ? "Series" : "Film"]
+                      {[movie.year, movie.mediaType === "series" ? "Series" : "Movie"]
                         .filter(Boolean)
                         .join(" · ")}
                     </p>
+                    {movie.overview ? (
+                      <p className="search-overview">{movie.overview}</p>
+                    ) : null}
+                    {movie.tmdbScore !== null ? (
+                      <p className="search-rating">
+                        TMDB <strong>{movie.tmdbScore.toFixed(1)}</strong>
+                      </p>
+                    ) : null}
                     <button
                       type="button"
                       className={cx("add-button", added && "is-added")}
@@ -279,8 +297,25 @@ export function SearchPage() {
       )}
 
       {!groupsQuery.isPending && !groups.length ? (
-        <p className="search-note">Create a group before adding films to a watchlist.</p>
+        <p className="search-note">Create a group before adding movies to a watchlist.</p>
       ) : null}
+
+      <SearchMovieDialog
+        movie={detailMovie}
+        group={targetGroup ?? null}
+        added={detailMovie ? isAdded(detailMovie) : false}
+        pending={detailMovie ? pendingKey === detailMovie.key : false}
+        open={Boolean(detailMovie)}
+        onOpenChange={(open) => {
+          if (!open) setDetailMovie(null);
+        }}
+        onAdd={() => {
+          if (!detailMovie) return;
+          void handleAdd(detailMovie).then((addedMovie) => {
+            if (addedMovie) setDetailMovie(null);
+          });
+        }}
+      />
     </div>
   );
 }

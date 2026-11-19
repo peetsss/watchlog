@@ -84,7 +84,7 @@ async def active(viewer: LobbyViewer, db: SessionDep) -> ActiveEnvelope:
     "/",
     response_model=LobbyStateEnvelope,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(rate_limit("lobby.create", 20, 3600, scope="viewer"))],
+    dependencies=[Depends(rate_limit("lobby.create", 60, 3600, scope="viewer"))],
 )
 async def create(
     viewer: LobbyViewer,
@@ -114,7 +114,7 @@ async def create(
 )
 async def preview(lobby_uuid: UUID, viewer: OptionalLobbyViewer, db: SessionDep) -> JoinPreviewEnvelope:
     preview_data = await lobby_service.get_join_preview(db, lobby_uuid, viewer)
-    if not preview_data.is_participant and preview_data.type == "group":
+    if not preview_data.is_participant and not preview_data.is_group_member and preview_data.type == "group":
         raise NotAMemberError("This room is private to its group.")
     return JoinPreviewEnvelope(preview=preview_data)
 
@@ -122,7 +122,7 @@ async def preview(lobby_uuid: UUID, viewer: OptionalLobbyViewer, db: SessionDep)
 @router.post(
     "/{lobby_uuid}/join/",
     response_model=LobbyStateEnvelope,
-    dependencies=[Depends(rate_limit("lobby.join", 20, 3600, scope="viewer"))],
+    dependencies=[Depends(rate_limit("lobby.join", 60, 3600, scope="viewer"))],
 )
 async def join(lobby_uuid: UUID, viewer: LobbyViewer, db: LobbySessionDep) -> Response:
     await lobby_service.join_lobby(db, lobby_uuid, viewer)

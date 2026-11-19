@@ -23,7 +23,6 @@ import {
   useGroupStats,
   useGroupWatchlist,
   useSetFilmScore,
-  useSetFilmStatus,
 } from "../../lib/api-groups";
 import { ApiError } from "../../lib/api";
 import { copyText } from "../../lib/copy";
@@ -54,7 +53,6 @@ export function GroupPage() {
   const watchlistQuery = useGroupWatchlist(id);
   const statsQuery = useGroupStats(id);
   const setScore = useSetFilmScore();
-  const setStatus = useSetFilmStatus();
   const { showToast } = useToast();
 
   const [filter, setFilter] = useState<Filter>("all");
@@ -196,13 +194,13 @@ export function GroupPage() {
           </p>
           <h1 className="display group-title">{group.name}</h1>
           <p className="group-desc">
-            {group.description || "A group for the films you keep between you."}
+            {group.description || "A group for the movies you keep between you."}
           </p>
           <div className="group-members">
             <AvatarStack people={group.members} size={24} />
             <span>
               {group.memberCount} {group.memberCount === 1 ? "member" : "members"} ·{" "}
-              <strong>{stats.total}</strong> {stats.total === 1 ? "film" : "films"} between you
+              <strong>{stats.total}</strong> {stats.total === 1 ? "movie" : "movies"} between you
             </span>
           </div>
         </div>
@@ -212,10 +210,17 @@ export function GroupPage() {
             {inviting ? <Loader2 className="spin" size={15} /> : <Link2 size={15} />} Invite
           </Button>
           <Link to={`/search?group=${group.id}`} className={buttonClass("secondary", "md")}>
-            <Plus size={15} /> Add a film
+            <Plus size={15} /> Add a movie
           </Link>
           <Button onClick={() => setStartOpen(true)}>
-            Start a night <ArrowRight size={16} />
+            {group.activeLobby
+              ? group.activeLobby.isParticipant
+                ? "Reopen the night"
+                : group.activeLobby.canJoin
+                  ? "Join the night"
+                  : "Night in progress"
+              : "Start a night"}{" "}
+            <ArrowRight size={16} />
           </Button>
         </div>
       </header>
@@ -223,7 +228,7 @@ export function GroupPage() {
       <div className="group-stats" aria-label="Watchlist summary">
         <div className="group-stat">
           <strong>{stats.total}</strong>
-          <span>Films</span>
+          <span>Movies</span>
         </div>
         <div className="group-stat">
           <strong>{stats.upNext}</strong>
@@ -274,7 +279,7 @@ export function GroupPage() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find a film on the list"
+            placeholder="Find a movie on the list"
             aria-label="Search the watchlist"
           />
           {query ? (
@@ -374,11 +379,8 @@ export function GroupPage() {
 
           <footer className="group-foot">
             <p>
-              {stats.upNext} {stats.upNext === 1 ? "film is" : "films are"} waiting for the room.
+              {stats.upNext} {stats.upNext === 1 ? "movie is" : "movies are"} waiting for the room.
             </p>
-            <Link to={`/search?group=${group.id}`} className="text-link">
-              Add another film <Plus size={13} />
-            </Link>
           </footer>
         </>
       ) : (
@@ -387,13 +389,13 @@ export function GroupPage() {
           title={filter === "all" && !query ? "The shelf is empty." : "Nothing in this cut."}
           body={
             filter === "all" && !query
-              ? "A watchlist starts with one film somebody won't stop talking about. Add the first one."
-              : "No film matches this filter. Clear it and the rest of the watchlist is still there."
+              ? "A watchlist starts with one movie somebody won't stop talking about. Add the first one."
+              : "No movie matches this filter. Clear it and the rest of the watchlist is still there."
           }
           action={
             filter === "all" && !query ? (
               <Link to={`/search?group=${group.id}`} className={buttonClass("primary", "md")}>
-                <Plus size={16} /> Add the first film
+                <Plus size={16} /> Add the first movie
               </Link>
             ) : (
               <Button variant="secondary" onClick={clearFilters}>
@@ -423,13 +425,6 @@ export function GroupPage() {
         }}
         onSave={async (score) => {
           if (!scoreFilm) return;
-          if (scoreFilm.status === "up_next") {
-            await setStatus.mutateAsync({
-              groupId: group.id,
-              filmId: scoreFilm.id,
-              status: "watched",
-            });
-          }
           await setScore.mutateAsync({
             groupId: group.id,
             filmId: scoreFilm.id,
@@ -437,7 +432,7 @@ export function GroupPage() {
           });
           showToast(
             scoreFilm.status === "up_next"
-              ? `${scoreFilm.movie.title} is watched and scored.`
+              ? `Your score is saved. ${scoreFilm.movie.title} moves to watched once most of the group scores it.`
               : "Your score is saved.",
           );
         }}

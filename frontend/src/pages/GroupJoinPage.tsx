@@ -98,7 +98,7 @@ export function GroupJoinPage() {
           <p className="eyebrow">You're invited</p>
           <h1 className="display join-title">A seat in {group.name}.</h1>
           <p className="lede join-lede">
-            {group.description || "A group for the films you keep between you."}
+            {group.description || "A group for the movies you keep between you."}
           </p>
 
           <div className="join-rows">
@@ -118,7 +118,7 @@ export function GroupJoinPage() {
               <Link2 size={17} aria-hidden="true" />
               <span>Watchlist</span>
               <strong>
-                {group.filmCount} {group.filmCount === 1 ? "film" : "films"}
+                {group.filmCount} {group.filmCount === 1 ? "movie" : "movies"}
               </strong>
             </div>
           </div>

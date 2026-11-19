@@ -40,7 +40,7 @@ try {
   await dialog.waitFor();
   await settle(page, 500);
 
-  check("detail shows the current film", await dialog.getByRole("heading", { name: "Inception" }).isVisible());
+  check("detail shows the current movie", await dialog.getByRole("heading", { name: "Inception" }).isVisible());
   check("detail shows the story", await dialog.getByRole("heading", { name: "The story" }).isVisible());
   check("detail shows credits", await dialog.getByRole("heading", { name: "The credits" }).isVisible());
   check(
@@ -61,7 +61,7 @@ try {
 
   await page.keyboard.press("Escape");
   await dialog.waitFor({ state: "detached" });
-  check("escape removes the film parameter", !page.url().includes("film="), page.url());
+  check("escape removes the movie parameter", !page.url().includes("film="), page.url());
   const focused = await page.evaluate(() => ({
     tag: document.activeElement?.tagName,
     label: document.activeElement?.getAttribute("aria-label"),
@@ -99,28 +99,28 @@ try {
   check("mobile has no horizontal overflow", metrics.scrollWidth <= metrics.innerWidth, JSON.stringify(metrics));
   await page.screenshot({ path: `${out}/02-detail-mobile.png`, fullPage: true });
 
-  await page.getByRole("dialog").getByRole("button", { name: "Close film details" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Close movie details" }).click();
   await page.getByRole("dialog").waitFor({ state: "detached" });
   await page.setViewportSize({ width: 1440, height: 1000 });
 
   await page.locator(".reel-choice", { hasText: "I'm in" }).click();
   await page.getByText("Everyone was in.").waitFor({ timeout: 10_000 });
   await page.getByRole("button", { name: /Finish the reel/ }).click();
-  await page.getByRole("heading", { name: /1 film. One stage./ }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: /1 movie. One stage./ }).waitFor({ timeout: 10_000 });
   await page.getByRole("button", { name: "Select Inception" }).click();
   await page.getByRole("button", { name: /Lock in Inception/ }).click();
   await page.getByText("Everyone has picked. Roll the premiere.").waitFor({ timeout: 10_000 });
   await page.getByRole("button", { name: /Roll the pick/ }).click();
   await page.locator(".premiere-winner").waitFor({ timeout: 10_000 });
 
-  await page.getByRole("button", { name: "About the film" }).click();
+  await page.getByRole("button", { name: "About the movie" }).click();
   const winnerDialog = page.getByRole("dialog");
   await winnerDialog.waitFor();
   await settle(page, 400);
   check("winner detail is marked as tonight's pick", await winnerDialog.getByText("Tonight's pick", { exact: true }).isVisible());
   check("winner detail notes the room's verdict", await winnerDialog.getByText("The room has spoken", { exact: true }).isVisible());
   await page.screenshot({ path: `${out}/03-detail-winner.png`, fullPage: true });
-  await winnerDialog.getByRole("button", { name: "Close film details" }).click();
+  await winnerDialog.getByRole("button", { name: "Close movie details" }).click();
 
   const meaningful = unexpectedErrors(errors);
   check("no unexpected console or page errors", meaningful.length === 0, meaningful.join(" | "));

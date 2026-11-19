@@ -55,11 +55,11 @@ export function GroupScoreDialog({
       onOpenChange={(next) => {
         if (!busy) onOpenChange(next);
       }}
-      title={watched ? "Your score" : "Mark it watched"}
+      title={watched ? "Your score" : "Score this movie"}
       description={
         watched
           ? "One score per member. The group average updates when you save."
-          : `${film.movie.title} moves into the watched list. Add the score the club gave it.`
+          : `Add your score for ${film.movie.title}. It moves to Watched once most of the group has scored it.`
       }
       footer={
         <>
@@ -71,10 +71,8 @@ export function GroupScoreDialog({
               <>
                 <Loader2 className="spin" size={15} /> Saving…
               </>
-            ) : watched ? (
-              "Save score"
             ) : (
-              "Mark watched"
+              "Save score"
             )}
           </Button>
         </>
@@ -97,12 +95,15 @@ export function GroupScoreDialog({
             step={0.1}
             value={value}
             aria-label={`Score for ${film.movie.title}`}
+            aria-valuetext={`${value.toFixed(1)} out of 10`}
             onChange={(event) => setValue(Number(event.target.value))}
           />
           <div className="group-score-dialog-scale" aria-hidden="true">
-            <span>1</span>
-            <span>5</span>
-            <span>10</span>
+            {[1, 5, 10].map((mark) => (
+              <span key={mark} style={{ left: `${((mark - 1) / 9) * 100}%` }}>
+                {mark}
+              </span>
+            ))}
           </div>
         </div>
       </div>
@@ -114,8 +115,8 @@ export function GroupScoreDialog({
       <div className="dialog-note">
         <Info size={15} aria-hidden="true" />
         <span>
-          Scores are shared with {groupName}. The club average is the mean of the members who
-          scored it.
+          Scores are shared with {groupName}. A movie moves to Watched when more than half of
+          the group has scored it.
         </span>
       </div>
     </Modal>

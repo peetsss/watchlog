@@ -117,6 +117,7 @@ def test_group_contract_fields() -> None:
         "member_count",
         "film_count",
         "members",
+        "active_lobby",
         "created_at",
     }
     assert _fields(GroupList) == {"groups"}
@@ -149,6 +150,7 @@ def test_group_contract_fields() -> None:
         "club_score",
         "score_count",
         "your_score",
+        "also_in_groups",
     }
     assert _fields(GroupFilmList) == {"films"}
     assert _fields(GroupFilmScores) == {"film_id", "scores"}
@@ -186,6 +188,7 @@ def test_home_contract_fields() -> None:
         "member_count",
         "film_count",
         "members",
+        "active_lobby",
         "up_next_count",
         "up_next",
         "last_watched",
@@ -271,6 +274,7 @@ def test_lobby_contract_fields() -> None:
         "player_count",
         "can_join",
         "is_participant",
+        "is_group_member",
     }
     assert _fields(JoinPreviewEnvelope) == {"preview"}
     assert _fields(LobbySummary) == {
@@ -289,7 +293,16 @@ def test_lobby_contract_fields() -> None:
 
 
 def test_movie_contract_fields() -> None:
-    assert _fields(MovieSearchResult) == {"tmdb_id", "title", "year", "poster_url", "media_type", "movie_id"}
+    assert _fields(MovieSearchResult) == {
+        "tmdb_id",
+        "title",
+        "year",
+        "poster_url",
+        "media_type",
+        "movie_id",
+        "overview",
+        "tmdb_score",
+    }
     assert _fields(MovieSearchEnvelope) == {"movies"}
     assert _fields(MovieDetail) == {
         "id",

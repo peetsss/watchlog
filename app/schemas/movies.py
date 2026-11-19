@@ -13,6 +13,8 @@ class MovieSearchResult(BaseModel):
     poster_url: str | None
     media_type: Literal["movie", "series"]
     movie_id: int | None = None
+    overview: str | None = None
+    tmdb_score: float | None = None
 
 
 class MovieSearchEnvelope(BaseModel):

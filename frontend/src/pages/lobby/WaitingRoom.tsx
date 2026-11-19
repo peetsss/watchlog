@@ -149,6 +149,26 @@ export function WaitingRoom({
                     : "Everyone in the group is already here. Ready up and the host can start."}
             </p>
 
+            <div className="players-rail" aria-label="Everyone in the room" data-no-pull>
+              <ul className="players-rail-list">
+                {lobby.players.map((player) => (
+                  <li
+                    key={player.id}
+                    className={cx("players-rail-person", player.isReady && "is-ready")}
+                  >
+                    <Avatar person={player} size={26} />
+                    <span className="players-rail-name">
+                      {player.name}
+                      {player.id === lobby.viewerId ? <em>You</em> : null}
+                    </span>
+                    <span className="players-rail-state">
+                      {player.isReady ? "Ready" : "Waiting"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
             {lobby.type === "open" ? (
               <>
                 <div className="invite-block">
@@ -179,7 +199,7 @@ export function WaitingRoom({
 
             <p className="room-rules">
               <Info size={15} aria-hidden="true" />
-              Everyone votes on each film. A unanimous yes puts it on the shortlist — then everyone
+              Everyone votes on each movie. A unanimous yes puts it on the shortlist — then everyone
               picks one.
             </p>
             {isHost && !allReady ? (

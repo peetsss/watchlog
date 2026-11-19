@@ -3,6 +3,7 @@ from pathlib import Path
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 
+from app import __version__
 from app.core.config import Settings
 from app.core.sessions import MemorySessionStore
 from app.main import create_app
@@ -15,7 +16,7 @@ async def test_root_describes_the_service(client: AsyncClient) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "name": "watchlog API",
-        "version": "0.1.0",
+        "version": __version__,
         "docs": "/api/docs",
     }
 

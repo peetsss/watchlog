@@ -807,6 +807,7 @@ export interface components {
         };
         /** GroupDetail */
         GroupDetail: {
+            active_lobby?: components["schemas"]["JoinPreview"] | null;
             /**
              * Created At
              * Format: date-time
@@ -837,6 +838,8 @@ export interface components {
             added_at: string;
             /** Added By */
             added_by: string | null;
+            /** Also In Groups */
+            also_in_groups?: components["schemas"]["GroupRef"][];
             /** Club Score */
             club_score: number | null;
             /** Id */
@@ -903,6 +906,21 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** GroupRef */
+        GroupRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "up_next" | "watched";
+        };
         /** GroupStats */
         GroupStats: {
             /** Average Score */
@@ -920,6 +938,7 @@ export interface components {
         };
         /** GroupSummary */
         GroupSummary: {
+            active_lobby?: components["schemas"]["JoinPreview"] | null;
             /** Description */
             description: string | null;
             /** Film Count */
@@ -957,6 +976,7 @@ export interface components {
         };
         /** HomeFeaturedGroup */
         HomeFeaturedGroup: {
+            active_lobby?: components["schemas"]["JoinPreview"] | null;
             /** Description */
             description: string | null;
             /** Film Count */
@@ -1024,6 +1044,11 @@ export interface components {
             group_uuid: string | null;
             /** Host Username */
             host_username: string | null;
+            /**
+             * Is Group Member
+             * @default false
+             */
+            is_group_member: boolean;
             /** Is Participant */
             is_participant: boolean;
             /** Player Count */
@@ -1315,12 +1340,16 @@ export interface components {
             media_type: "movie" | "series";
             /** Movie Id */
             movie_id?: number | null;
+            /** Overview */
+            overview?: string | null;
             /** Poster Url */
             poster_url: string | null;
             /** Title */
             title: string;
             /** Tmdb Id */
             tmdb_id: number;
+            /** Tmdb Score */
+            tmdb_score?: number | null;
             /** Year */
             year: string | null;
         };

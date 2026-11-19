@@ -7,6 +7,7 @@ from app.core.config import Settings
 from app.core.errors import AppError
 from app.core.sessions import SessionData, SessionStore, new_session, ttl_for
 from app.models.user import User
+from app.services.moderation import is_allowed_name
 from app.services.passwords import hash_password, verify_dummy_password, verify_password
 
 
@@ -16,6 +17,12 @@ def _normalize_email(email: str) -> str:
 
 async def create_user(db: AsyncSession, username: str, email: str, password: str) -> User:
     normalized_email = _normalize_email(email)
+    if not is_allowed_name(username):
+        raise AppError(
+            "That username isn't allowed. Pick another one.",
+            code="username_not_allowed",
+            status_code=400,
+        )
     if await db.scalar(select(User.id).where(User.username == username)) is not None:
         raise AppError("That username is already taken.", code="username_taken", status_code=409)
     if await db.scalar(select(User.id).where(User.email == normalized_email)) is not None:

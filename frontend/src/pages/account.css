@@ -142,6 +142,12 @@
   margin-top: 8px;
 }
 
+.account-legal {
+  margin-top: 42px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
 @media (max-width: 760px) {
   .account-layout {
     grid-template-columns: 1fr;

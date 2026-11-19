@@ -74,7 +74,8 @@ export function useActiveLobby(enabled = true) {
     queryKey: lobbyKeys.active(),
     queryFn: fetchActiveLobby,
     enabled,
-    staleTime: 15_000,
+    staleTime: 10_000,
+    refetchInterval: enabled ? 10_000 : false,
     retry: retryUnlessDenied,
   });
 }

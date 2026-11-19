@@ -117,7 +117,8 @@ def _refresh_statuses(session: Session, group: Group) -> None:
             )
             .where(Review.group_movie_id == group_movie.id)
         )
-        group_movie.status = "watched" if (score_count or 0) >= member_count else "up_next"
+        watched_threshold = int(member_count) // 2 + 1
+        group_movie.status = "watched" if (score_count or 0) >= watched_threshold else "up_next"
 
 
 def main() -> None:

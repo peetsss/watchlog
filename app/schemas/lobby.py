@@ -112,6 +112,7 @@ class JoinPreview(BaseModel):
     player_count: int
     can_join: bool
     is_participant: bool
+    is_group_member: bool = False
 
 
 class JoinPreviewEnvelope(BaseModel):
