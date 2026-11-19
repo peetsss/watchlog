@@ -59,7 +59,7 @@
 
 .auth-title em {
   color: var(--amber);
-  font-style: italic;
+  font-style: normal;
 }
 
 .auth-utility {
@@ -343,7 +343,7 @@
 
 .auth-visual-copy p em {
   color: var(--amber);
-  font-style: italic;
+  font-style: normal;
 }
 
 .auth-visual-note {

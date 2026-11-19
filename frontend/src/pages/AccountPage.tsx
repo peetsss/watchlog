@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
+import { LegalLinks } from "../components/LegalLinks";
 import { ApiError } from "../lib/api";
 import {
   changeEmail,
@@ -273,6 +274,10 @@ export function AccountPage() {
           </form>
         </section>
       </div>
+
+      <footer className="account-legal">
+        <LegalLinks />
+      </footer>
     </div>
   );
 }

@@ -1,9 +1,12 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { Check, Eye, Loader2, Star, X } from "lucide-react";
 import { useRef } from "react";
+import { Link } from "react-router-dom";
 import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
 import { MoviePoster } from "../../components/MoviePoster";
+import { MovieRatings } from "../../components/MovieRatings";
+import { WhereToWatch } from "../../components/WhereToWatch";
 import { formatDate, type GroupFilmView, type GroupSummaryView } from "../../lib/adapters";
 import { useGroupFilmScores } from "../../lib/api-groups";
 import { useMovieDetail } from "../../lib/api-movies";
@@ -52,7 +55,7 @@ export function GroupFilmSheet({
         <Dialog.Backdrop className="detail-overlay" />
         <Dialog.Popup className="detail-sheet" initialFocus={closeRef}>
           <Dialog.Description className="sr-only">
-            Film details for {movie.title}, the club's scores and watchlist status.
+            Movie details for {movie.title}, the club's scores and watchlist status.
           </Dialog.Description>
 
           <div className="detail-hero" {...swipe}>
@@ -68,7 +71,7 @@ export function GroupFilmSheet({
               ref={closeRef}
               type="button"
               className="icon-button detail-close"
-              aria-label="Close film details"
+              aria-label="Close movie details"
             >
               <X size={18} />
             </Dialog.Close>
@@ -161,6 +164,10 @@ export function GroupFilmSheet({
               <p>{movie.description || "No synopsis yet."}</p>
             </section>
 
+            {detail ? <MovieRatings movie={detail} /> : null}
+
+            {detail ? <WhereToWatch watch={detail.watch} /> : null}
+
             <section className="detail-section">
               <h3>The credits</h3>
               {credits.length ? (
@@ -196,6 +203,28 @@ export function GroupFilmSheet({
                 </div>
               </div>
             </section>
+
+            <section className="detail-section">
+              <h3>In your groups</h3>
+              {film.alsoInGroups.length ? (
+                <ul className="detail-groups">
+                  {film.alsoInGroups.map((entry) => (
+                    <li key={entry.id}>
+                      <Link
+                        to={`/groups/${entry.id}`}
+                        className="detail-group-link"
+                        onClick={() => onOpenChange(false)}
+                      >
+                        <span>{entry.name}</span>
+                        <em>{entry.status === "watched" ? "Watched" : "Up next"}</em>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="detail-muted">Only in this group so far.</p>
+              )}
+            </section>
           </div>
 
           <div className="detail-footer">
@@ -205,7 +234,7 @@ export function GroupFilmSheet({
                 ? film.yourScore === null
                   ? "Add your score"
                   : "Update your score"
-                : "Mark watched"}
+                : "Score this movie"}
             </Button>
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Close

@@ -41,7 +41,7 @@
 
 .hub-board-title em {
   color: var(--amber);
-  font-style: italic;
+  font-style: normal;
 }
 
 .hub-board-lede {
@@ -86,9 +86,9 @@
   margin: 7px 0 8px;
   font-family: var(--font-display);
   font-size: 29px;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-  line-height: 0.98;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
+  line-height: 1;
 }
 
 .hub-board-live-copy {
@@ -407,9 +407,9 @@ button.hub-board-account {
 .hub-log-score-value strong {
   font-family: var(--font-display);
   font-size: 38px;
-  font-weight: 400;
-  letter-spacing: -0.03em;
-  line-height: 0.9;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
+  line-height: 0.95;
 }
 
 .hub-log-score-count {
@@ -688,9 +688,9 @@ button.hub-board-account {
 .hub-log-archive-score strong {
   font-family: var(--font-display);
   font-size: 21px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 0.9;
+  font-weight: var(--font-display-weight);
+  letter-spacing: -0.035em;
+  line-height: 0.95;
 }
 
 .hub-log-archive-score span {

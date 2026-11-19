@@ -20,7 +20,7 @@ import { WinnerRoom } from "./WinnerRoom";
 
 function stageLabel(lobby: LobbyView): string {
   if (lobby.status === "ready") return "Waiting room";
-  if (lobby.status === "playing") return `Film ${lobby.roundNumber} of ${lobby.poolSize}`;
+  if (lobby.status === "playing") return `Movie ${lobby.roundNumber} of ${lobby.poolSize}`;
   if (lobby.status === "final_round") return "Final round";
   return "The pick";
 }
@@ -63,7 +63,7 @@ export function LobbyPage() {
     detailMovieId
       ? lobby?.currentMovie?.id === detailMovieId
         ? lobby.currentMovie.title
-        : "Film"
+        : "Movie"
       : lobby
         ? lobby.stage === "winner"
           ? "Tonight's pick"

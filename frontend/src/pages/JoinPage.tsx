@@ -245,7 +245,7 @@ export function JoinPage() {
           <div className="join-visual-scrim" />
           <div className="join-visual-copy">
             <span className="section-kicker">Tonight's plan</span>
-            <p className="display">One room. Five people. One film.</p>
+            <p className="display">One room. Five people. One movie.</p>
             <span className="join-visual-note">
               No group chat. No spreadsheet. Just the room.
             </span>

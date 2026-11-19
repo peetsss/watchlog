@@ -64,7 +64,7 @@ export function CreateGroupDialog({
       open={open}
       onOpenChange={handleOpenChange}
       title="Create a group"
-      description="A group is the people you watch with and the films you keep between you."
+      description="A group is the people you watch with and the movies you keep between you."
       footer={
         <>
           <Button
@@ -121,7 +121,7 @@ export function CreateGroupDialog({
           rows={3}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          placeholder="Long films, longer debates. No phones at the table."
+          placeholder="Long movies, longer debates. No phones at the table."
         />
       </form>
 

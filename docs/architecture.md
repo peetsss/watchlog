@@ -160,6 +160,8 @@ ready ──start──▶ playing ──last film / advance──▶ final_roun
 Rules:
 
 - A room is `group` (members only) or `open` (guests allowed).
+- Group rooms start with every current member in a seat. A member who leaves may
+  rejoin while the room is still `ready`; once it starts, seats are locked.
 - The pool is 25 random non-adult films, excluding the group’s existing
   watchlist for group rooms, or an explicit pool for tests.
 - Ready players are the players; unready members are removed on start. The host
@@ -181,6 +183,10 @@ Rules:
   finished.
 - Every mutation increments `version`. REST state responses expose an `ETag` of
   `"v<version>"` and support `If-None-Match`.
+
+Group watch status: a movie moves to `watched` once more than half of the
+current members have scored it. Recomputing after a member leaves can therefore
+promote a movie; scoring never moves a movie back.
 
 Lobby writes take a row lock (`SELECT … FOR UPDATE`) and are serialised per
 room. After commit, a `LobbyChanged` or `LobbyRestarted` event is published to

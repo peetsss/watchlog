@@ -2,6 +2,12 @@ import { useCallback, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 import { Toaster, toast } from "sonner";
+import { Link } from "react-router-dom";
+
+export type ToastAction = {
+  label: string;
+  href: string;
+};
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   return (
@@ -29,7 +35,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 export function useToast() {
-  const showToast = useCallback((message: string) => {
+  const showToast = useCallback((message: string, action?: ToastAction) => {
     toast.custom(
       () => (
         <div className="toast">
@@ -37,6 +43,11 @@ export function useToast() {
             <Check size={14} strokeWidth={2.6} />
           </span>
           <span>{message}</span>
+          {action ? (
+            <Link className="toast-action" to={action.href}>
+              {action.label}
+            </Link>
+          ) : null}
         </div>
       ),
       { duration: 3800, unstyled: true },

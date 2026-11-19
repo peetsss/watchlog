@@ -3,6 +3,7 @@ import { Film, Info, Loader2, Star, X } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "./Button";
 import { MoviePoster } from "./MoviePoster";
+import { MovieRatings } from "./MovieRatings";
 import { WhereToWatch } from "./WhereToWatch";
 import type { LobbyView, MovieSummaryView } from "../lib/adapters";
 import { useMovieDetail } from "../lib/api-movies";
@@ -63,7 +64,7 @@ export function MovieDetailSheet({
         <Dialog.Backdrop className="detail-overlay" />
         <Dialog.Popup className="detail-sheet" initialFocus={closeRef}>
           <Dialog.Description className="sr-only">
-            Film details for {movie.title} and its place in tonight's room.
+            Movie details for {movie.title} and its place in tonight's room.
           </Dialog.Description>
 
           <div className="detail-hero" {...swipe}>
@@ -77,7 +78,7 @@ export function MovieDetailSheet({
               ref={closeRef}
               type="button"
               className="icon-button detail-close"
-              aria-label="Close film details"
+              aria-label="Close movie details"
             >
               <X size={18} />
             </Dialog.Close>
@@ -161,6 +162,8 @@ export function MovieDetailSheet({
               <h3>The story</h3>
               <p>{movie.description || "No synopsis yet."}</p>
             </section>
+
+            {detailQuery.data ? <MovieRatings movie={detailQuery.data} /> : null}
 
             {detailQuery.data ? <WhereToWatch watch={detailQuery.data.watch} /> : null}
 

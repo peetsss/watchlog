@@ -17,11 +17,14 @@ from app.schemas.groups import (
     GroupList,
     GroupMember,
     GroupPreview,
+    GroupRef,
     GroupStats,
     MemberScore,
     MemberScoreStats,
     MovieSummary,
 )
+from app.services import lobby as lobby_service
+from app.services.identity import Viewer
 from app.services.movies import get_or_create_movie
 from app.services.scores import round_score, score_decimal
 from app.services.viewer import color_for, initials_for
@@ -37,7 +40,7 @@ async def _get_group(db: AsyncSession, group_id: UUID) -> Group:
 async def _get_group_movie(db: AsyncSession, group_id: UUID, film_id: int) -> GroupMovie:
     group_movie = await db.scalar(select(GroupMovie).where(GroupMovie.id == film_id, GroupMovie.group_id == group_id))
     if group_movie is None:
-        raise AppError("Film not found.", code="not_found", status_code=404)
+        raise AppError("Movie not found.", code="not_found", status_code=404)
     return group_movie
 
 
@@ -73,6 +76,36 @@ async def _member_count(db: AsyncSession, group_id: UUID) -> int:
     )
 
 
+def _watched_threshold(member_count: int) -> int:
+    return member_count // 2 + 1
+
+
+async def _groups_with_movie(
+    db: AsyncSession,
+    viewer_id: int,
+    movie_ids: list[int],
+) -> dict[int, list[GroupRef]]:
+    if not movie_ids:
+        return {}
+    rows = await db.execute(
+        select(GroupMovie.movie_id, Group.id, Group.name, GroupMovie.status)
+        .join(Group, Group.id == GroupMovie.group_id)
+        .join(
+            GroupMembership,
+            and_(
+                GroupMembership.group_id == GroupMovie.group_id,
+                GroupMembership.user_id == viewer_id,
+            ),
+        )
+        .where(GroupMovie.movie_id.in_(movie_ids))
+        .order_by(Group.name)
+    )
+    grouped: dict[int, list[GroupRef]] = {}
+    for movie_id, group_id, group_name, status in rows:
+        grouped.setdefault(int(movie_id), []).append(GroupRef(id=group_id, name=group_name, status=status))
+    return grouped
+
+
 async def _member_score_count(db: AsyncSession, group_id: UUID, group_movie_id: int) -> int:
     return int(
         await db.scalar(
@@ -87,8 +120,14 @@ async def _member_score_count(db: AsyncSession, group_id: UUID, group_movie_id: 
     )
 
 
-async def _summary(db: AsyncSession, group: Group) -> GroupDetail:
+async def _summary(db: AsyncSession, group: Group, user: User) -> GroupDetail:
     members = await _members(db, group.id)
+    active_lobby = await lobby_service.get_active_lobby_for_group(db, group.id)
+    active_preview = (
+        await lobby_service.get_join_preview(db, active_lobby.id, Viewer.for_user(user))
+        if active_lobby is not None
+        else None
+    )
     return GroupDetail(
         id=group.id,
         name=group.name,
@@ -96,6 +135,7 @@ async def _summary(db: AsyncSession, group: Group) -> GroupDetail:
         member_count=len(members),
         film_count=await _film_count(db, group.id),
         members=members,
+        active_lobby=active_preview,
         created_at=group.created_at,
     )
 
@@ -111,7 +151,7 @@ async def list_groups(db: AsyncSession, user: User) -> GroupList:
     )
     summaries = []
     for group in groups:
-        summaries.append(await _summary(db, group))
+        summaries.append(await _summary(db, group, user))
     return GroupList(groups=summaries)
 
 
@@ -122,11 +162,11 @@ async def create_group(db: AsyncSession, user: User, name: str, description: str
     db.add(GroupMembership(group_id=group.id, user_id=user.id, role="admin"))
     await db.commit()
     await db.refresh(group)
-    return await _summary(db, group)
+    return await _summary(db, group, user)
 
 
-async def get_group_detail(db: AsyncSession, group: Group) -> GroupDetail:
-    return await _summary(db, group)
+async def get_group_detail(db: AsyncSession, group: Group, user: User) -> GroupDetail:
+    return await _summary(db, group, user)
 
 
 async def get_group_preview(db: AsyncSession, user: User, group_id: UUID) -> GroupPreview:
@@ -161,7 +201,7 @@ async def join_group(db: AsyncSession, user: User, group_id: UUID) -> GroupDetai
             await db.commit()
         except IntegrityError:
             await db.rollback()
-    return await _summary(db, group)
+    return await _summary(db, group, user)
 
 
 async def leave_group(db: AsyncSession, group: Group, user: User) -> None:
@@ -182,9 +222,10 @@ async def _recompute_watched_statuses(db: AsyncSession, group_id: UUID) -> None:
     member_count = await _member_count(db, group_id)
     if member_count == 0:
         return
+    threshold = _watched_threshold(member_count)
     group_movies = list(await db.scalars(select(GroupMovie).where(GroupMovie.group_id == group_id)))
     for group_movie in group_movies:
-        if await _member_score_count(db, group_id, group_movie.id) >= member_count:
+        if await _member_score_count(db, group_id, group_movie.id) >= threshold:
             group_movie.status = "watched"
     await db.commit()
 
@@ -220,10 +261,21 @@ async def add_film(
             if group_movie is None:
                 raise
         await db.refresh(group_movie)
-    return await _build_film(db, group_movie, user.id)
+    groups_by_movie = await _groups_with_movie(db, user.id, [group_movie.movie_id])
+    return await _build_film(
+        db,
+        group_movie,
+        user.id,
+        groups_by_movie.get(group_movie.movie_id, []),
+    )
 
 
-async def _build_film(db: AsyncSession, group_movie: GroupMovie, viewer_id: int) -> GroupFilm:
+async def _build_film(
+    db: AsyncSession,
+    group_movie: GroupMovie,
+    viewer_id: int,
+    also_in_groups: list[GroupRef] | None = None,
+) -> GroupFilm:
     movie = await db.get(Movie, group_movie.movie_id)
     if movie is None:
         raise AppError("Movie not found.", code="not_found", status_code=404)
@@ -259,6 +311,7 @@ async def _build_film(db: AsyncSession, group_movie: GroupMovie, viewer_id: int)
         club_score=round_score(average),
         score_count=int(count),
         your_score=float(your_score) if your_score is not None else None,
+        also_in_groups=also_in_groups or [],
     )
 
 
@@ -270,9 +323,21 @@ async def get_watchlist(db: AsyncSession, group: Group, viewer: User) -> GroupFi
             .order_by(GroupMovie.added_at.desc(), GroupMovie.id.desc())
         )
     )
+    groups_by_movie = await _groups_with_movie(
+        db,
+        viewer.id,
+        [group_movie.movie_id for group_movie in group_movies],
+    )
     films = []
     for group_movie in group_movies:
-        films.append(await _build_film(db, group_movie, viewer.id))
+        films.append(
+            await _build_film(
+                db,
+                group_movie,
+                viewer.id,
+                groups_by_movie.get(group_movie.movie_id, []),
+            )
+        )
     return GroupFilmList(films=films)
 
 
@@ -293,11 +358,17 @@ async def set_score(db: AsyncSession, group: Group, user: User, film_id: int, sc
 
     await db.flush()
     member_count = await _member_count(db, group.id)
-    if member_count and await _member_score_count(db, group.id, group_movie.id) >= member_count:
+    if member_count and await _member_score_count(db, group.id, group_movie.id) >= _watched_threshold(member_count):
         group_movie.status = "watched"
     await db.commit()
     await db.refresh(group_movie)
-    return await _build_film(db, group_movie, user.id)
+    groups_by_movie = await _groups_with_movie(db, user.id, [group_movie.movie_id])
+    return await _build_film(
+        db,
+        group_movie,
+        user.id,
+        groups_by_movie.get(group_movie.movie_id, []),
+    )
 
 
 async def set_film_status(db: AsyncSession, group: Group, user: User, film_id: int, status: str) -> GroupFilm:
@@ -305,7 +376,13 @@ async def set_film_status(db: AsyncSession, group: Group, user: User, film_id: i
     group_movie.status = status
     await db.commit()
     await db.refresh(group_movie)
-    return await _build_film(db, group_movie, user.id)
+    groups_by_movie = await _groups_with_movie(db, user.id, [group_movie.movie_id])
+    return await _build_film(
+        db,
+        group_movie,
+        user.id,
+        groups_by_movie.get(group_movie.movie_id, []),
+    )
 
 
 async def get_film_scores(db: AsyncSession, group: Group, film_id: int) -> GroupFilmScores:

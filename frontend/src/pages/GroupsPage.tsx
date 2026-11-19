@@ -89,12 +89,27 @@ export function GroupsPage() {
                             <h2 className="display">{group.name}</h2>
                           </Link>
                           <p>
-                            {group.description || "A group for the films you keep between you."}
+                            {group.description || "A group for the movies you keep between you."}
                           </p>
                         </div>
                         <div className="group-row-actions">
-                          <Button size="sm" onClick={() => setStartGroupId(group.id)}>
-                            Start a night <ArrowRight size={15} />
+                          <Button
+                            size="sm"
+                            onClick={() => setStartGroupId(group.id)}
+                            disabled={
+                              Boolean(group.activeLobby) &&
+                              !group.activeLobby?.canJoin &&
+                              !group.activeLobby?.isParticipant
+                            }
+                          >
+                            {group.activeLobby
+                              ? group.activeLobby.isParticipant
+                                ? "Reopen the night"
+                                : group.activeLobby.canJoin
+                                  ? "Join the night"
+                                  : "Night in progress"
+                              : "Start a night"}{" "}
+                            <ArrowRight size={15} />
                           </Button>
                           <Link
                             to={`/groups/${group.id}`}
@@ -111,12 +126,12 @@ export function GroupsPage() {
                         </span>
                         <span className="meta-item">
                           <Film size={14} aria-hidden="true" />
-                          {group.filmCount} {group.filmCount === 1 ? "film" : "films"}
+                          {group.filmCount} {group.filmCount === 1 ? "movie" : "movies"}
                         </span>
                         <span className="meta-item">
                           {lastWatched
                             ? `Last watched: ${lastWatched.movie.title}`
-                            : "No films watched yet"}
+                            : "No movies watched yet"}
                         </span>
                         <Link to={`/groups/${group.id}`} className="meta-item group-open-link">
                           Open watchlist <ArrowUpRight size={12} />
@@ -131,7 +146,7 @@ export function GroupsPage() {
             <EmptyState
               icon={<Users size={24} />}
               title="No groups yet."
-              body="A group is just the people you keep coming back to. Make one, then add the first film."
+              body="A group is just the people you keep coming back to. Make one, then add the first movie."
               action={
                 <Button onClick={() => setCreateOpen(true)}>
                   <Plus size={16} /> Create a group
@@ -157,14 +172,14 @@ export function GroupsPage() {
                 <span className="step-number">02</span>
                 <div>
                   <strong>Everyone votes</strong>
-                  <p>A film needs a unanimous yes to reach the shortlist.</p>
+                  <p>A movie needs a unanimous yes to reach the shortlist.</p>
                 </div>
               </li>
               <li>
                 <span className="step-number">03</span>
                 <div>
                   <strong>The room picks</strong>
-                  <p>One film wins. It lands in the watchlist for next time.</p>
+                  <p>One movie wins. It lands in the watchlist for next time.</p>
                 </div>
               </li>
             </ol>
@@ -175,7 +190,7 @@ export function GroupsPage() {
               <Plus size={18} />
             </span>
             <p>
-              <strong>No group yet?</strong> Make one, add the first film, then send the invite.
+              <strong>No group yet?</strong> Make one, add the first movie, then send the invite.
             </p>
             <Button size="sm" variant="secondary" onClick={() => setCreateOpen(true)}>
               Create a group

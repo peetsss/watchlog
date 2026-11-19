@@ -31,7 +31,7 @@ export function WinnerRoom({
           <EmptyState
             icon={<Film size={24} />}
             title="No pick tonight."
-            body="The room didn't land on a film. Some nights are like that. The next one is still yours."
+            body="The room didn't land on a movie. Some nights are like that. The next one is still yours."
             action={
               <div className="empty-actions">
                 {lobby.capabilities.canRestart ? (
@@ -95,7 +95,7 @@ export function WinnerRoom({
             className="text-button premiere-about-film"
             onClick={(event) => onOpenFilm(winner.id, event.currentTarget)}
           >
-            <Info size={14} /> About the film
+            <Info size={14} /> About the movie
           </button>
 
           <div className="premiere-picked">

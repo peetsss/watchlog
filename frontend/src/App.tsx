@@ -13,6 +13,7 @@ import {
 import { AppShell } from "./components/AppShell";
 import { EmptyState } from "./components/EmptyState";
 import { OfflineBanner } from "./components/OfflineBanner";
+import { PullToRefresh } from "./components/PullToRefresh";
 import { RequireMember, RequirePlayer } from "./components/RequireMember";
 import { Wordmark } from "./components/Wordmark";
 import { buttonClass } from "./components/Button";
@@ -58,7 +59,7 @@ function NotFoundPage() {
       <EmptyState
         icon={<Film size={24} />}
         title="This page isn't in the log."
-        body="The link may be old, or the page moved. The films are still where you left them."
+        body="The link may be old, or the page moved. The movies are still where you left them."
         action={
           <Link to="/" className={buttonClass("primary", "md")}>
             Back home
@@ -76,6 +77,7 @@ export function App() {
         <ToastProvider>
           <SessionProvider>
             <OfflineBanner />
+            <PullToRefresh />
             <ScrollToTop />
             <Routes>
               <Route path="/auth" element={<AuthPage />} />

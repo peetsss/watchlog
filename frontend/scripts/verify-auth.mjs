@@ -32,6 +32,13 @@ try {
   await page.getByText("That login and password don't match.").waitFor({ timeout: 10_000 });
   check("bad credentials show an error", true);
 
+  await page.getByLabel(/^Username( or email)?$/).fill("alice@example.com");
+  await page.getByRole("tab", { name: "Create account" }).click();
+  check("email identifier moves to the email field", (await page.getByLabel("Email", { exact: true }).inputValue()) === "alice@example.com");
+  check("username field is left empty", (await page.getByLabel("Username", { exact: true }).inputValue()) === "");
+  await page.getByRole("tab", { name: "Sign in" }).click();
+  check("email returns to the sign-in identifier", (await page.getByLabel(/^Username( or email)?$/).inputValue()) === "alice@example.com");
+
   await page.getByRole("tab", { name: "Create account" }).click();
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Email", { exact: true }).fill(`${username}@example.com`);
