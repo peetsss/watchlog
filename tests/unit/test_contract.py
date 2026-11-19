@@ -292,7 +292,16 @@ def test_lobby_contract_fields() -> None:
 
 
 def test_movie_contract_fields() -> None:
-    assert _fields(MovieSearchResult) == {"tmdb_id", "title", "year", "poster_url", "media_type", "movie_id"}
+    assert _fields(MovieSearchResult) == {
+        "tmdb_id",
+        "title",
+        "year",
+        "poster_url",
+        "media_type",
+        "movie_id",
+        "overview",
+        "tmdb_score",
+    }
     assert _fields(MovieSearchEnvelope) == {"movies"}
     assert _fields(MovieDetail) == {
         "id",
