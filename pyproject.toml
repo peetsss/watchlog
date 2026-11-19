@@ -1,6 +1,6 @@
 [project]
 name = "watchlog"
-version = "0.1.0"
+version = "0.1.1"
 description = "Shared movie watchlists and lobby voting for groups"
 readme = "README.md"
 requires-python = ">=3.14"
