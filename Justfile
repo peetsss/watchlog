@@ -74,6 +74,10 @@ embed *args:
 watch-providers *args:
     uv run python scripts/backfill_watch_providers.py {{args}}
 
+# backfill the movie catalogue from TMDB
+sync-catalog *args:
+    uv run python scripts/sync_catalog.py {{args}}
+
 # copy the bundled movie dataset into the app database
 copy-movies *args:
     uv run python scripts/copy_movies.py {{args}}
