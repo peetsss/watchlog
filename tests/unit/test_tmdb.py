@@ -1,8 +1,16 @@
 import logging
+from datetime import date
 
 import httpx
+import pytest
 
-from app.clients.tmdb import SyncTMDBWatchProviderClient, TMDBClient
+from app.clients.tmdb import (
+    RateLimiter,
+    SyncTMDBClient,
+    SyncTMDBWatchProviderClient,
+    TMDBClient,
+    _parse_retry_after,
+)
 
 
 async def test_search_maps_movies_and_series() -> None:
@@ -127,3 +135,165 @@ async def test_non_object_payload_is_rejected() -> None:
 
     async with TMDBClient(api_key="key", transport=httpx.MockTransport(handler)) as client:
         assert await client.search("Dune") is None
+
+
+def test_rate_limiter_paces_requests(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = {"now": 0.0}
+    slept: list[float] = []
+    monkeypatch.setattr("app.clients.tmdb.time.monotonic", lambda: clock["now"])
+
+    def fake_sleep(seconds: float) -> None:
+        slept.append(seconds)
+        clock["now"] += seconds
+
+    monkeypatch.setattr("app.clients.tmdb.time.sleep", fake_sleep)
+    limiter = RateLimiter(requests_per_second=2.0)
+
+    limiter.wait()
+    limiter.wait()
+
+    assert slept == [0.5]
+
+
+def test_rate_limiter_rejects_non_positive_rate() -> None:
+    with pytest.raises(ValueError):
+        RateLimiter(requests_per_second=0.0)
+
+
+def test_sync_discover_uses_the_movie_window_and_ordering() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        params = request.url.params
+        assert request.url.path == "/3/discover/movie"
+        assert params["primary_release_date.gte"] == "2026-01-01"
+        assert params["primary_release_date.lte"] == "2026-01-31"
+        assert params["sort_by"] == "primary_release_date.asc"
+        assert params["include_adult"] == "false"
+        assert params["page"] == "1"
+        return httpx.Response(200, json={"results": [], "total_pages": 0})
+
+    with SyncTMDBClient(api_key="key", transport=httpx.MockTransport(handler)) as client:
+        payload = client.discover("movie", date(2026, 1, 1), date(2026, 1, 31))
+
+    assert payload == {"results": [], "total_pages": 0}
+
+
+def test_sync_discover_uses_the_tv_window_and_ordering() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        params = request.url.params
+        assert request.url.path == "/3/discover/tv"
+        assert params["first_air_date.gte"] == "2026-01-01"
+        assert params["first_air_date.lte"] == "2026-01-31"
+        assert params["sort_by"] == "first_air_date.asc"
+        return httpx.Response(200, json={"results": [], "total_pages": 0})
+
+    with SyncTMDBClient(api_key="key", transport=httpx.MockTransport(handler)) as client:
+        payload = client.discover("series", date(2026, 1, 1), date(2026, 1, 31))
+
+    assert payload == {"results": [], "total_pages": 0}
+
+
+def test_sync_discover_rejects_unknown_media_type() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={})
+
+    with SyncTMDBClient(api_key="key", transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ValueError):
+            client.discover("podcast", date(2026, 1, 1), date(2026, 1, 2))
+
+
+def test_sync_get_details_uses_the_media_type_endpoints() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path in {"/3/movie/42", "/3/tv/42"}
+        assert request.url.params["append_to_response"] == "credits,keywords,external_ids"
+        return httpx.Response(200, json={"id": 42})
+
+    with SyncTMDBClient(api_key="key", transport=httpx.MockTransport(handler)) as client:
+        assert client.get_details(42, "movie") == {"id": 42}
+        assert client.get_details(42, "series") == {"id": 42}
+
+
+def test_sync_client_retries_after_throttle_with_retry_after(monkeypatch: pytest.MonkeyPatch) -> None:
+    attempts = 0
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(429, headers={"Retry-After": "2"})
+        return httpx.Response(200, json={"results": [{"id": 1}]})
+
+    monkeypatch.setattr("app.clients.tmdb.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    with SyncTMDBClient(api_key="key", requests_per_second=1000, transport=httpx.MockTransport(handler)) as client:
+        payload = client.discover("movie", date(2026, 1, 1), date(2026, 1, 2))
+
+    assert attempts == 2
+    assert payload == {"results": [{"id": 1}]}
+    assert sleeps[0] == 2.0
+
+
+def test_sync_client_throttle_without_retry_after_uses_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    attempts = 0
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(409)
+        return httpx.Response(200, json={"results": []})
+
+    monkeypatch.setattr("app.clients.tmdb.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    with SyncTMDBClient(api_key="key", requests_per_second=1000, transport=httpx.MockTransport(handler)) as client:
+        payload = client.discover("movie", date(2026, 1, 1), date(2026, 1, 2))
+
+    assert attempts == 2
+    assert payload == {"results": []}
+    assert sleeps[0] == 1.0
+
+
+def test_sync_client_gives_up_after_repeated_throttles(monkeypatch: pytest.MonkeyPatch) -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(429, headers={"Retry-After": "1"})
+
+    monkeypatch.setattr("app.clients.tmdb.time.sleep", lambda seconds: None)
+
+    with SyncTMDBClient(api_key="key", requests_per_second=1000, transport=httpx.MockTransport(handler)) as client:
+        assert client.get_details(1, "movie") is None
+
+    assert attempts == 3
+
+
+def test_sync_client_retries_on_server_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    attempts = 0
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(500)
+        return httpx.Response(200, json={"id": 1})
+
+    monkeypatch.setattr("app.clients.tmdb.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    with SyncTMDBClient(api_key="key", requests_per_second=1000, transport=httpx.MockTransport(handler)) as client:
+        assert client.get_details(1, "movie") == {"id": 1}
+
+    assert attempts == 2
+    assert sleeps[0] == 1.0
+
+
+def test_parse_retry_after_handles_seconds_and_dates() -> None:
+    assert _parse_retry_after("5") == 5.0
+    assert _parse_retry_after("0") == 0.0
+    assert _parse_retry_after(None) is None
+    assert _parse_retry_after("") is None
+    assert _parse_retry_after("not-a-date") is None
+    assert _parse_retry_after("Tue, 01 Jan 2000 00:00:00 GMT") == 0.0

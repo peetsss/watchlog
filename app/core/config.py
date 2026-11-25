@@ -62,6 +62,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("WATCHLOG_TMDB_ACCESS_TOKEN", "TMDB_ACCESS_TOKEN"),
     )
     tmdb_language: str = "en-US"
+    tmdb_rate_limit_per_second: float = Field(10.0, gt=0)
     default_region: str = "PL"
     supported_regions: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["PL"])
     watch_provider_ttl_seconds: int = Field(24 * 60 * 60, gt=0)
