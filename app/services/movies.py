@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -122,7 +122,7 @@ async def get_or_create_movie(
     if media_type not in {"movie", "series"}:
         raise ValueError(f"Unsupported media type: {media_type}")
 
-    existing = await db.scalar(select(Movie).where(Movie.tmdb_id == tmdb_id))
+    existing = await db.scalar(select(Movie).where(Movie.tmdb_id == tmdb_id, Movie.media_type == media_type))
     if existing is not None:
         return existing
 
@@ -136,7 +136,7 @@ async def get_or_create_movie(
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        existing = await db.scalar(select(Movie).where(Movie.tmdb_id == tmdb_id))
+        existing = await db.scalar(select(Movie).where(Movie.tmdb_id == tmdb_id, Movie.media_type == media_type))
         if existing is not None:
             return existing
         raise
@@ -145,9 +145,17 @@ async def get_or_create_movie(
 
 
 async def attach_local_ids(db: AsyncSession, results: list[MovieSearchResult]) -> list[MovieSearchResult]:
-    tmdb_ids = [result.tmdb_id for result in results]
-    if not tmdb_ids:
+    keys = {(result.tmdb_id, result.media_type) for result in results}
+    if not keys:
         return results
-    rows = await db.execute(select(Movie.tmdb_id, Movie.id).where(Movie.tmdb_id.in_(tmdb_ids)))
-    mapping = {int(tmdb_id): int(movie_id) for tmdb_id, movie_id in rows if tmdb_id is not None}
-    return [result.model_copy(update={"movie_id": mapping.get(result.tmdb_id)}) for result in results]
+    rows = await db.execute(
+        select(Movie.tmdb_id, Movie.media_type, Movie.id).where(
+            tuple_(Movie.tmdb_id, Movie.media_type).in_([(key[0], key[1]) for key in keys])
+        )
+    )
+    mapping = {
+        (int(tmdb_id), media_type): int(movie_id) for tmdb_id, media_type, movie_id in rows if tmdb_id is not None
+    }
+    return [
+        result.model_copy(update={"movie_id": mapping.get((result.tmdb_id, result.media_type))}) for result in results
+    ]

@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     false,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -22,6 +23,7 @@ class Movie(TimestampMixin, Base):
     __tablename__ = "movies"
     __table_args__ = (
         CheckConstraint("media_type IN ('movie', 'series')", name="media_type"),
+        UniqueConstraint("tmdb_id", "media_type", name="uq_movies_tmdb_media_type"),
         Index(
             "ix_movies_embeddings_hnsw",
             "embeddings",
@@ -32,7 +34,7 @@ class Movie(TimestampMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    tmdb_id: Mapped[int | None] = mapped_column(Integer, unique=True)
+    tmdb_id: Mapped[int | None] = mapped_column(Integer)
     imdb_id: Mapped[str | None] = mapped_column(String(20), unique=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     original_title: Mapped[str | None] = mapped_column(Text)
