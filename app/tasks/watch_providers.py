@@ -38,6 +38,7 @@ def refresh_movie_watch_providers(movie_id: int, region: str, force: bool = Fals
                 api_key=settings.tmdb_api_key.get_secret_value(),
                 access_token=settings.tmdb_access_token.get_secret_value(),
                 language=settings.tmdb_language,
+                requests_per_second=settings.tmdb_rate_limit_per_second,
             ) as client:
                 payload = client.get_watch_providers(movie.tmdb_id, movie.media_type)
         except Exception:

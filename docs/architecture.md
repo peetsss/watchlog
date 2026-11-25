@@ -42,7 +42,7 @@ CSRF and rate limits, DB 1 for the Celery broker.
 | `app/models/` | SQLAlchemy 2 models and table constraints |
 | `app/schemas/` | Pydantic request/response contracts; the source of the OpenAPI document |
 | `app/realtime/` | WebSocket endpoint and the Redis-backed lobby pub/sub hub |
-| `app/tasks/` | Celery tasks for email, guest cleanup and watch-provider refresh |
+| `app/tasks/` | Celery tasks for email, guest cleanup, watch-provider refresh and catalogue sync |
 | `app/clients/` | Outbound HTTP clients for Resend and TMDB |
 | `app/core/` | Config, sessions, CSRF, rate limits, DB engine, errors, logging, security headers |
 | `alembic/` | Versioned schema migrations; one head, checked in CI |
@@ -249,6 +249,12 @@ TMDB metadata and JustWatch availability require visible attribution; removing
 it can revoke API access. Availability is regional (`PL` by default) and can
 change.
 
+TMDB rate-limits requests to roughly 40 per second per IP. The sync clients
+pace themselves to `WATCHLOG_TMDB_RATE_LIMIT_PER_SECOND` (10 by default), honour
+`Retry-After` on 409/429 responses and back off on server errors. The backfill
+also honours a per-run request budget so a large import can be spread over
+several runs instead of one long marathon.
+
 ## 10. Background jobs
 
 | Task | Schedule | Purpose |
@@ -260,6 +266,8 @@ change.
 | `guests.cleanup_lobbies` | 15 min | Delete open rooms idle for 24 h |
 | `watch.refresh_stale` | daily 04:00 | Refresh stale group-watchlist availability |
 | `watch.prefetch_active_finalists` | 2 min | Warm availability for live final rounds |
+| `catalog.sync_recent_movies` | daily 05:15 | Discover newly released movies, insert new, refresh scores |
+| `catalog.sync_recent_series` | daily 05:25 | Discover newly premiered series, insert new, refresh scores |
 
 Workers initialise their own settings, logging, Sentry and sync SQLAlchemy
 engine per process. Results are ignored; state lives in Postgres.
@@ -308,12 +316,22 @@ fresh deploy.
 ```bash
 just ingest --dry-run                 # parse the TMDB CSV without writing
 just ingest --min-votes 50 --limit 50000
+just sync-catalog --dry-run           # show the release-date gap and counts
+just sync-catalog                     # fill the gap, month by month, resumable
 just watch-providers --scope popular --limit 500
 just seed                             # development only
 ```
 
 - `ingest_tmdb.py` reads the bundled-format TMDB CSV. The 582 MB file is not in
   the Docker build context, so upload it and mount it when importing on a server.
+- `sync_catalog.py` fills the gap between the newest release date in the
+  catalogue and today: discovery is paginated and split when a month exceeds
+  TMDB's per-query result cap, and only `Released` titles with an overview are
+  imported. `--min-votes` keeps zero-vote noise out (0 by default, matching the
+  daily job's `WATCHLOG_TMDB_SYNC_MIN_VOTE_COUNT`), and `--max-requests`
+  spreads a large backfill over several runs; the daily beat job keeps the
+  catalogue current afterwards. The CSV import is movies-only, so run the
+  backfill once after a fresh import.
 - `copy_movies.py` copies the catalogue from a legacy database; it is kept for
   migrations, not for normal deploys.
 - `embed_movies.py` fills `movies.embeddings`. Retrieval is not part of this

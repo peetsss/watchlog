@@ -172,7 +172,11 @@ def main() -> None:
     existing: set[int] = set()
     if not args.dry_run:
         with Session(engine) as session:
-            existing = {int(value) for value in session.scalars(select(Movie.tmdb_id)).all() if value is not None}
+            existing = {
+                int(value)
+                for value in session.scalars(select(Movie.tmdb_id).where(Movie.media_type == "movie")).all()
+                if value is not None
+            }
 
     processed = submitted = skipped_filtered = skipped_malformed = skipped_existing = 0
     batch: list[Movie] = []
