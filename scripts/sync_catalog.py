@@ -51,6 +51,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--until", type=date.fromisoformat, default=None)
     parser.add_argument("--max-pages", type=int, default=DEFAULT_MAX_PAGES)
     parser.add_argument(
+        "--min-votes",
+        type=int,
+        default=0,
+        help="only import titles with at least this many TMDB votes (0 imports everything)",
+    )
+    parser.add_argument(
         "--max-requests",
         type=int,
         default=DEFAULT_MAX_REQUESTS,
@@ -104,7 +110,7 @@ def main() -> None:
                 for start, end in iter_month_windows(since, until):
                     if budgeted.exhausted:
                         break
-                    discovered = discover_window(budgeted, args.media_type, start, end, args.max_pages)
+                    discovered = discover_window(budgeted, args.media_type, start, end, args.max_pages, args.min_votes)
                     if discovered is None:
                         print(f"{start}..{end}: discovery unavailable")
                         continue
@@ -125,6 +131,7 @@ def main() -> None:
                     end,
                     max_pages=args.max_pages,
                     refresh_existing=False,
+                    min_votes=args.min_votes,
                 )
                 _print_month_stats(start, end, stats)
                 if budgeted.exhausted:

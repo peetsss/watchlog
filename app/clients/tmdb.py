@@ -253,11 +253,20 @@ class SyncTMDBWatchProviderClient(_SyncTMDBBase):
 
 
 class SyncTMDBClient(_SyncTMDBBase):
-    def discover(self, media_type: str, start: date, end: date, page: int = 1) -> dict[str, object] | None:
+    def discover(
+        self,
+        media_type: str,
+        start: date,
+        end: date,
+        page: int = 1,
+        min_votes: int = 0,
+    ) -> dict[str, object] | None:
         if media_type not in {"movie", "series"}:
             raise ValueError(f"Unsupported media type: {media_type}")
         if page < 1:
             raise ValueError(f"page must be at least 1, got {page}")
+        if min_votes < 0:
+            raise ValueError(f"min_votes must not be negative, got {min_votes}")
         date_field = "first_air_date" if media_type == "series" else "primary_release_date"
         endpoint = "/discover/tv" if media_type == "series" else "/discover/movie"
         params: dict[str, object] = {
@@ -267,6 +276,8 @@ class SyncTMDBClient(_SyncTMDBBase):
             "include_adult": False,
             "page": page,
         }
+        if min_votes > 0:
+            params["vote_count.gte"] = min_votes
         return self._get(endpoint, params)
 
     def get_details(self, tmdb_id: int, media_type: str) -> dict[str, object] | None:

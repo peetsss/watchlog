@@ -201,6 +201,35 @@ def test_sync_discover_rejects_unknown_media_type() -> None:
             client.discover("podcast", date(2026, 1, 1), date(2026, 1, 2))
 
 
+def test_sync_discover_includes_the_vote_threshold_when_set() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params["vote_count.gte"] == "10"
+        return httpx.Response(200, json={"results": [], "total_pages": 0})
+
+    with SyncTMDBClient(api_key="key", transport=httpx.MockTransport(handler)) as client:
+        payload = client.discover("movie", date(2026, 1, 1), date(2026, 1, 31), min_votes=10)
+
+    assert payload == {"results": [], "total_pages": 0}
+
+
+def test_sync_discover_omits_the_vote_filter_by_default() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert "vote_count.gte" not in request.url.params
+        return httpx.Response(200, json={"results": [], "total_pages": 0})
+
+    with SyncTMDBClient(api_key="key", transport=httpx.MockTransport(handler)) as client:
+        client.discover("movie", date(2026, 1, 1), date(2026, 1, 31))
+
+
+def test_sync_discover_rejects_negative_min_votes() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={})
+
+    with SyncTMDBClient(api_key="key", transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ValueError):
+            client.discover("movie", date(2026, 1, 1), date(2026, 1, 2), min_votes=-1)
+
+
 def test_sync_get_details_uses_the_media_type_endpoints() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path in {"/3/movie/42", "/3/tv/42"}

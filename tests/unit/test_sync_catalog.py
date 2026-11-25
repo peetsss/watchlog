@@ -31,4 +31,11 @@ def test_parser_defaults() -> None:
     assert args.until is None
     assert args.max_pages == 500
     assert args.max_requests == 10_000
+    assert args.min_votes == 0
     assert args.dry_run is False
+
+
+def test_parser_accepts_min_votes() -> None:
+    args = build_parser().parse_args(["--min-votes", "10"])
+
+    assert args.min_votes == 10

@@ -30,6 +30,7 @@ def _sync_recent(media_type: MediaType) -> dict[str, int]:
                 today,
                 max_pages=settings.tmdb_sync_max_pages,
                 refresh_existing=True,
+                min_votes=settings.tmdb_sync_min_vote_count,
             )
     logger.info(
         "TMDB catalogue sync for %s: discovered=%s inserted=%s updated=%s skipped=%s failed=%s",

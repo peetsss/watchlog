@@ -33,7 +33,7 @@ DISCOVER_ITEM = {"id": 11, "vote_average": 7.2, "vote_count": 20, "popularity": 
 class FakeSyncClient:
     def __init__(self, details_override: dict[str, object] | None = None) -> None:
         self.details_override = details_override
-        self.windows: list[tuple[str, date, date]] = []
+        self.windows: list[tuple[str, date, date, int]] = []
 
     def __enter__(self) -> FakeSyncClient:
         return self
@@ -41,8 +41,15 @@ class FakeSyncClient:
     def __exit__(self, *args: object) -> None:
         return None
 
-    def discover(self, media_type: str, start: date, end: date, page: int = 1) -> dict[str, object]:
-        self.windows.append((media_type, start, end))
+    def discover(
+        self,
+        media_type: str,
+        start: date,
+        end: date,
+        page: int = 1,
+        min_votes: int = 0,
+    ) -> dict[str, object]:
+        self.windows.append((media_type, start, end, min_votes))
         return {"total_pages": 1, "results": [DISCOVER_ITEM]}
 
     def get_details(self, tmdb_id: int, media_type: str) -> dict[str, object]:
@@ -84,7 +91,7 @@ def test_sync_recent_movies_inserts_new_movies(
     assert movie is not None
     assert movie.title == "Fresh Release"
     today = datetime.now(UTC).date()
-    assert client.windows == [("movie", today - timedelta(days=7), today)]
+    assert client.windows == [("movie", today - timedelta(days=7), today, 0)]
 
 
 def test_sync_recent_movies_refreshes_existing_rows(
@@ -133,3 +140,24 @@ def test_sync_recent_skips_unreleased_titles(
 
     assert result == {"discovered": 1, "inserted": 0, "updated": 0, "skipped": 1, "failed": 0}
     assert sync_session.scalar(select(Movie).where(Movie.tmdb_id == 11, Movie.media_type == "movie")) is None
+
+
+def test_sync_recent_passes_the_vote_threshold_from_settings(
+    sync_session: Session,
+    test_settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = FakeSyncClient()
+    settings = test_settings.model_copy(update={"tmdb_sync_min_vote_count": 5})
+    monkeypatch.setattr("app.tasks.catalog.SyncTMDBClient", lambda **_: client)
+    monkeypatch.setattr("app.tasks.catalog.get_settings", lambda: settings)
+    init_worker_runtime(test_settings)
+    try:
+        sync_recent_movies.apply().get()
+    finally:
+        dispose_worker_runtime()
+
+    assert len(client.windows) == 1
+    media_type, start, end, min_votes = client.windows[0]
+    assert media_type == "movie"
+    assert min_votes == 5

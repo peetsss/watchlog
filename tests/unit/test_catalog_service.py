@@ -36,12 +36,19 @@ SERIES_DETAILS = {
 
 class FakeSyncClient:
     def __init__(self) -> None:
-        self.discover_calls: list[tuple[str, date, date, int]] = []
+        self.discover_calls: list[tuple[str, date, date, int, int]] = []
         self.discover_payloads: dict[tuple[str, date, date, int], dict[str, object] | None] = {}
         self.details: dict[tuple[int, str], dict[str, object] | None] = {}
 
-    def discover(self, media_type: str, start: date, end: date, page: int = 1) -> dict[str, object] | None:
-        self.discover_calls.append((media_type, start, end, page))
+    def discover(
+        self,
+        media_type: str,
+        start: date,
+        end: date,
+        page: int = 1,
+        min_votes: int = 0,
+    ) -> dict[str, object] | None:
+        self.discover_calls.append((media_type, start, end, page, min_votes))
         return self.discover_payloads.get((media_type, start, end, page))
 
     def get_details(self, tmdb_id: int, media_type: str) -> dict[str, object] | None:
@@ -108,9 +115,21 @@ def test_sync_catalogue_range_splits_incomplete_windows(sync_session: Session) -
 
     assert stats.discovered == 2
     assert stats.inserted == 2
-    assert ("movie", date(2026, 1, 1), date(2026, 1, 2), 1) in client.discover_calls
-    assert ("movie", date(2026, 1, 1), date(2026, 1, 1), 1) in client.discover_calls
-    assert ("movie", date(2026, 1, 2), date(2026, 1, 2), 1) in client.discover_calls
+    assert ("movie", date(2026, 1, 1), date(2026, 1, 2), 1, 0) in client.discover_calls
+    assert ("movie", date(2026, 1, 1), date(2026, 1, 1), 1, 0) in client.discover_calls
+    assert ("movie", date(2026, 1, 2), date(2026, 1, 2), 1, 0) in client.discover_calls
+
+
+def test_discover_window_passes_min_votes_to_the_client() -> None:
+    client = FakeSyncClient()
+    client.discover_payloads = {
+        ("movie", date(2026, 1, 1), date(2026, 1, 31), 1): {"total_pages": 1, "results": []},
+    }
+
+    window = discover_window(client, "movie", date(2026, 1, 1), date(2026, 1, 31), min_votes=10)
+
+    assert window is not None
+    assert client.discover_calls == [("movie", date(2026, 1, 1), date(2026, 1, 31), 1, 10)]
 
 
 def test_import_catalogue_items_inserts_released_and_skips_the_rest(sync_session: Session) -> None:

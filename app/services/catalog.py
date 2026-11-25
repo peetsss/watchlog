@@ -88,8 +88,9 @@ def discover_window(
     start: date,
     end: date,
     max_pages: int = DEFAULT_MAX_DISCOVER_PAGES,
+    min_votes: int = 0,
 ) -> DiscoverWindowResult | None:
-    first = client.discover(media_type, start, end, page=1)
+    first = client.discover(media_type, start, end, page=1, min_votes=min_votes)
     if first is None:
         return None
     total_pages = _as_int(first.get("total_pages")) or 0
@@ -97,7 +98,7 @@ def discover_window(
     seen: set[int] = set()
     fetched_pages = 0
     for page in range(1, min(total_pages, max_pages) + 1):
-        payload = first if page == 1 else client.discover(media_type, start, end, page=page)
+        payload = first if page == 1 else client.discover(media_type, start, end, page=page, min_votes=min_votes)
         if payload is None:
             break
         fetched_pages += 1
@@ -185,16 +186,17 @@ def sync_catalogue_range(
     end: date,
     max_pages: int = DEFAULT_MAX_DISCOVER_PAGES,
     refresh_existing: bool = True,
+    min_votes: int = 0,
 ) -> CatalogueImportStats:
     if start > end:
         raise ValueError(f"Start date {start} must not be after end date {end}")
-    window = discover_window(client, media_type, start, end, max_pages)
+    window = discover_window(client, media_type, start, end, max_pages, min_votes)
     if window is None:
         return CatalogueImportStats()
     if not window.complete and start != end:
         left, right = split_window(start, end)
-        left_stats = sync_catalogue_range(session, client, media_type, *left, max_pages, refresh_existing)
-        right_stats = sync_catalogue_range(session, client, media_type, *right, max_pages, refresh_existing)
+        left_stats = sync_catalogue_range(session, client, media_type, *left, max_pages, refresh_existing, min_votes)
+        right_stats = sync_catalogue_range(session, client, media_type, *right, max_pages, refresh_existing, min_votes)
         return left_stats + right_stats
     if not window.complete:
         logger.warning(

@@ -327,9 +327,11 @@ just seed                             # development only
 - `sync_catalog.py` fills the gap between the newest release date in the
   catalogue and today: discovery is paginated and split when a month exceeds
   TMDB's per-query result cap, and only `Released` titles with an overview are
-  imported. `--max-requests` spreads a large backfill over several runs; the
-  daily beat job keeps the catalogue current afterwards. The CSV import is
-  movies-only, so run the backfill once after a fresh import.
+  imported. `--min-votes` keeps zero-vote noise out (0 by default, matching the
+  daily job's `WATCHLOG_TMDB_SYNC_MIN_VOTE_COUNT`), and `--max-requests`
+  spreads a large backfill over several runs; the daily beat job keeps the
+  catalogue current afterwards. The CSV import is movies-only, so run the
+  backfill once after a fresh import.
 - `copy_movies.py` copies the catalogue from a legacy database; it is kept for
   migrations, not for normal deploys.
 - `embed_movies.py` fills `movies.embeddings`. Retrieval is not part of this
