@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     )
     tmdb_language: str = "en-US"
     tmdb_rate_limit_per_second: float = Field(10.0, gt=0)
+    tmdb_sync_lookback_days: int = Field(7, gt=0)
+    tmdb_sync_max_pages: int = Field(25, ge=1)
     default_region: str = "PL"
     supported_regions: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["PL"])
     watch_provider_ttl_seconds: int = Field(24 * 60 * 60, gt=0)

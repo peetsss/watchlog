@@ -44,6 +44,15 @@ class CatalogueImportStats:
             failed=self.failed + other.failed,
         )
 
+    def to_dict(self) -> dict[str, int]:
+        return {
+            "discovered": self.discovered,
+            "inserted": self.inserted,
+            "updated": self.updated,
+            "skipped": self.skipped,
+            "failed": self.failed,
+        }
+
 
 def should_import(details: dict[str, object], media_type: MediaType) -> bool:
     if details.get("adult") is True:
